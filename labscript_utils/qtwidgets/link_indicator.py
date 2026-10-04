@@ -49,6 +49,8 @@ class LinkIndicator(QtWidgets.QWidget):
         Called on the GUI thread as ``on_answer(reachable, answer)`` after each
         answer is shown: ``True`` and what ``probe`` returned, or ``False`` and the
         exception's message.
+    status_width : int, optional
+        The indicator's fixed width, in pixels. A longer status is elided.
     parent : QWidget, optional
 
     Examples
@@ -58,13 +60,23 @@ class LinkIndicator(QtWidgets.QWidget):
     >>> indicator.start()
     """
 
-    def __init__(self, name, probe, host=None, interval=2, on_answer=None, parent=None):
+    def __init__(
+        self,
+        name,
+        probe,
+        host=None,
+        interval=2,
+        on_answer=None,
+        status_width=220,
+        parent=None,
+    ):
         super().__init__(parent)
         self.name = name
         self.probe = probe
         self.host = host
         self.interval = interval
         self.on_answer = on_answer
+        self.setFixedWidth(status_width)
         self.title_label = QtWidgets.QLabel(name)
         self.icon_label = QtWidgets.QLabel()
         self.text_label = QtWidgets.QLabel()
@@ -138,14 +150,6 @@ class LinkIndicator(QtWidgets.QWidget):
         self.reason = reason
         self._redraw()
 
-    def sizeHint(self):
-        # elide_label hints no width for the status, so a layout giving this its hint
-        # would show none of it. The minimum, from the layout, stays small, so the
-        # status is still elided when there is less room.
-        hint = super().sizeHint()
-        width = max(hint.width(), self.text_label.sizeHint().width())
-        return QtCore.QSize(width, hint.height())
-
     def _run(self):
         while not self.stopped.is_set():
             try:
@@ -196,4 +200,3 @@ class LinkIndicator(QtWidgets.QWidget):
         self.text_label.setText(' '.join(text.splitlines()))
         self.text_label.setToolTip(tooltip if self.disabled else text)
         self.setEnabled(not self.disabled)
-        self.updateGeometry()
