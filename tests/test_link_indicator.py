@@ -41,11 +41,11 @@ def test_indicator_follows_a_server_answering_and_then_gone():
         # collected takes every widget built under it down with it.
         _qapplication = QApplication([])
     server = ZMQServer()
-    client = ZMQClient(host='localhost', port=server.port, timeout=1)
+    client = ZMQClient(host='localhost', port=server.port)
     icon_label, text_label = QLabel(), QLabel()
     indicator = LinkIndicator(icon_label, 'Shots', text_label, host='localhost')
     monitor = LinkMonitor(
-        client.say_hello,
+        lambda: client.say_hello(timeout=1),
         lambda ok, answer: indicator.show_link(ok, None if ok else answer),
         interval=0.1,
     )

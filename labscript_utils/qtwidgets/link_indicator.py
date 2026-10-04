@@ -112,8 +112,9 @@ class LinkMonitor:
     Parameters
     ----------
     probe : callable
-        Called with no arguments in a background thread. The caller supplies it, for
-        example ``RunmanagerClient(timeout=1).say_hello`` or
+        Called with no arguments in a background thread. The caller supplies it,
+        with a short deadline because an outage shows only once the probe fails:
+        for example ``lambda: client.say_hello(timeout=1)`` or
         ``BlacsClient(timeout=1).get_status``.
     on_status : callable
         Called on the GUI thread as ``on_status(reachable, answer)``. A probe that
@@ -125,7 +126,7 @@ class LinkMonitor:
     Examples
     --------
     >>> monitor = LinkMonitor(
-    ...     client.say_hello,
+    ...     lambda: client.say_hello(timeout=1),
     ...     lambda ok, answer: indicator.show_link(ok, None if ok else answer),
     ... )
     >>> monitor.start()
