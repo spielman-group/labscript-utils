@@ -14,7 +14,7 @@
 """A link indicator following a real server as it answers and then goes away."""
 import time
 
-from qtutils.qt.QtWidgets import QApplication, QLabel
+from qtutils.qt.QtWidgets import QApplication, QHBoxLayout, QLabel, QWidget
 
 from labscript_utils.ls_zprocess import ZMQClient, ZMQServer
 from labscript_utils.qtwidgets.link_indicator import LinkIndicator, LinkMonitor
@@ -43,6 +43,8 @@ def test_indicator_follows_a_server_answering_and_then_gone():
     server = ZMQServer()
     client = ZMQClient(host='localhost', port=server.port)
     icon_label, text_label = QLabel(), QLabel()
+    window = QWidget()
+    QHBoxLayout(window).addWidget(text_label)
     indicator = LinkIndicator(icon_label, 'Shots', text_label, host='localhost')
     monitor = LinkMonitor(
         lambda: client.say_hello(timeout=1),

@@ -17,15 +17,17 @@ import threading
 # Imported for its side effect of registering the :/qtutils/fugue icons.
 import qtutils.icons
 from qtutils import inmain_decorator, inmain_later
-from qtutils.qt import QtCore, QtGui
+from qtutils.qt import QtCore, QtGui, QtWidgets
+
+from labscript_utils.qtwidgets.elide_label import elide_label
 
 
 class LinkIndicator:
     """An icon and tooltip that show whether a remote application is answering.
 
-    It shows a checking state until the first call to ``show_link``. ``show_link``
-    and ``show_state`` may be called from any thread, and take effect when the GUI
-    thread next processes events, even when called on it.
+    It shows a checking state until the first call to ``show_link``. ``show_link``,
+    ``show_state`` and ``show_disabled`` may be called from any thread, and take
+    effect when the GUI thread next processes events, even when called on it.
 
     Parameters
     ----------
@@ -34,7 +36,8 @@ class LinkIndicator:
     name : str
         What the tooltip calls the remote application.
     text_label : QLabel, optional
-        Displays a short status beside the icon.
+        Displays a short status beside the icon, on one line elided to the room it
+        has, with the whole status shown on hover. It must be in a QBoxLayout.
     host : str, optional
         The machine the remote application runs on, given in the tooltip.
     """
@@ -44,10 +47,20 @@ class LinkIndicator:
         self.name = name
         self.text_label = text_label
         self.host = host
+        self.disabled = False
         self.reachable = None
         self.reason = None
         self.state = None
         self.details = ()
+        if text_label is not None:
+            # elide_label takes only an unwrapped label, and the layout holding it,
+            # which a .ui file often nests inside another.
+            text_label.setWordWrap(False)
+            layouts = text_label.parentWidget().findChildren(QtWidgets.QBoxLayout)
+            layout = next(
+                (layout for layout in layouts if layout.indexOf(text_label) != -1), None
+            )
+            elide_label(text_label, layout, QtCore.Qt.TextElideMode.ElideRight)
         self._redraw()
 
     @inmain_decorator(wait_for_return=False)
@@ -61,6 +74,7 @@ class LinkIndicator:
         reason : str, optional
             Why it did not, given in the tooltip.
         """
+        self.disabled = False
         self.reachable = bool(reachable)
         self.reason = reason
         self._redraw()
@@ -74,9 +88,9 @@ class LinkIndicator:
 
         Parameters
         ----------
-        state : str
-            Shown in the text label while the application answers. Until one is
-            given, the label reads ``Responding``.
+        state : str or None
+            Shown in the text label while the application answers. While it is
+            None, the label reads ``Responding``.
         details : iterable of str, optional
             Lines added to the tooltip while the application answers.
         """
@@ -84,9 +98,27 @@ class LinkIndicator:
         self.details = tuple(details)
         self._redraw()
 
+    @inmain_decorator(wait_for_return=False)
+    def show_disabled(self, reason=None):
+        """Grey the indicator out, with no icon, until the next ``show_link``.
+
+        Parameters
+        ----------
+        reason : str, optional
+            Why the remote application is not being checked, given in the tooltip.
+        """
+        self.disabled = True
+        self.reason = reason
+        self._redraw()
+
     def _redraw(self):
         host_lines = [] if self.host is None else [f'Host: {self.host}']
-        if self.reachable is None:
+        reason_lines = [] if self.reason is None else [self.reason]
+        if self.disabled:
+            icon = None
+            text = 'Disabled'
+            lines = [f'Not checking {self.name}', *reason_lines]
+        elif self.reachable is None:
             icon = ':/qtutils/fugue/hourglass'
             text = 'Checking...'
             lines = [f'Checking {self.name}...']
@@ -97,13 +129,18 @@ class LinkIndicator:
         else:
             icon = ':/qtutils/fugue/exclamation'
             text = 'Not responding'
-            lines = [f'{self.name} is not responding', *host_lines]
-            if self.reason is not None:
-                lines.append(self.reason)
-        self.icon_label.setPixmap(QtGui.QIcon(icon).pixmap(QtCore.QSize(16, 16)))
+            lines = [f'{self.name} is not responding', *host_lines, *reason_lines]
+        if icon is None:
+            self.icon_label.clear()
+        else:
+            self.icon_label.setPixmap(QtGui.QIcon(icon).pixmap(QtCore.QSize(16, 16)))
         self.icon_label.setToolTip('\n'.join(lines))
+        self.icon_label.setEnabled(not self.disabled)
         if self.text_label is not None:
-            self.text_label.setText(text)
+            # elide_label shows one line, so a multi-line state is joined into one.
+            self.text_label.setText(' '.join(text.splitlines()))
+            self.text_label.setToolTip(text)
+            self.text_label.setEnabled(not self.disabled)
 
 
 class LinkMonitor:
