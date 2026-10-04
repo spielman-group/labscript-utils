@@ -122,7 +122,11 @@ class Splash(QtWidgets.QFrame):
         self.text = text
         self.label.setText(text)
         self._paint_pending = True
-        while self._paint_pending:
+        # Wait for the new text to be painted before the caller blocks, but only
+        # while the window can be: macOS paints no window covered by others, so the
+        # wait would last until the application was brought to the front.
+        window = self.windowHandle()
+        while self._paint_pending and window is not None and window.isExposed():
             QtCore.QCoreApplication.processEvents(QtCore.QEventLoop.ProcessEventsFlag.AllEvents)
             QtCore.QCoreApplication.sendPostedEvents()
 
