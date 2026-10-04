@@ -23,19 +23,19 @@ from labscript_utils.qtwidgets.elide_label import elide_label
 
 
 class LinkIndicator(QtWidgets.QWidget):
-    """An icon and status that show whether a remote application is answering.
+    """A remote application's name, link icon and status, showing whether it answers.
 
-    Once started, it asks the application with ``probe`` on a background thread,
-    showing checking until the first answer; one never started can be shown
-    disabled instead. The status is one line, elided to the room it has, with the
-    whole status shown on hover. ``show_state`` and ``show_disabled`` may be called
-    from any thread, and take effect when the GUI thread next processes events,
-    even when called on it.
+    The name and icon share a row, with the status under them. Once started, it
+    asks the application with ``probe`` on a background thread, showing checking
+    until the first answer; one never started can be shown disabled instead. The
+    status is one line, elided to the room it has, with the whole status shown on
+    hover. ``show_state`` and ``show_disabled`` may be called from any thread, and
+    take effect when the GUI thread next processes events, even when called on it.
 
     Parameters
     ----------
     name : str
-        What the tooltip calls the remote application.
+        The remote application, as the title and the tooltip name it.
     probe : callable
         Called with no arguments in a background thread. A return shows the
         application answering, and an exception shows it not answering, so give it
@@ -65,14 +65,19 @@ class LinkIndicator(QtWidgets.QWidget):
         self.host = host
         self.interval = interval
         self.on_answer = on_answer
+        self.title_label = QtWidgets.QLabel(name)
         self.icon_label = QtWidgets.QLabel()
         self.text_label = QtWidgets.QLabel()
         self.text_label.setTextInteractionFlags(
             QtCore.Qt.TextInteractionFlag.TextSelectableByMouse
         )
-        layout = QtWidgets.QHBoxLayout(self)
+        title_row = QtWidgets.QHBoxLayout()
+        title_row.addWidget(self.title_label)
+        title_row.addWidget(self.icon_label)
+        title_row.addStretch()
+        layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.icon_label)
+        layout.addLayout(title_row)
         layout.addWidget(self.text_label)
         elide_label(self.text_label, layout, QtCore.Qt.TextElideMode.ElideRight)
         self.disabled = False
@@ -133,6 +138,14 @@ class LinkIndicator(QtWidgets.QWidget):
         self.reason = reason
         self._redraw()
 
+    def sizeHint(self):
+        # elide_label hints no width for the status, so a layout giving this its hint
+        # would show none of it. The minimum, from the layout, stays small, so the
+        # status is still elided when there is less room.
+        hint = super().sizeHint()
+        width = max(hint.width(), self.text_label.sizeHint().width())
+        return QtCore.QSize(width, hint.height())
+
     def _run(self):
         while not self.stopped.is_set():
             try:
@@ -183,3 +196,4 @@ class LinkIndicator(QtWidgets.QWidget):
         self.text_label.setText(' '.join(text.splitlines()))
         self.text_label.setToolTip(tooltip if self.disabled else text)
         self.setEnabled(not self.disabled)
+        self.updateGeometry()
