@@ -14,10 +14,10 @@
 """A link indicator following a real server as it answers and then goes away."""
 import time
 
-from qtutils.qt.QtWidgets import QApplication, QHBoxLayout, QLabel, QWidget
+from qtutils.qt.QtWidgets import QApplication
 
 from labscript_utils.ls_zprocess import ZMQClient, ZMQServer
-from labscript_utils.qtwidgets.link_indicator import LinkIndicator, LinkMonitor
+from labscript_utils.qtwidgets.link_indicator import LinkIndicator
 
 
 _qapplication = None
@@ -42,20 +42,21 @@ def test_indicator_follows_a_server_answering_and_then_gone():
         _qapplication = QApplication([])
     server = ZMQServer()
     client = ZMQClient(host='localhost', port=server.port)
-    icon_label, text_label = QLabel(), QLabel()
-    window = QWidget()
-    QHBoxLayout(window).addWidget(text_label)
-    indicator = LinkIndicator(icon_label, 'Shots', text_label, host='localhost')
-    monitor = LinkMonitor(
+    answers = []
+    indicator = LinkIndicator(
+        'Shots',
         lambda: client.say_hello(timeout=1),
-        lambda ok, answer: indicator.show_link(ok, None if ok else answer),
+        host='localhost',
         interval=0.1,
+        on_answer=lambda *answer: answers.append(answer),
     )
-    monitor.start()
+    icon_label, text_label = indicator.icon_label, indicator.text_label
+    indicator.start()
     try:
         try:
             wait_until(lambda: text_label.text() == 'Responding')
             assert icon_label.toolTip() == 'Shots is responding\nHost: localhost'
+            assert answers[0] == (True, 'hello')
         finally:
             server.shutdown()
         wait_until(lambda: text_label.text() == 'Not responding')
@@ -63,4 +64,4 @@ def test_indicator_follows_a_server_answering_and_then_gone():
             'Shots is not responding\nHost: localhost\n'
         )
     finally:
-        monitor.shutdown()
+        indicator.shutdown()

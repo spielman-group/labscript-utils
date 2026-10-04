@@ -11,7 +11,7 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-"""Indicator and monitor that show whether a remote application is answering."""
+"""A widget that keeps asking a remote application, and shows whether it answers."""
 import threading
 
 # Imported for its side effect of registering the :/qtutils/fugue icons.
@@ -22,62 +22,79 @@ from qtutils.qt import QtCore, QtGui, QtWidgets
 from labscript_utils.qtwidgets.elide_label import elide_label
 
 
-class LinkIndicator:
-    """An icon and tooltip that show whether a remote application is answering.
+class LinkIndicator(QtWidgets.QWidget):
+    """An icon and status that show whether a remote application is answering.
 
-    It shows a checking state until the first call to ``show_link``. ``show_link``,
-    ``show_state`` and ``show_disabled`` may be called from any thread, and take
-    effect when the GUI thread next processes events, even when called on it.
+    Once started, it asks the application with ``probe`` on a background thread,
+    showing checking until the first answer; one never started can be shown
+    disabled instead. The status is one line, elided to the room it has, with the
+    whole status shown on hover. ``show_state`` and ``show_disabled`` may be called
+    from any thread, and take effect when the GUI thread next processes events,
+    even when called on it.
 
     Parameters
     ----------
-    icon_label : QLabel
-        Displays the icon and carries the tooltip.
     name : str
         What the tooltip calls the remote application.
-    text_label : QLabel, optional
-        Displays a short status beside the icon, on one line elided to the room it
-        has, with the whole status shown on hover. It must be in a QBoxLayout.
+    probe : callable
+        Called with no arguments in a background thread. A return shows the
+        application answering, and an exception shows it not answering, so give it
+        a short deadline: for example ``lambda: client.say_hello(timeout=1)`` or
+        ``BlacsClient(timeout=1).get_status``.
     host : str, optional
         The machine the remote application runs on, given in the tooltip.
+    interval : float, optional
+        Seconds to wait after each probe before the next.
+    on_answer : callable, optional
+        Called on the GUI thread as ``on_answer(reachable, answer)`` after each
+        answer is shown: ``True`` and what ``probe`` returned, or ``False`` and the
+        exception's message.
+    parent : QWidget, optional
+
+    Examples
+    --------
+    >>> indicator = LinkIndicator('BLACS', BlacsClient(timeout=1).get_status)
+    >>> ui.blacs_link_layout.addWidget(indicator)
+    >>> indicator.start()
     """
 
-    def __init__(self, icon_label, name, text_label=None, host=None):
-        self.icon_label = icon_label
+    def __init__(self, name, probe, host=None, interval=2, on_answer=None, parent=None):
+        super().__init__(parent)
         self.name = name
-        self.text_label = text_label
+        self.probe = probe
         self.host = host
+        self.interval = interval
+        self.on_answer = on_answer
+        self.icon_label = QtWidgets.QLabel()
+        self.text_label = QtWidgets.QLabel()
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.icon_label)
+        layout.addWidget(self.text_label)
+        elide_label(self.text_label, layout, QtCore.Qt.TextElideMode.ElideRight)
         self.disabled = False
         self.reachable = None
         self.reason = None
         self.state = None
         self.details = ()
-        if text_label is not None:
-            # elide_label takes only an unwrapped label, and the layout holding it,
-            # which a .ui file often nests inside another.
-            text_label.setWordWrap(False)
-            layouts = text_label.parentWidget().findChildren(QtWidgets.QBoxLayout)
-            layout = next(
-                (layout for layout in layouts if layout.indexOf(text_label) != -1), None
-            )
-            elide_label(text_label, layout, QtCore.Qt.TextElideMode.ElideRight)
+        self.stopped = threading.Event()
+        self.probe_thread = threading.Thread(target=self._run, daemon=True)
         self._redraw()
 
-    @inmain_decorator(wait_for_return=False)
-    def show_link(self, reachable, reason=None):
-        """Show whether the remote application is answering.
+    def start(self):
+        """Start probing, with the first probe at once."""
+        self.probe_thread.start()
 
-        Parameters
-        ----------
-        reachable : bool
-            Whether it answered.
-        reason : str, optional
-            Why it did not, given in the tooltip.
+    def shutdown(self):
+        """Stop probing, without waiting for a probe in flight.
+
+        Called on the GUI thread, it ensures no later answer is shown or passed to
+        ``on_answer``.
         """
-        self.disabled = False
-        self.reachable = bool(reachable)
-        self.reason = reason
-        self._redraw()
+        # Not joined: a probe in flight can take its whole timeout, and the GUI
+        # thread calling this would freeze waiting for it. The daemon thread holds
+        # nothing to flush, and an answer arriving after this is dropped.
+        self.stopped.set()
 
     @inmain_decorator(wait_for_return=False)
     def show_state(self, state, details=()):
@@ -89,8 +106,8 @@ class LinkIndicator:
         Parameters
         ----------
         state : str or None
-            Shown in the text label while the application answers. While it is
-            None, the label reads ``Responding``.
+            Shown as the status while the application answers. While it is None,
+            the status reads ``Responding``.
         details : iterable of str, optional
             Lines added to the tooltip while the application answers.
         """
@@ -100,7 +117,9 @@ class LinkIndicator:
 
     @inmain_decorator(wait_for_return=False)
     def show_disabled(self, reason=None):
-        """Grey the indicator out, with no icon, until the next ``show_link``.
+        """Grey the indicator out, with no icon, until the next answer.
+
+        An indicator that is never started stays disabled.
 
         Parameters
         ----------
@@ -110,6 +129,26 @@ class LinkIndicator:
         self.disabled = True
         self.reason = reason
         self._redraw()
+
+    def _run(self):
+        while not self.stopped.is_set():
+            try:
+                reachable, answer = True, self.probe()
+            except Exception as exc:
+                reachable, answer = False, str(exc)
+            inmain_later(self._show_answer, reachable, answer)
+            self.stopped.wait(self.interval)
+
+    def _show_answer(self, reachable, answer):
+        # Checked here, on the GUI thread, so nothing is shown after shutdown().
+        if self.stopped.is_set():
+            return
+        self.disabled = False
+        self.reachable = reachable
+        self.reason = None if reachable else answer
+        self._redraw()
+        if self.on_answer is not None:
+            self.on_answer(reachable, answer)
 
     def _redraw(self):
         host_lines = [] if self.host is None else [f'Host: {self.host}']
@@ -134,72 +173,10 @@ class LinkIndicator:
             self.icon_label.clear()
         else:
             self.icon_label.setPixmap(QtGui.QIcon(icon).pixmap(QtCore.QSize(16, 16)))
-        self.icon_label.setToolTip('\n'.join(lines))
-        self.icon_label.setEnabled(not self.disabled)
-        if self.text_label is not None:
-            # elide_label shows one line, so a multi-line state is joined into one.
-            self.text_label.setText(' '.join(text.splitlines()))
-            self.text_label.setToolTip(text)
-            self.text_label.setEnabled(not self.disabled)
-
-
-class LinkMonitor:
-    """Probe a remote application on an interval, and report whether it answers.
-
-    Parameters
-    ----------
-    probe : callable
-        Called with no arguments in a background thread. The caller supplies it,
-        with a short deadline because an outage shows only once the probe fails:
-        for example ``lambda: client.say_hello(timeout=1)`` or
-        ``BlacsClient(timeout=1).get_status``.
-    on_status : callable
-        Called on the GUI thread as ``on_status(reachable, answer)``. A probe that
-        returns is reported as ``(True, answer)``, and one that raises as
-        ``(False, message)``.
-    interval : float, optional
-        Seconds to wait after each probe before the next.
-
-    Examples
-    --------
-    >>> monitor = LinkMonitor(
-    ...     lambda: client.say_hello(timeout=1),
-    ...     lambda ok, answer: indicator.show_link(ok, None if ok else answer),
-    ... )
-    >>> monitor.start()
-    """
-
-    def __init__(self, probe, on_status, interval=2):
-        self.probe = probe
-        self.on_status = on_status
-        self.interval = interval
-        self.stopped = threading.Event()
-        self.thread = threading.Thread(target=self._run, daemon=True)
-
-    def start(self):
-        """Start probing, with the first probe at once."""
-        self.thread.start()
-
-    def shutdown(self):
-        """Stop probing, without waiting for a probe in flight.
-
-        Called on the GUI thread, it ensures ``on_status`` is not called afterwards.
-        """
-        # Not joined: a probe in flight can take its whole timeout, and the GUI
-        # thread calling this would freeze waiting for it. The daemon thread holds
-        # nothing to flush, and an answer arriving after this is dropped.
-        self.stopped.set()
-
-    def _run(self):
-        while not self.stopped.is_set():
-            try:
-                reachable, answer = True, self.probe()
-            except Exception as exc:
-                reachable, answer = False, str(exc)
-            inmain_later(self._report, reachable, answer)
-            self.stopped.wait(self.interval)
-
-    def _report(self, reachable, answer):
-        # Checked here, on the GUI thread, so nothing is reported after shutdown().
-        if not self.stopped.is_set():
-            self.on_status(reachable, answer)
+        tooltip = '\n'.join(lines)
+        self.icon_label.setToolTip(tooltip)
+        # elide_label shows one line, so a multi-line state is joined into one. With
+        # no icon to hover, a disabled indicator's text carries the tooltip instead.
+        self.text_label.setText(' '.join(text.splitlines()))
+        self.text_label.setToolTip(tooltip if self.disabled else text)
+        self.setEnabled(not self.disabled)
