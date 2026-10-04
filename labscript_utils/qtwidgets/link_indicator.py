@@ -67,6 +67,9 @@ class LinkIndicator(QtWidgets.QWidget):
         self.on_answer = on_answer
         self.icon_label = QtWidgets.QLabel()
         self.text_label = QtWidgets.QLabel()
+        self.text_label.setTextInteractionFlags(
+            QtCore.Qt.TextInteractionFlag.TextSelectableByMouse
+        )
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.icon_label)
