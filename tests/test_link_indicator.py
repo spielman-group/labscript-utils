@@ -16,7 +16,7 @@ import time
 
 from qtutils.qt.QtWidgets import QApplication
 
-from labscript_utils.ls_zprocess import ZMQClient, ZMQServer
+from labscript_utils.ls_zprocess import ZMQServer
 from labscript_utils.qtwidgets.link_indicator import LinkIndicator
 
 
@@ -41,12 +41,11 @@ def test_indicator_follows_a_server_answering_and_then_gone():
         # collected takes every widget built under it down with it.
         _qapplication = QApplication([])
     server = ZMQServer()
-    client = ZMQClient(host='localhost', port=server.port)
     answers = []
     indicator = LinkIndicator(
         'Shots',
-        lambda: client.say_hello(timeout=1),
-        host='localhost',
+        'localhost',
+        server.port,
         interval=0.1,
         on_answer=lambda *answer: answers.append(answer),
     )
