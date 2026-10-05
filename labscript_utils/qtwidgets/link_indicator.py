@@ -12,6 +12,7 @@
 #                                                                   #
 #####################################################################
 """A widget that keeps asking a remote application, and shows whether it answers."""
+import functools
 import threading
 
 # Imported for its side effect of registering the :/qtutils/fugue icons.
@@ -19,6 +20,7 @@ import qtutils.icons
 from qtutils import inmain_decorator, inmain_later
 from qtutils.qt import QtCore, QtGui, QtWidgets
 
+from labscript_utils.ls_zprocess import ZMQClient
 from labscript_utils.qtwidgets.elide_label import elide_label
 
 
@@ -26,28 +28,33 @@ class LinkIndicator(QtWidgets.QWidget):
     """A remote application's name, link icon and status, showing whether it answers.
 
     The name and icon share a row, with the status under them. Once started, it
-    asks the application with ``probe`` on a background thread, showing checking
-    until the first answer; one never started can be shown disabled instead. The
-    status is one line, elided to the room it has, with the whole status shown on
-    hover. ``show_state`` and ``show_disabled`` may be called from any thread, and
-    take effect when the GUI thread next processes events, even when called on it.
+    asks the application on a background thread, with a hello or ``command``,
+    showing checking until the first answer; one never started can be shown
+    disabled instead. The status is one line, elided to the room it has, with the
+    whole status shown on hover. ``show_state`` and ``show_disabled`` may be called
+    from any thread, and take effect when the GUI thread next processes events,
+    even when called on it.
+
+    It asks through a client of its own, so a caller passes the application's
+    address, never a client: zprocess requests from two threads on one client can
+    block each other for good.
 
     Parameters
     ----------
     name : str
         The remote application, as the title and the tooltip name it.
-    probe : callable
-        Called with no arguments in a background thread. A return shows the
-        application answering, and an exception shows it not answering, so give it
-        a short deadline: for example ``lambda: client.say_hello(timeout=1)`` or
-        ``BlacsClient(timeout=1).get_status``.
-    host : str, optional
-        The machine the remote application runs on, given in the tooltip.
+    host : str
+        The machine the remote application runs on, also given in the tooltip.
+    port : int
+        The port the remote application's server listens on.
+    command : str, optional
+        A request to make in place of a hello, such as ``'get_status'``, for an
+        ``on_answer`` that needs its answer.
     interval : float, optional
         Seconds to wait after each probe before the next.
     on_answer : callable, optional
         Called on the GUI thread as ``on_answer(reachable, answer)`` after each
-        answer is shown: ``True`` and what ``probe`` returned, or ``False`` and the
+        answer is shown: ``True`` and the server's answer, or ``False`` and the
         exception's message.
     status_width : int, optional
         The indicator's fixed width, in pixels. A longer status is elided.
@@ -55,16 +62,17 @@ class LinkIndicator(QtWidgets.QWidget):
 
     Examples
     --------
-    >>> indicator = LinkIndicator('BLACS', BlacsClient(timeout=1).get_status)
-    >>> ui.blacs_link_layout.addWidget(indicator)
+    >>> indicator = LinkIndicator('lyse', client.host, client.port)
+    >>> ui.lyse_link_layout.addWidget(indicator)
     >>> indicator.start()
     """
 
     def __init__(
         self,
         name,
-        probe,
-        host=None,
+        host,
+        port,
+        command=None,
         interval=2,
         on_answer=None,
         status_width=220,
@@ -72,8 +80,12 @@ class LinkIndicator(QtWidgets.QWidget):
     ):
         super().__init__(parent)
         self.name = name
-        self.probe = probe
         self.host = host
+        self._client = ZMQClient(host=host, port=port, timeout=1)
+        if command is None:
+            self._probe = self._client.say_hello
+        else:
+            self._probe = functools.partial(self._client.request, command)
         self.interval = interval
         self.on_answer = on_answer
         self.setFixedWidth(status_width)
@@ -153,7 +165,7 @@ class LinkIndicator(QtWidgets.QWidget):
     def _run(self):
         while not self.stopped.is_set():
             try:
-                reachable, answer = True, self.probe()
+                reachable, answer = True, self._probe()
             except Exception as exc:
                 reachable, answer = False, str(exc)
             inmain_later(self._show_answer, reachable, answer)
@@ -171,7 +183,7 @@ class LinkIndicator(QtWidgets.QWidget):
             self.on_answer(reachable, answer)
 
     def _redraw(self):
-        host_lines = [] if self.host is None else [f'Host: {self.host}']
+        host_line = f'Host: {self.host}'
         reason_lines = [] if self.reason is None else [self.reason]
         if self.disabled:
             icon = None
@@ -184,11 +196,11 @@ class LinkIndicator(QtWidgets.QWidget):
         elif self.reachable:
             icon = ':/qtutils/fugue/tick'
             text = 'Responding' if self.state is None else self.state
-            lines = [f'{self.name} is responding', *host_lines, *self.details]
+            lines = [f'{self.name} is responding', host_line, *self.details]
         else:
             icon = ':/qtutils/fugue/exclamation'
             text = 'Not responding'
-            lines = [f'{self.name} is not responding', *host_lines, *reason_lines]
+            lines = [f'{self.name} is not responding', host_line, *reason_lines]
         if icon is None:
             self.icon_label.clear()
         else:
