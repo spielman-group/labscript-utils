@@ -29,10 +29,9 @@ class LinkIndicator(QtWidgets.QWidget):
 
     The name and icon share a row, with the status under them. Once started, it
     asks the application on a background thread, with a hello or ``command``,
-    showing checking until the first answer; one never started can be shown
-    disabled instead. The status is one line, elided to the room it has, with the
-    whole status shown on hover. ``show_state`` and ``show_disabled`` may be called
-    from any thread, and take effect when the GUI thread next processes events,
+    showing checking until the first answer. The status is one line, elided to the
+    room it has, with the whole status shown on hover. ``show_state`` may be called
+    from any thread, and takes effect when the GUI thread next processes events,
     even when called on it.
 
     It asks through a client of its own, so a caller passes the application's
@@ -104,7 +103,6 @@ class LinkIndicator(QtWidgets.QWidget):
         layout.addLayout(title_row)
         layout.addWidget(self.text_label)
         elide_label(self.text_label, layout, QtCore.Qt.TextElideMode.ElideRight)
-        self.disabled = False
         self.reachable = None
         self.reason = None
         self.state = None
@@ -147,21 +145,6 @@ class LinkIndicator(QtWidgets.QWidget):
         self.details = tuple(details)
         self._redraw()
 
-    @inmain_decorator(wait_for_return=False)
-    def show_disabled(self, reason=None):
-        """Grey the indicator out, with no icon, until the next answer.
-
-        An indicator that is never started stays disabled.
-
-        Parameters
-        ----------
-        reason : str, optional
-            Why the remote application is not being checked, given in the tooltip.
-        """
-        self.disabled = True
-        self.reason = reason
-        self._redraw()
-
     def _run(self):
         while not self.stopped.is_set():
             try:
@@ -175,7 +158,6 @@ class LinkIndicator(QtWidgets.QWidget):
         # Checked here, on the GUI thread, so nothing is shown after shutdown().
         if self.stopped.is_set():
             return
-        self.disabled = False
         self.reachable = reachable
         self.reason = None if reachable else answer
         self._redraw()
@@ -184,12 +166,7 @@ class LinkIndicator(QtWidgets.QWidget):
 
     def _redraw(self):
         host_line = f'Host: {self.host}'
-        reason_lines = [] if self.reason is None else [self.reason]
-        if self.disabled:
-            icon = None
-            text = 'Disabled'
-            lines = [f'Not checking {self.name}', *reason_lines]
-        elif self.reachable is None:
+        if self.reachable is None:
             icon = ':/qtutils/fugue/hourglass'
             text = 'Checking...'
             lines = [f'Checking {self.name}...']
@@ -200,15 +177,9 @@ class LinkIndicator(QtWidgets.QWidget):
         else:
             icon = ':/qtutils/fugue/exclamation'
             text = 'Not responding'
-            lines = [f'{self.name} is not responding', host_line, *reason_lines]
-        if icon is None:
-            self.icon_label.clear()
-        else:
-            self.icon_label.setPixmap(QtGui.QIcon(icon).pixmap(QtCore.QSize(16, 16)))
-        tooltip = '\n'.join(lines)
-        self.icon_label.setToolTip(tooltip)
-        # elide_label shows one line, so a multi-line state is joined into one. With
-        # no icon to hover, a disabled indicator's text carries the tooltip instead.
+            lines = [f'{self.name} is not responding', host_line, self.reason]
+        self.icon_label.setPixmap(QtGui.QIcon(icon).pixmap(QtCore.QSize(16, 16)))
+        self.icon_label.setToolTip('\n'.join(lines))
+        # elide_label shows one line, so a multi-line state is joined into one.
         self.text_label.setText(' '.join(text.splitlines()))
-        self.text_label.setToolTip(tooltip if self.disabled else text)
-        self.setEnabled(not self.disabled)
+        self.text_label.setToolTip(text)

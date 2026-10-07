@@ -356,9 +356,9 @@ Contribution menu skeleton with MenuContext
 ``enabled`` may also be a zero-argument callable, for a contribution whose
 availability depends on live application state rather than on a flag known when
 the plugin is written. ``MenuContext.render()`` calls it once, at render time,
-and applies ``bool()`` to the result. The contribution dictionary is left
-holding the callable rather than the resolved value, so an application that
-renders or refreshes its menus again re-evaluates the precondition. If the
+and applies ``bool()`` to the result. ``render()`` consumes the contributions it
+draws, so a later render needs them added again; the dictionary keeps the
+callable rather than its value, so that render evaluates it afresh. If the
 callable raises, the action is disabled and the failure is logged: a
 precondition that cannot be established should leave that one action reporting
 itself unavailable, not abort the whole menu build. A non-callable ``enabled``
@@ -1066,9 +1066,8 @@ class MenuContext(object):
                 if hasattr(action, 'setCheckable'):
                     action.setCheckable(checkable)
 
-                # Resolved into a local: the contribution keeps the callable so
-                # that a later re-render re-evaluates the precondition rather
-                # than reusing this render's answer.
+                # Resolved into a local: the contribution keeps the callable, so a
+                # render after it is added again evaluates the precondition afresh.
                 enabled = contribution.get('enabled', True)
                 if callable(enabled):
                     try:
@@ -1159,14 +1158,12 @@ class PluginManager(object):
             try:
                 enabled = self.config.getboolean(self.config_section, module_name)
             except ValueError:
-                # Config sections inherit the defaults section, so a config
-                # default whose name collides with a plugin directory is read
-                # here as that plugin's enable flag. Write a real flag into the
-                # section, which shadows the inherited value, rather than
-                # letting a path or other non-boolean default abort startup.
+                # A flag that is not a boolean, written so or inherited from a config
+                # default of the same name, must not abort startup. Write a real flag
+                # into the section, which shadows any inherited value.
                 self.logger.warning(
-                    "Plugin '%s' shares its name with a config default; using "
-                    "the default enabled state." % module_name
+                    "Plugin '%s' has no boolean enable flag in [%s]; using the "
+                    "default enabled state." % (module_name, self.config_section)
                 )
                 self.config.set(
                     self.config_section,

@@ -118,6 +118,8 @@ class TomlConfigParser(configparser.ConfigParser):
             return value
         if isinstance(value, bool):
             return value
+        if not isinstance(value, str):
+            raise ValueError(f'Not a boolean: {value!r}')
         return self._convert_to_boolean(value)
 
     def get(self, section, option, *, raw=False, vars=None, fallback=configparser._UNSET):

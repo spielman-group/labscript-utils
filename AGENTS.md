@@ -29,9 +29,9 @@ test go on showing a real window without one appearing, and it still genuinely
 measures: drop the rule's alpha from 140 to 6 and the test fails at 0.016
 luminance.
 
-It guards the one visual mark a running shot has, and it is the only test in
-the suite that grabs a rendered widget and measures its pixels. That is what
-exposes it to the `devicePixelRatio` trap it documents in place: `grab()`
+It guards the one visual mark a running shot has. Because it grabs a rendered
+widget and measures its pixels, it is exposed to the `devicePixelRatio` trap it
+documents in place: `grab()`
 returns device pixels while `visualRect()` returns logical ones, so on a retina
 display reading the image at logical coordinates samples the wrong row and
 reports a contrast of exactly zero. Read that comment before touching anything

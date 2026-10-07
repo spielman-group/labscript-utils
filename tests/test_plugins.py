@@ -16,51 +16,13 @@ from labscript_utils.plugins import (
     PluginManager,
     callback,
 )
+from labscript_utils.labconfig import LabConfig
 
 
-class FakeConfig(object):
-    """Minimal stand-in for LabConfig, including the two behaviours that matter.
-
-    A real config inherits its defaults section into every section, and returns
-    native TOML types rather than strings. Modelling neither is what let the
-    defaults-as-plugin-names bug survive in the first place.
-    """
-
-    def __init__(self, defaults=None):
-        self.sections = {}
-        self.defaults = dict(defaults or {})
-
-    def has_section(self, name):
-        return name in self.sections
-
-    def add_section(self, name):
-        self.sections[name] = {}
-
-    def items(self, name):
-        merged = dict(self.defaults)
-        merged.update(self.sections[name])
-        return list(merged.items())
-
-    def has_option(self, section, option):
-        return option in self.sections.get(section, {}) or option in self.defaults
-
-    def get(self, section, option):
-        if option in self.sections.get(section, {}):
-            return self.sections[section][option]
-        return self.defaults[option]
-
-    def set(self, section, option, value):
-        self.sections[section][option] = value
-
-    def getboolean(self, section, option):
-        value = self.get(section, option)
-        if isinstance(value, bool):
-            return value
-        if str(value).lower() in ('true', 'yes', 'on', '1'):
-            return True
-        if str(value).lower() in ('false', 'no', 'off', '0'):
-            return False
-        raise ValueError('Not a boolean: %s' % value)
+def make_labconfig(tmp_path, text=''):
+    path = tmp_path / 'labconfig.toml'
+    path.write_text(text)
+    return LabConfig(config_path=path)
 
 
 def test_callback_binds_as_method_and_keeps_priority():
@@ -109,7 +71,7 @@ def make_manager(logger=None):
     return PluginManager(
         'package.plugins',
         'plugins',
-        FakeConfig(),
+        None,
         'app/plugins',
         logger=logger,
     )
@@ -131,7 +93,7 @@ def test_discovery_defaults_config_and_imports_only_enabled_plugins(tmp_path):
             'disabled': 'raise RuntimeError("should not import")\n',
         },
     )
-    config = FakeConfig()
+    config = make_labconfig(tmp_path)
     manager = PluginManager(
         plugin_package,
         str(plugins_dir),
@@ -143,8 +105,8 @@ def test_discovery_defaults_config_and_imports_only_enabled_plugins(tmp_path):
     modules = manager.discover_modules()
 
     assert set(modules) == {'enabled'}
-    assert config.sections['app/plugins']['enabled'] is True
-    assert config.sections['app/plugins']['disabled'] is False
+    assert config.get('app/plugins', 'enabled') is True
+    assert config.get('app/plugins', 'disabled') is False
 
 
 def test_instantiate_plugins_uses_saved_settings():
@@ -155,7 +117,7 @@ def test_instantiate_plugins_uses_saved_settings():
     manager = PluginManager(
         'package.plugins',
         'plugins',
-        FakeConfig(),
+        None,
         'app/plugins',
     )
     manager.modules = {'plugin': SimpleNamespace(Plugin=Plugin)}
@@ -508,7 +470,7 @@ def test_setup_contexts_routes_ui_and_menu_contributions():
     manager = PluginManager(
         'package.plugins',
         'plugins',
-        FakeConfig(),
+        None,
         'app/plugins',
     )
     manager.plugins = {'plugin': Plugin(), 'legacy': object()}
@@ -558,7 +520,7 @@ def test_setup_contexts_logs_and_skips_missing_unknown_and_broken_contexts(caplo
     manager = PluginManager(
         'package.plugins',
         'plugins',
-        FakeConfig(),
+        None,
         'app/plugins',
         logger=logger,
     )
@@ -1014,30 +976,34 @@ def _make_plugin_dirs(tmp_path, names):
     return str(tmp_path)
 
 
-def test_discover_modules_ignores_config_defaults(tmp_path, caplog):
-    """A config default must never be read as a plugin's enable flag."""
-    config = FakeConfig(defaults={'userlib': '/some/path/userlib'})
-    plugins_dir = _make_plugin_dirs(tmp_path, ['userlib'])
-    logger = logging.getLogger('test.plugins.discover.defaults')
+def test_discover_modules_ignores_flags_that_are_not_booleans(tmp_path):
+    """Neither an inherited config default nor a non-boolean flag stops discovery."""
+    config = make_labconfig(
+        tmp_path,
+        "[default]\nuserlib = '/some/path/userlib'\n\n"
+        "[\"app/plugins\"]\ntheme = 1\n",
+    )
+    plugins_dir = _make_plugin_dirs(tmp_path / 'plugins', ['userlib', 'theme'])
     manager = PluginManager(
         'package.plugins', plugins_dir, config, 'app/plugins',
-        default_plugins=(), logger=logger,
+        default_plugins=(), logger=logging.getLogger('test.plugins.discover.defaults'),
     )
 
-    with caplog.at_level(logging.WARNING, logger=logger.name):
-        modules = manager.discover_modules()
+    modules = manager.discover_modules()
 
-    # Before the fix this raised ValueError: Not a boolean: /some/path/userlib
     assert modules == {}
-    assert config.sections['app/plugins']['userlib'] is False
-    assert 'shares its name with a config default' in caplog.text
+    assert config.get('app/plugins', 'userlib') is False
+    assert config.get('app/plugins', 'theme') is False
 
 
 def test_discover_modules_keeps_a_flag_set_in_both_places(tmp_path):
     """A section option shadows the default, so an explicit flag still wins."""
-    config = FakeConfig(defaults={'userlib': '/some/path/userlib'})
-    config.sections['app/plugins'] = {'userlib': True}
-    plugins_dir = _make_plugin_dirs(tmp_path, ['userlib'])
+    config = make_labconfig(
+        tmp_path,
+        "[default]\nuserlib = '/some/path/userlib'\n\n"
+        "[\"app/plugins\"]\nuserlib = true\n",
+    )
+    plugins_dir = _make_plugin_dirs(tmp_path / 'plugins', ['userlib'])
     manager = PluginManager(
         'package.plugins', plugins_dir, config, 'app/plugins',
         default_plugins=(), logger=logging.getLogger('test.plugins.discover.both'),
@@ -1045,12 +1011,14 @@ def test_discover_modules_keeps_a_flag_set_in_both_places(tmp_path):
 
     manager.discover_modules()
 
-    assert config.sections['app/plugins']['userlib'] is True
+    assert config.get('app/plugins', 'userlib') is True
 
 
 def test_discover_modules_seeds_flags_as_booleans(tmp_path):
-    config = FakeConfig()
-    plugins_dir = _make_plugin_dirs(tmp_path, ['enabled_one', 'disabled_one'])
+    config = make_labconfig(tmp_path)
+    plugins_dir = _make_plugin_dirs(
+        tmp_path / 'plugins', ['enabled_one', 'disabled_one']
+    )
     manager = PluginManager(
         'package.plugins', plugins_dir, config, 'app/plugins',
         default_plugins=('enabled_one',),
@@ -1059,8 +1027,8 @@ def test_discover_modules_seeds_flags_as_booleans(tmp_path):
 
     manager.discover_modules()
 
-    assert config.sections['app/plugins']['enabled_one'] is True
-    assert config.sections['app/plugins']['disabled_one'] is False
+    assert config.get('app/plugins', 'enabled_one') is True
+    assert config.get('app/plugins', 'disabled_one') is False
 
 
 def test_setup_complete_runs_optional_argument_hook_once():
