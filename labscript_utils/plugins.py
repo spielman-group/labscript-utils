@@ -356,9 +356,9 @@ Contribution menu skeleton with MenuContext
 ``enabled`` may also be a zero-argument callable, for a contribution whose
 availability depends on live application state rather than on a flag known when
 the plugin is written. ``MenuContext.render()`` calls it once, at render time,
-and applies ``bool()`` to the result. The contribution dictionary is left
-holding the callable rather than the resolved value, so an application that
-renders or refreshes its menus again re-evaluates the precondition. If the
+and applies ``bool()`` to the result. ``render()`` consumes the contributions it
+draws, so a later render needs them added again; the dictionary keeps the
+callable rather than its value, so that render evaluates it afresh. If the
 callable raises, the action is disabled and the failure is logged: a
 precondition that cannot be established should leave that one action reporting
 itself unavailable, not abort the whole menu build. A non-callable ``enabled``
@@ -1066,9 +1066,8 @@ class MenuContext(object):
                 if hasattr(action, 'setCheckable'):
                     action.setCheckable(checkable)
 
-                # Resolved into a local: the contribution keeps the callable so
-                # that a later re-render re-evaluates the precondition rather
-                # than reusing this render's answer.
+                # Resolved into a local: the contribution keeps the callable, so a
+                # render after it is added again evaluates the precondition afresh.
                 enabled = contribution.get('enabled', True)
                 if callable(enabled):
                     try:
