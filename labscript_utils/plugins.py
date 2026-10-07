@@ -1159,14 +1159,12 @@ class PluginManager(object):
             try:
                 enabled = self.config.getboolean(self.config_section, module_name)
             except ValueError:
-                # Config sections inherit the defaults section, so a config
-                # default whose name collides with a plugin directory is read
-                # here as that plugin's enable flag. Write a real flag into the
-                # section, which shadows the inherited value, rather than
-                # letting a path or other non-boolean default abort startup.
+                # A flag that is not a boolean, written so or inherited from a config
+                # default of the same name, must not abort startup. Write a real flag
+                # into the section, which shadows any inherited value.
                 self.logger.warning(
-                    "Plugin '%s' shares its name with a config default; using "
-                    "the default enabled state." % module_name
+                    "Plugin '%s' has no boolean enable flag in [%s]; using the "
+                    "default enabled state." % (module_name, self.config_section)
                 )
                 self.config.set(
                     self.config_section,
