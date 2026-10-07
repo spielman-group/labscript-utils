@@ -11,7 +11,7 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-"""Open a file in the text editor the labconfig names."""
+"""Open a file in a program the labconfig names, by default its text editor."""
 import os
 import subprocess
 
@@ -20,12 +20,12 @@ from qtutils.qt import QtWidgets
 from labscript_utils.labconfig import LabConfig
 
 
-def open_in_editor(path, parent=None):
-    """Open ``path`` in the labconfig's text editor, without waiting for it.
+def open_in_editor(path, parent=None, program='text_editor'):
+    """Open ``path`` in a program the labconfig names, without waiting for it.
 
-    The editor is ``[programs] text_editor``, given ``text_editor_arguments``.
-    Each ``{file}`` in the arguments is replaced by ``path``; with none, ``path``
-    comes before them. When no editor is set, or it cannot be launched, a dialog
+    The program is ``[programs] <program>``, given ``<program>_arguments``. Each
+    ``{file}`` in the arguments is replaced by ``path``; with none, ``path`` comes
+    before them. When the program is not set, or cannot be launched, a dialog
     says so instead, and nothing is raised.
 
     Parameters
@@ -34,18 +34,20 @@ def open_in_editor(path, parent=None):
         The file to open. An empty path opens nothing.
     parent : QWidget, optional
         The window the dialog belongs to.
+    program : str, optional
+        The ``[programs]`` key naming the program, such as ``'hdf5_viewer'``.
     """
     path = os.fspath(path)
     if not path:
         return
     config = LabConfig()
-    editor = config.get('programs', 'text_editor', fallback='')
-    arguments = config.get('programs', 'text_editor_arguments', fallback='')
-    if not editor:
+    executable = config.get('programs', program, fallback='')
+    arguments = config.get('programs', f'{program}_arguments', fallback='')
+    if not executable:
         QtWidgets.QMessageBox.warning(
             parent,
-            'Text editor',
-            f'No text editor is set under [programs] in {config.config_path}.',
+            'Open file',
+            f'No {program} is set under [programs] in {config.config_path}.',
         )
         return
     # A TOML array gives the arguments as a list already.
@@ -56,10 +58,10 @@ def open_in_editor(path, parent=None):
     else:
         arguments = [path, *arguments]
     try:
-        subprocess.Popen([editor, *arguments])
+        subprocess.Popen([executable, *arguments])
     except Exception as e:
         QtWidgets.QMessageBox.warning(
             parent,
-            'Text editor',
-            f'Could not launch the text editor set in {config.config_path}: {e}',
+            'Open file',
+            f'Could not launch the {program} set in {config.config_path}: {e}',
         )
