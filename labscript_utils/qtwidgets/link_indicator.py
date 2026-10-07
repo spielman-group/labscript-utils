@@ -166,7 +166,6 @@ class LinkIndicator(QtWidgets.QWidget):
 
     def _redraw(self):
         host_line = f'Host: {self.host}'
-        reason_lines = [] if self.reason is None else [self.reason]
         if self.reachable is None:
             icon = ':/qtutils/fugue/hourglass'
             text = 'Checking...'
@@ -178,7 +177,7 @@ class LinkIndicator(QtWidgets.QWidget):
         else:
             icon = ':/qtutils/fugue/exclamation'
             text = 'Not responding'
-            lines = [f'{self.name} is not responding', host_line, *reason_lines]
+            lines = [f'{self.name} is not responding', host_line, self.reason]
         self.icon_label.setPixmap(QtGui.QIcon(icon).pixmap(QtCore.QSize(16, 16)))
         self.icon_label.setToolTip('\n'.join(lines))
         # elide_label shows one line, so a multi-line state is joined into one.
