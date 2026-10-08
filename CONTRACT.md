@@ -38,29 +38,22 @@ and the first also needs a fix: it cannot see the `order` key being ignored.
 
 ## tests/test_excepthook.py
 
-- `TestEnvironmentFlag.test_unset_leaves_the_dialog_enabled`: with
-  `LABSCRIPT_NO_ERROR_DIALOG` unset, an unhandled exception opens the error
-  dialog. **fix**: it calls the private `_no_error_dialog_from_env`, never the
-  module's `NO_ERROR_DIALOG`. Broke that line to `True`, then `False`: all 7
-  excepthook tests passed. Fix by importing excepthook in a subprocess with the
-  variable set, and reading `NO_ERROR_DIALOG`.
-- `TestEnvironmentFlag.test_values_that_read_as_false_leave_the_dialog_enabled`:
-  `LABSCRIPT_NO_ERROR_DIALOG=0` keeps the dialog on. **fix**: the same cause and
-  remedy. Only `''` and `'0'` were the bug that was fixed; `false`, `no` and `off`
-  came with the fix. Step 2.1.
-- `TestEnvironmentFlag.test_values_that_read_as_true_suppress_the_dialog`:
-  `LABSCRIPT_NO_ERROR_DIALOG=1`, as every conftest sets it, suppresses the
-  dialog. **fix**: the same cause and remedy.
-- `TestEnvironmentFlag.test_case_and_surrounding_whitespace_do_not_matter`:
-  `False`, `Off`, or a padded value, still keeps the dialog on. **cut**
-  (agent-invented edge case): nothing sets such a value. It could instead be
-  folded into the fixed `=0` test. Step 2.1.
-- `TestEnvironmentFlag.test_an_unrecognised_value_suppresses_the_dialog`: a value
-  such as `quiet please` suppresses the dialog. **cut** (agent-invented edge
-  case): its author chose that behaviour; no caller sets such a value. Step 2.1.
-- `TestEnvironmentFlag.test_the_conftest_setting_used_across_the_suite_suppresses_it`:
-  `=1` suppresses the dialog. **cut** (duplicate): it repeats the `=1` case
-  above. Breaking `'1'` fails both.
+- The six `TestEnvironmentFlag` tests checked the private
+  `_no_error_dialog_from_env`, never the module's `NO_ERROR_DIALOG`. Hard-coding
+  `NO_ERROR_DIALOG` to `True`, then `False`, left all seven excepthook tests
+  passing. Ian decided the dialog is off only when `LABSCRIPT_NO_ERROR_DIALOG` is
+  exactly `'1'`, which is all any repository sets. So they become one test of the
+  real setting, read in a fresh process: `'1'` suppresses the dialog, and unset
+  does not.
+  - `test_unset_leaves_the_dialog_enabled`: **fix**, into that test.
+  - `test_values_that_read_as_false_leave_the_dialog_enabled`: **fix**, into
+    that test. Whether to test `'0'` as well is Ian's to decide.
+  - `test_values_that_read_as_true_suppress_the_dialog`: **fix**, into that test.
+  - `test_case_and_surrounding_whitespace_do_not_matter`: **cut**: only `'1'`
+    suppresses now.
+  - `test_an_unrecognised_value_suppresses_the_dialog`: **cut**: likewise.
+  - `test_the_conftest_setting_used_across_the_suite_suppresses_it`: **cut**
+    (duplicate of `'1'`).
 - `TestTheFlagIsReadWhenUsed.test_tkhandler_consults_the_attribute_rather_than_a_captured_value`:
   an unhandled exception opens the dialog unless `NO_ERROR_DIALOG` is set, and
   assigning it takes effect at once. **rename** →

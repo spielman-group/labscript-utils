@@ -28,6 +28,10 @@ except ImportError as e:
     
 Qt = QtCore.Qt
 
+# Importing this module creates no QApplication; only constructing Splash, or
+# calling get_qapplication(), does. That is what lets sibling repositories'
+# tests stub this module without putting a banner on screen.
+
 
 def configure_qapplication(qapplication):
     """Apply labscript-wide QApplication configuration."""
