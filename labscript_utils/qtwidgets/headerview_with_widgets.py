@@ -215,10 +215,15 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
             if logical_index < logical_first:
                 widgets_with_offset[logical_index] = widget
             elif logical_index <= logical_last:
-                self.setWidget(logical_index, None)
+                # Not setWidget(logical_index, None): the column is already gone,
+                # so that index now names another column, or none.
+                widget.setParent(None)
+                widget.removeEventFilter(self)
+                del self.indents[widget]
             else:
                 widgets_with_offset[logical_index - n_removed] = widget
         self.widgets = widgets_with_offset
+        self.update_indents()
         self.update_widget_positions()
 
 
