@@ -21,40 +21,10 @@ import warnings
 # The maximum number of windows the excepthook will spawn:
 MAX_WINDOWS = 10
 
-# Values of LABSCRIPT_NO_ERROR_DIALOG that ask for the dialog to be left
-# enabled. Anything else asks for it to be suppressed:
-_DIALOG_ENABLED_VALUES = ('', '0', 'false', 'no', 'off')
-
-
-def _no_error_dialog_from_env(environ=None):
-    """Return whether the environment asks for the graphical dialog to be off.
-
-    An unset variable leaves the dialog enabled, and so does any value that
-    ordinarily reads as false. The falsey values have to be spelled out: a bare
-    truth test on the string would make LABSCRIPT_NO_ERROR_DIALOG=0 suppress the
-    dialog, the opposite of what it looks like, and would leave no guessable way
-    to ask for the dialog back.
-    """
-    if environ is None:
-        environ = os.environ
-    value = environ.get('LABSCRIPT_NO_ERROR_DIALOG')
-    if value is None:
-        return False
-    return value.strip().lower() not in _DIALOG_ENABLED_VALUES
-
-
-# Set the LABSCRIPT_NO_ERROR_DIALOG environment variable, or set this to True at
-# runtime, to stop exceptions spawning graphical error windows. Exceptions are
-# still logged and printed to stderr, which is what you usually want when
-# running under a debugger.
-#
-# The environment is consulted exactly once, here. The handler reads this
-# global, so assigning to it takes effect immediately and is how a test asks
-# for the dialog back -- but setting the environment variable after this module
-# has imported does nothing. That is why the suite's test settings belong in a
-# conftest rather than a fixture: a fixture runs after the import that already
-# captured this value.
-NO_ERROR_DIALOG = _no_error_dialog_from_env()
+# LABSCRIPT_NO_ERROR_DIALOG=1 stops exceptions spawning graphical error windows;
+# they are still logged and printed. It is read once, here, so a test of the
+# dialog assigns this global instead of setting the variable.
+NO_ERROR_DIALOG = os.environ.get('LABSCRIPT_NO_ERROR_DIALOG') == '1'
 
 subprocess_script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tk_exception.py')
 

@@ -5,6 +5,8 @@ getting it wrong is invisible from inside the code: the failure mode is a dialog
 that does not appear when someone asked for one, or windows appearing during a
 test run that was supposed to be quiet.
 """
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -13,47 +15,33 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import labscript_utils.excepthook as excepthook
 
 
-class TestEnvironmentFlag(object):
-    """``LABSCRIPT_NO_ERROR_DIALOG`` says whether to suppress the dialog."""
-
-    def test_unset_leaves_the_dialog_enabled(self):
-        assert excepthook._no_error_dialog_from_env({}) is False
-
-    def test_values_that_read_as_false_leave_the_dialog_enabled(self):
-        # '0' is the one that matters: a bare truth test on the string would
-        # suppress the dialog, the opposite of what anyone writing it intends.
-        for value in ['', '0', 'false', 'no', 'off']:
-            environ = {'LABSCRIPT_NO_ERROR_DIALOG': value}
-            assert excepthook._no_error_dialog_from_env(environ) is False, value
-
-    def test_values_that_read_as_true_suppress_the_dialog(self):
-        for value in ['1', 'true', 'yes', 'on']:
-            environ = {'LABSCRIPT_NO_ERROR_DIALOG': value}
-            assert excepthook._no_error_dialog_from_env(environ) is True, value
-
-    def test_case_and_surrounding_whitespace_do_not_matter(self):
-        for value in [' FALSE ', 'No', 'Off', '\t0\n']:
-            environ = {'LABSCRIPT_NO_ERROR_DIALOG': value}
-            assert excepthook._no_error_dialog_from_env(environ) is False, value
-
-    def test_an_unrecognised_value_suppresses_the_dialog(self):
-        # Erring towards silence: an unparseable value in a CI environment
-        # should not start spawning windows.
-        environ = {'LABSCRIPT_NO_ERROR_DIALOG': 'quiet please'}
-        assert excepthook._no_error_dialog_from_env(environ) is True
-
-    def test_the_conftest_setting_used_across_the_suite_suppresses_it(self):
-        # Every tests/conftest.py in the suite, and .claude/settings.json, set
-        # '1'. If that ever stopped suppressing, every test run would start
-        # putting windows on screen.
-        environ = {'LABSCRIPT_NO_ERROR_DIALOG': '1'}
-        assert excepthook._no_error_dialog_from_env(environ) is True
+def test_labscript_no_error_dialog_1_suppresses_the_dialog_and_unset_does_not():
+    # The variable is read once, when excepthook imports, so each case needs a
+    # fresh process.
+    for value, suppressed in [('1', 'True'), (None, 'False')]:
+        environ = dict(os.environ)
+        environ.pop('LABSCRIPT_NO_ERROR_DIALOG', None)
+        if value is not None:
+            environ['LABSCRIPT_NO_ERROR_DIALOG'] = value
+        result = subprocess.run(
+            [
+                sys.executable,
+                '-c',
+                'import labscript_utils.excepthook as e; print(e.NO_ERROR_DIALOG)',
+            ],
+            cwd=Path(__file__).resolve().parents[1],
+            env=environ,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert result.stdout.strip() == suppressed, value
 
 
 class TestTheFlagIsReadWhenUsed(object):
     """The documented escape hatch is assigning to the module attribute."""
 
-    def test_tkhandler_consults_the_attribute_rather_than_a_captured_value(self):
+    def test_assigning_no_error_dialog_switches_the_error_dialog_on_and_off(self):
         """A test *of* the dialog sets NO_ERROR_DIALOG and gets a dialog.
 
         This is the case the environment variable deliberately cannot express,

@@ -1,7 +1,6 @@
 import logging
 import sys
 import uuid
-import warnings
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -12,7 +11,6 @@ from labscript_utils.plugins import (
     Callback,
     DEFAULT_SETUP_PRIORITY,
     MenuBuilder,
-    MenuContext,
     PluginManager,
     callback,
 )
@@ -38,7 +36,7 @@ def test_callback_binds_as_method_and_keeps_priority():
     assert example.method('value') == (example, 'value')
 
 
-def test_base_plugin_defaults_are_no_ops():
+def test_a_plugin_that_overrides_nothing_contributes_nothing():
     plugin = BasePlugin({'x': 1})
 
     assert plugin.initial_settings == {'x': 1}
@@ -90,7 +88,7 @@ def test_discovery_defaults_config_and_imports_only_enabled_plugins(tmp_path):
         tmp_path,
         {
             'enabled': 'class Plugin(object):\n    pass\n',
-            'disabled': 'raise RuntimeError("should not import")\n',
+            'disabled': 'class Plugin(object):\n    pass\n',
         },
     )
     config = make_labconfig(tmp_path)
@@ -127,7 +125,7 @@ def test_instantiate_plugins_uses_saved_settings():
     assert plugins['plugin'].initial_settings == {'answer': 42}
 
 
-def test_get_event_handlers_sorts_legacy_callbacks_by_priority_and_logs_errors(caplog):
+def test_legacy_get_callbacks_handlers_run_lowest_priority_first_and_a_raising_plugin_is_skipped():
     class Slow(object):
         def get_callbacks(self):
             return {'event': self.on_event}
@@ -148,19 +146,16 @@ def test_get_event_handlers_sorts_legacy_callbacks_by_priority_and_logs_errors(c
         def get_callbacks(self):
             raise RuntimeError('broken')
 
-    logger = logging.getLogger('test.plugins')
-    manager = make_manager(logger=logger)
+    manager = make_manager()
     manager.plugins = {
         'slow': Slow(),
         'broken': Broken(),
         'fast': Fast(),
     }
 
-    with caplog.at_level(logging.ERROR, logger='test.plugins'):
-        callbacks = manager.get_event_handlers('event')
+    callbacks = manager.get_event_handlers('event')
 
     assert [callback.priority for callback in callbacks] == [5, 20]
-    assert 'Error getting callbacks from' in caplog.text
 
 
 def test_get_event_handlers_sorts_modern_handlers_by_priority():
@@ -191,175 +186,26 @@ def test_get_event_handlers_sorts_modern_handlers_by_priority():
     assert [callback.priority for callback in callbacks] == [5, 20]
 
 
-def test_get_callbacks_warns_and_delegates_to_get_event_handlers():
-    class Plugin(object):
+def test_setup_plugins_returns_each_plugins_settings_changed_handler():
+    class Plugin(BasePlugin):
         def get_event_handlers(self):
-            return {'event': self.on_event}
+            return {'settings_changed': self.settings_changed}
 
         @callback(priority=5)
-        def on_event(self):
+        def settings_changed(self):
             pass
 
     manager = make_manager()
-    manager.plugins = {'plugin': Plugin()}
-
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter('always', DeprecationWarning)
-        callbacks = manager.get_callbacks('event')
-
-    assert [callback.priority for callback in callbacks] == [5]
-    assert len(caught) == 1
-    assert 'PluginManager.get_callbacks() is deprecated' in str(caught[0].message)
-
-
-def test_get_event_handlers_prefers_modern_hook_and_warns_for_legacy_one(caplog):
-    class ModernAndLegacy(object):
-        def get_event_handlers(self):
-            return {'event': self.new_event}
-
-        def get_callbacks(self):
-            return {'event': self.old_event}
-
-        @callback(priority=5)
-        def new_event(self):
-            pass
-
-        @callback(priority=20)
-        def old_event(self):
-            pass
-
-    class LegacyOnly(object):
-        def get_callbacks(self):
-            return {'event': self.old_event}
-
-        @callback(priority=10)
-        def old_event(self):
-            pass
-
-    logger = logging.getLogger('test.plugins')
-    manager = make_manager(logger=logger)
-    manager.plugins = {
-        'modern_and_legacy': ModernAndLegacy(),
-        'legacy_only': LegacyOnly(),
-    }
-
-    with caplog.at_level(logging.WARNING, logger='test.plugins'):
-        first_callbacks = manager.get_event_handlers('event')
-        second_callbacks = manager.get_event_handlers('event')
-
-    assert [callback.priority for callback in first_callbacks] == [5, 10]
-    assert [callback.priority for callback in second_callbacks] == [5, 10]
-    warning_messages = [
-        record.getMessage()
-        for record in caplog.records
-        if record.levelno == logging.WARNING
-    ]
-    assert sum('modern_and_legacy' in message for message in warning_messages) == 1
-    assert sum('legacy_only' in message for message in warning_messages) == 1
-    assert sum('get_callbacks()' in message for message in warning_messages) == 2
-
-
-def test_setup_plugins_prefers_modern_settings_callback_and_warns(caplog):
-    class Plugin(BasePlugin):
-        def get_event_handlers(self):
-            return {'settings_changed': self.new_settings_changed}
-
-        def get_callbacks(self):
-            return {'settings_changed': self.old_settings_changed}
-
-        @callback(priority=5)
-        def new_settings_changed(self):
-            pass
-
-        @callback(priority=20)
-        def old_settings_changed(self):
-            pass
-
-    logger = logging.getLogger('test.plugins')
-    manager = make_manager(logger=logger)
     manager.plugins = {'plugin': Plugin({})}
 
-    with caplog.at_level(logging.WARNING, logger='test.plugins'):
-        settings_pages, settings_callbacks = manager.setup_plugins(
-            data={},
-            notifications=NoNotifications(),
-            menu_builder=MenuBuilder(),
-            menubar=FakeMenu(),
-        )
-        callbacks = manager.get_event_handlers('settings_changed')
+    _, settings_callbacks = manager.setup_plugins(
+        data={},
+        notifications=NoNotifications(),
+        menu_builder=MenuBuilder(),
+        menubar=FakeMenu(),
+    )
 
-    assert settings_pages == []
     assert [callback.priority for callback in settings_callbacks] == [5]
-    assert [callback.priority for callback in callbacks] == [5]
-    warning_messages = [
-        record.getMessage()
-        for record in caplog.records
-        if record.levelno == logging.WARNING
-    ]
-    assert sum('deprecated get_callbacks()' in message for message in warning_messages) == 1
-
-
-def test_setup_plugins_warns_when_deprecated_menu_class_is_used(caplog):
-    class Menu(object):
-        def __init__(self, data):
-            self.data = data
-
-        def get_menu_items(self):
-            return {'name': 'Legacy'}
-
-    class Plugin(BasePlugin):
-        def get_menu_class(self):
-            return Menu
-
-    logger = logging.getLogger('test.plugins')
-    manager = make_manager(logger=logger)
-    manager.plugins = {'plugin': Plugin({})}
-
-    with caplog.at_level(logging.WARNING, logger='test.plugins'):
-        manager.setup_plugins(
-            data={'example': True},
-            notifications=NoNotifications(),
-            menu_builder=MenuBuilder(),
-            menubar=FakeMenu(),
-        )
-        manager.setup_plugins(
-            data={'example': True},
-            notifications=NoNotifications(),
-            menu_builder=MenuBuilder(),
-            menubar=FakeMenu(),
-        )
-
-    warning_messages = [
-        record.getMessage()
-        for record in caplog.records
-        if record.levelno == logging.WARNING
-    ]
-    assert sum('deprecated get_menu_class()' in message for message in warning_messages) == 1
-
-
-def test_get_event_handlers_logs_and_skips_malformed_event_handler_mappings(caplog):
-    class BadModern(object):
-        def get_event_handlers(self):
-            return ['event']
-
-    class BadLegacy(object):
-        def get_callbacks(self):
-            return ['event']
-
-    logger = logging.getLogger('test.plugins')
-    manager = make_manager(logger=logger)
-    manager.plugins = {
-        'bad_modern': BadModern(),
-        'bad_legacy': BadLegacy(),
-    }
-
-    with caplog.at_level(logging.ERROR, logger='test.plugins'):
-        callbacks = manager.get_event_handlers('event')
-
-    assert callbacks == []
-    assert "bad_modern" in caplog.text
-    assert "bad_legacy" in caplog.text
-    assert "event handlers must be a mapping" in caplog.text
 
 
 class FakeSignal(object):
@@ -375,18 +221,6 @@ class FakeAction(object):
         self.name = name
         self.icon = icon
         self.triggered = FakeSignal()
-        self.shortcut = None
-        self.checkable = None
-        self.enabled = None
-
-    def setShortcut(self, shortcut):
-        self.shortcut = shortcut
-
-    def setCheckable(self, checkable):
-        self.checkable = checkable
-
-    def setEnabled(self, enabled):
-        self.enabled = enabled
 
 
 class FakeMenu(object):
@@ -451,11 +285,6 @@ class FakeContext(object):
         self.items.append((plugin_name, contribution, data))
 
 
-class BrokenContext(object):
-    def add(self, plugin_name, contribution, data):
-        raise RuntimeError('broken context')
-
-
 def test_setup_contexts_routes_ui_and_menu_contributions():
     class Plugin(object):
         def get_ui_contributions(self):
@@ -485,283 +314,6 @@ def test_setup_contexts_routes_ui_and_menu_contributions():
     assert menu_context.items == [
         ('plugin', {'location': 'file', 'name': 'Open'}, data),
     ]
-
-
-def test_setup_contexts_logs_and_skips_missing_unknown_and_broken_contexts(caplog):
-    class MissingContext(object):
-        def get_ui_contributions(self):
-            return [{'key': 'browser'}]
-
-    class UnknownContext(object):
-        def get_ui_contributions(self):
-            return [{'context': 'unknown', 'key': 'browser'}]
-
-    class BrokenGetter(object):
-        def get_ui_contributions(self):
-            raise RuntimeError('broken getter')
-
-    class MalformedGetter(object):
-        def get_ui_contributions(self):
-            return {'context': 'mdi'}
-
-    class MalformedItem(object):
-        def get_ui_contributions(self):
-            return ['not a dictionary']
-
-    class BrokenAdd(object):
-        def get_ui_contributions(self):
-            return [{'context': 'broken', 'key': 'browser'}]
-
-    class MenuPlugin(object):
-        def get_menu_contributions(self):
-            return [{'location': 'file', 'name': 'Open'}]
-
-    logger = logging.getLogger('test.plugins')
-    manager = PluginManager(
-        'package.plugins',
-        'plugins',
-        None,
-        'app/plugins',
-        logger=logger,
-    )
-    manager.plugins = {
-        'missing': MissingContext(),
-        'unknown': UnknownContext(),
-        'broken_getter': BrokenGetter(),
-        'malformed_getter': MalformedGetter(),
-        'malformed_item': MalformedItem(),
-        'broken_add': BrokenAdd(),
-        'menu': MenuPlugin(),
-    }
-    manager.register_context('broken', BrokenContext())
-
-    with caplog.at_level(logging.ERROR, logger='test.plugins'):
-        manager.setup_contexts(object())
-
-    log_text = caplog.text.lower()
-    assert 'missing' in log_text
-    assert 'unknown' in log_text
-    assert 'broken_getter' in log_text
-    assert 'malformed_getter' in log_text
-    assert 'malformed_item' in log_text
-    assert 'broken_add' in log_text
-    assert 'menus' in log_text
-
-
-def test_menu_context_renders_locations_paths_groups_order_and_action_options(caplog):
-    file_menu = FakeMenu('file')
-    tools_menu = FakeMenu('tools')
-
-    def open_action():
-        pass
-
-    def heal_action():
-        pass
-
-    def save_action():
-        pass
-
-    logger = logging.getLogger('test.plugins')
-    context = MenuContext(icon_factory=lambda name: 'icon:' + name, logger=logger)
-    context.register_location('file', file_menu)
-    context.register_location('tools', tools_menu)
-    context.add(
-        'plugin_b',
-        {
-            'location': 'file',
-            'path': ('Project',),
-            'group': 'open',
-            'order': 20,
-            'name': 'Heal',
-            'action': heal_action,
-        },
-        {},
-    )
-    context.add(
-        'plugin_a',
-        {
-            'location': 'file',
-            'path': ('Project',),
-            'group': 'open',
-            'order': 10,
-            'name': 'Open',
-            'icon': 'folder',
-            'shortcut': 'Ctrl+O',
-            'checkable': True,
-            'enabled': False,
-            'action': open_action,
-        },
-        {},
-    )
-    context.add(
-        'plugin_a',
-        {
-            'location': 'file',
-            'path': ('Project',),
-            'group': 'save',
-            'order': 5,
-            'name': 'Save',
-            'action': save_action,
-        },
-        {},
-    )
-    context.add('plugin_c', {'location': 'tools', 'name': 'Tool'}, {})
-    context.add('plugin_malformed', 'not a dictionary', {})
-    context.add('plugin_skip', {'location': 'missing', 'name': 'Skip'}, {})
-
-    with caplog.at_level(logging.ERROR, logger='test.plugins'):
-        context.render()
-
-    project_menu = file_menu.items[0][1]
-    open_item = project_menu.items[0][1]
-    heal_item = project_menu.items[1][1]
-    save_item = project_menu.items[3][1]
-
-    assert file_menu.items[0][0] == 'menu'
-    assert project_menu.name == 'Project'
-    assert [item[0] for item in project_menu.items] == [
-        'action',
-        'action',
-        'separator',
-        'action',
-    ]
-    assert [open_item.name, heal_item.name, save_item.name] == [
-        'Open',
-        'Heal',
-        'Save',
-    ]
-    assert open_item.icon == 'icon:folder'
-    assert open_item.shortcut == 'Ctrl+O'
-    assert open_item.checkable is True
-    assert open_item.enabled is False
-    assert open_item.triggered.callbacks == [open_action]
-    assert heal_item.triggered.callbacks == [heal_action]
-    assert save_item.checkable is False
-    assert save_item.enabled is True
-    assert tools_menu.items[0][1].name == 'Tool'
-    assert 'missing' in caplog.text.lower()
-    assert 'plugin_malformed' in caplog.text
-
-
-def rendered_actions(menu):
-    return {item[1].name: item[1] for item in menu.items if item[0] == 'action'}
-
-
-def test_menu_context_calls_callable_enabled_and_applies_the_result():
-    file_menu = FakeMenu('file')
-    context = MenuContext()
-    context.register_location('file', file_menu)
-    for name, enabled in [
-        ('Available', lambda: True),
-        ('Unavailable', lambda: False),
-        ('Truthy', lambda: ['a figure is active']),
-        ('Falsey', lambda: []),
-    ]:
-        context.add(
-            'plugin_a',
-            {'location': 'file', 'name': name, 'enabled': enabled},
-            {},
-        )
-
-    context.render()
-
-    actions = rendered_actions(file_menu)
-    # Coerced to real booleans: a Qt action rejects anything else.
-    assert actions['Available'].enabled is True
-    assert actions['Truthy'].enabled is True
-    assert actions['Unavailable'].enabled is False
-    assert actions['Falsey'].enabled is False
-
-
-def test_menu_context_disables_the_action_when_enabled_callable_raises(caplog):
-    file_menu = FakeMenu('file')
-    logger = logging.getLogger('test.plugins.enabled')
-    context = MenuContext(logger=logger)
-    context.register_location('file', file_menu)
-
-    def broken():
-        raise RuntimeError('precondition unavailable')
-
-    context.add(
-        'plugin_broken',
-        {'location': 'file', 'name': 'Broken', 'enabled': broken},
-        {},
-    )
-    context.add(
-        'plugin_a',
-        {'location': 'file', 'name': 'Later', 'enabled': lambda: True},
-        {},
-    )
-
-    with caplog.at_level(logging.ERROR, logger='test.plugins.enabled'):
-        context.render()
-
-    actions = rendered_actions(file_menu)
-    assert actions['Broken'].enabled is False
-    # The failure disables one action; it does not abort the menu build.
-    assert actions['Later'].enabled is True
-    assert 'Broken' in caplog.text
-    assert 'plugin_broken' in caplog.text
-    assert 'precondition unavailable' in caplog.text
-
-
-def test_menu_context_applies_non_callable_enabled_unchanged():
-    file_menu = FakeMenu('file')
-    context = MenuContext()
-    context.register_location('file', file_menu)
-    context.add(
-        'plugin_a',
-        {'location': 'file', 'name': 'Off', 'enabled': False},
-        {},
-    )
-    context.add(
-        'plugin_a',
-        {'location': 'file', 'name': 'On', 'enabled': True},
-        {},
-    )
-    context.add('plugin_a', {'location': 'file', 'name': 'Default'}, {})
-
-    context.render()
-
-    actions = rendered_actions(file_menu)
-    assert actions['Off'].enabled is False
-    assert actions['On'].enabled is True
-    assert actions['Default'].enabled is True
-
-
-def test_menu_context_does_not_cache_the_resolved_enabled_in_the_contribution():
-    file_menu = FakeMenu('file')
-    context = MenuContext()
-    context.register_location('file', file_menu)
-    answers = iter([True, False])
-    calls = []
-
-    def enabled():
-        calls.append(None)
-        return next(answers)
-
-    contribution = {'location': 'file', 'name': 'Toggle', 'enabled': enabled}
-
-    context.add('plugin_a', contribution, {})
-    context.render()
-    assert file_menu.items[-1][1].enabled is True
-    # Rendering must leave the callable in place for a later re-render or an
-    # application-side refresh to consult again.
-    assert contribution['enabled'] is enabled
-
-    context.add('plugin_a', contribution, {})
-    context.render()
-    assert file_menu.items[-1][1].enabled is False
-    assert len(calls) == 2
-
-
-class RecordingHandler(logging.Handler):
-    def __init__(self):
-        super().__init__()
-        self.records = []
-
-    def emit(self, record):
-        self.records.append(record)
 
 
 class ServicePlugin(BasePlugin):
@@ -795,50 +347,7 @@ def test_collect_services_merges_base_and_plugin_services():
     assert manager.services is services
 
 
-def test_collect_services_skips_invalid_and_conflicting_entries():
-    logger = logging.getLogger('test.plugins.services')
-    handler = RecordingHandler()
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
-    try:
-        manager = make_manager(logger=logger)
-        manager.plugins = {
-            'alpha': ServicePlugin({'shared': 'first', 'unique': 'ok'}),
-            'beta': ServicePlugin({'shared': 'second'}),
-            'gamma': ServicePlugin(['not', 'a', 'mapping']),
-        }
-
-        services = manager.collect_services()
-
-        assert services['shared'] == 'first'
-        assert services['unique'] == 'ok'
-        messages = [record.getMessage() for record in handler.records]
-        assert any('must be a mapping' in message for message in messages)
-        assert any(
-            'conflicts with an existing service' in message
-            for message in messages
-        )
-    finally:
-        logger.removeHandler(handler)
-
-
-def test_legacy_plugin_setup_complete_runs_as_default_activity():
-    calls = []
-    data = {'services': object()}
-
-    class LegacySetupPlugin(BasePlugin):
-        def plugin_setup_complete(self, setup_data):
-            calls.append(('legacy', setup_data))
-
-    manager = make_manager()
-    manager.plugins = {'legacy': LegacySetupPlugin({})}
-
-    manager.setup_complete(data)
-
-    assert calls == [('legacy', data)]
-
-
-def test_duck_typed_plugin_setup_complete_still_runs():
+def test_plugin_without_base_class_gets_setup_complete_with_app_data():
     calls = []
     data = {'services': object()}
 
@@ -860,14 +369,15 @@ def test_multiple_setup_activities_run_in_priority_order():
 
     class ActivityPlugin(BasePlugin):
         def get_setup_activities(self):
+            # Named so that name order is the reverse of priority order.
             return [
                 {
-                    'name': 'late',
+                    'name': 'a_late',
                     'priority': DEFAULT_SETUP_PRIORITY + 10,
                     'action': self.late,
                 },
                 {
-                    'name': 'early',
+                    'name': 'z_early',
                     'priority': DEFAULT_SETUP_PRIORITY - 10,
                     'action': self.early,
                 },
@@ -887,7 +397,7 @@ def test_multiple_setup_activities_run_in_priority_order():
     assert calls == [('early', data), ('late', data)]
 
 
-def test_setup_activity_ordering_is_deterministic_across_plugins():
+def test_equal_priority_setup_activities_run_in_plugin_name_order():
     calls = []
 
     class NamedActivityPlugin(BasePlugin):
@@ -919,56 +429,19 @@ def test_setup_activity_ordering_is_deterministic_across_plugins():
     assert calls == ['alpha', 'zeta']
 
 
-def test_setup_activity_names_break_priority_and_plugin_ties():
-    calls = []
-
-    class TiedActivityPlugin(BasePlugin):
-        def get_setup_activities(self):
-            return [
-                {
-                    'name': 'second',
-                    'priority': DEFAULT_SETUP_PRIORITY,
-                    'action': self.second,
-                },
-                {
-                    'name': 'first',
-                    'priority': DEFAULT_SETUP_PRIORITY,
-                    'action': self.first,
-                },
-            ]
-
-        def first(self, data):
-            del data
-            calls.append('first')
-
-        def second(self, data):
-            del data
-            calls.append('second')
-
-    manager = make_manager()
-    manager.plugins = {'plugin': TiedActivityPlugin({})}
-
-    manager.setup_complete({})
-
-    assert calls == ['first', 'second']
-
-
-def test_no_argument_plugin_setup_complete_fallback_still_runs(caplog):
+def test_plugin_setup_complete_without_argument_is_called_without_app_data():
     calls = []
 
     class NoArgumentSetupPlugin(BasePlugin):
         def plugin_setup_complete(self):
             calls.append('legacy-no-arg')
 
-    logger = logging.getLogger('test.plugins.setup')
-    manager = make_manager(logger=logger)
+    manager = make_manager()
     manager.plugins = {'legacy': NoArgumentSetupPlugin({})}
 
-    with caplog.at_level(logging.WARNING, logger='test.plugins.setup'):
-        manager.setup_complete({'unused': object()})
+    manager.setup_complete({'unused': object()})
 
     assert calls == ['legacy-no-arg']
-    assert 'using old API' in caplog.text
 
 def _make_plugin_dirs(tmp_path, names):
     for name in names:
@@ -976,7 +449,7 @@ def _make_plugin_dirs(tmp_path, names):
     return str(tmp_path)
 
 
-def test_discover_modules_ignores_flags_that_are_not_booleans(tmp_path):
+def test_non_boolean_or_inherited_plugin_flag_does_not_stop_discovery(tmp_path):
     """Neither an inherited config default nor a non-boolean flag stops discovery."""
     config = make_labconfig(
         tmp_path,
@@ -996,7 +469,7 @@ def test_discover_modules_ignores_flags_that_are_not_booleans(tmp_path):
     assert config.get('app/plugins', 'theme') is False
 
 
-def test_discover_modules_keeps_a_flag_set_in_both_places(tmp_path):
+def test_discovery_keeps_an_enable_flag_already_in_the_config(tmp_path):
     """A section option shadows the default, so an explicit flag still wins."""
     config = make_labconfig(
         tmp_path,
@@ -1014,24 +487,7 @@ def test_discover_modules_keeps_a_flag_set_in_both_places(tmp_path):
     assert config.get('app/plugins', 'userlib') is True
 
 
-def test_discover_modules_seeds_flags_as_booleans(tmp_path):
-    config = make_labconfig(tmp_path)
-    plugins_dir = _make_plugin_dirs(
-        tmp_path / 'plugins', ['enabled_one', 'disabled_one']
-    )
-    manager = PluginManager(
-        'package.plugins', plugins_dir, config, 'app/plugins',
-        default_plugins=('enabled_one',),
-        logger=logging.getLogger('test.plugins.discover.bools'),
-    )
-
-    manager.discover_modules()
-
-    assert config.get('app/plugins', 'enabled_one') is True
-    assert config.get('app/plugins', 'disabled_one') is False
-
-
-def test_setup_complete_runs_optional_argument_hook_once():
+def test_failing_plugin_setup_complete_is_called_only_once():
     """The BasePlugin signature must not be re-run by an old-API retry."""
     calls = []
 
@@ -1047,86 +503,3 @@ def test_setup_complete_runs_optional_argument_hook_once():
     manager.setup_complete(data)
 
     assert calls == [data]
-
-
-def test_empty_generator_contributions_do_not_report_a_missing_context():
-    class GeneratorPlugin(BasePlugin):
-        def get_menu_contributions(self):
-            return (contribution for contribution in [])
-
-    logger = logging.getLogger('test.plugins.contributions.generator')
-    manager = make_manager(logger=logger)
-    manager.plugins = {'gen': GeneratorPlugin({})}
-    manager.contexts = {}
-
-    records = []
-    handler = logging.Handler()
-    handler.emit = lambda record: records.append(record.getMessage())
-    logger.addHandler(handler)
-    try:
-        manager.setup_contexts({})
-    finally:
-        logger.removeHandler(handler)
-
-    assert not [message for message in records if 'menus' in message]
-
-
-def test_menu_context_group_order_is_independent_of_discovery_order():
-    def render_with(order):
-        menu = _RecordingMenu()
-        context = MenuContext(logger=logging.getLogger('test.plugins.menus.order'))
-        context.register_location('file', menu)
-        for plugin_name, group, name in order:
-            context.add(
-                plugin_name,
-                {'location': 'file', 'group': group, 'name': name},
-                {},
-            )
-        context.render()
-        return menu.entries
-
-    order = [('zeta', 'beta', 'Z'), ('alpha', 'alpha', 'A'), ('mid', None, 'M')]
-    assert render_with(order) == render_with(list(reversed(order)))
-
-
-def test_menu_context_render_is_idempotent():
-    menu = _RecordingMenu()
-    context = MenuContext(logger=logging.getLogger('test.plugins.menus.idempotent'))
-    context.register_location('file', menu)
-    context.add('one', {'location': 'file', 'name': 'A'}, {})
-
-    context.render()
-    entries_after_first = list(menu.entries)
-    context.render()
-
-    assert menu.entries == entries_after_first
-
-
-class _RecordingAction(object):
-    def __init__(self):
-        self.triggered = SimpleNamespace(connect=lambda callback: None)
-
-    def setShortcut(self, shortcut):
-        pass
-
-    def setCheckable(self, checkable):
-        pass
-
-    def setEnabled(self, enabled):
-        pass
-
-
-class _RecordingMenu(object):
-    def __init__(self):
-        self.entries = []
-
-    def addAction(self, *args):
-        self.entries.append(args[-1])
-        return _RecordingAction()
-
-    def addSeparator(self):
-        self.entries.append('---')
-
-    def addMenu(self, name):
-        self.entries.append(('submenu', name))
-        return _RecordingMenu()

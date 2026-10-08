@@ -23,9 +23,8 @@ real run of a real application still gets its error dialogs.
 
 ``setdefault`` leaves an explicit setting alone, so either can be overridden by
 exporting it. Export ``QT_QPA_PLATFORM=cocoa`` to watch a test drive the window,
-or ``LABSCRIPT_NO_ERROR_DIALOG=0`` to let the dialog through -- ``''``, ``'0'``,
-``'false'``, ``'no'`` and ``'off'`` all mean "leave it enabled", in any case and
-ignoring surrounding whitespace.
+or set ``LABSCRIPT_NO_ERROR_DIALOG`` to anything but ``1`` to let the dialog
+through.
 
 A test *of* the error dialog is better off setting the flag directly than
 arranging the environment around itself. ``excepthook`` consults the environment
