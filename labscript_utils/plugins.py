@@ -1309,11 +1309,7 @@ class PluginManager(object):
                 )
 
         setup_activities.sort(
-            key=lambda activity: (
-                activity['priority'],
-                activity['module_name'],
-                activity['name'],
-            )
+            key=lambda activity: (activity['priority'], activity['module_name'])
         )
 
         for activity in setup_activities:
