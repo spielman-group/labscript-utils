@@ -643,14 +643,6 @@ __all__ = [
 ]
 
 
-def _log_once(logger, seen, level, key, message):
-    """Log ``message`` once for each hashable ``key``."""
-    if key in seen:
-        return
-    seen.add(key)
-    logger.log(level, message)
-
-
 class Callback(object):
     """Wrap a callable with priority metadata and method-style binding.
 
@@ -1134,7 +1126,6 @@ class PluginManager(object):
         self.plugins = {}
         self.services = {}
         self.contexts = {}
-        self._logged_plugin_warnings = set()
 
     def discover_modules(self):
         """Scan the plugin directory, update config defaults, and import enabled modules."""
@@ -1233,14 +1224,6 @@ class PluginManager(object):
                 # Setup menu.
                 menu_class = plugin.get_menu_class()
                 if menu_class:
-                    _log_once(
-                        self.logger,
-                        self._logged_plugin_warnings,
-                        logging.WARNING,
-                        (module_name, 'get_menu_class'),
-                        "Plugin '%s' uses deprecated get_menu_class(); "
-                        "prefer get_menu_contributions() instead." % module_name
-                    )
                     # Must store a reference or else the methods called when
                     # the menu actions are triggered will be garbage collected.
                     menu = menu_class(data)
@@ -1553,39 +1536,9 @@ class PluginManager(object):
 
     def _get_plugin_event_handlers(self, module_name, plugin):
         """Return normalized event handlers for one plugin."""
-        # A hook a plugin lacks, or inherits unchanged from BasePlugin, is not one
-        # it defines.
-        plugin_type = type(plugin)
-        has_modern = getattr(plugin_type, 'get_event_handlers', None) not in (
-            None,
-            BasePlugin.get_event_handlers,
-        )
-        has_legacy = getattr(plugin_type, 'get_callbacks', None) not in (
-            None,
-            BasePlugin.get_callbacks,
-        )
-
-        if has_modern:
-            if has_legacy:
-                _log_once(
-                    self.logger,
-                    self._logged_plugin_warnings,
-                    logging.WARNING,
-                    (module_name, 'get_callbacks'),
-                    "Plugin '%s' defines deprecated get_callbacks() and "
-                    "preferred get_event_handlers(); ignoring get_callbacks()."
-                    % module_name
-                )
+        if hasattr(plugin, 'get_event_handlers'):
             handlers = plugin.get_event_handlers()
-        elif has_legacy:
-            _log_once(
-                self.logger,
-                self._logged_plugin_warnings,
-                logging.WARNING,
-                (module_name, 'get_callbacks'),
-                "Plugin '%s' uses deprecated get_callbacks(); "
-                "implement get_event_handlers() instead." % module_name
-            )
+        elif hasattr(plugin, 'get_callbacks'):
             handlers = plugin.get_callbacks()
         else:
             return None
