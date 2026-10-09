@@ -286,7 +286,8 @@ def load_appconfig(filename, return_save_path=False):
         data = {
             section_name: {
                 name: _load_legacy_appconfig_value(value)
-                for name, value in c.items(section_name, raw=True)
+                # TOML cannot hold the None that upstream wrote as 'None'.
+                for name, value in c.items(section_name, raw=True) if value != 'None'
             }
             for section_name in c.sections()
         }
