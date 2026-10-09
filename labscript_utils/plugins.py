@@ -1240,7 +1240,7 @@ class PluginManager(object):
                 plugin.set_notification_instances(plugin_notifications)
 
                 # Register callbacks.
-                callbacks = self._get_plugin_event_handlers(module_name, plugin)
+                callbacks = self._get_plugin_event_handlers(plugin)
                 # Save the settings_changed callback in a separate list for
                 # setting up later.
                 if callbacks and 'settings_changed' in callbacks:
@@ -1534,36 +1534,21 @@ class PluginManager(object):
             pass
         return (data,)
 
-    def _get_plugin_event_handlers(self, module_name, plugin):
+    def _get_plugin_event_handlers(self, plugin):
         """Return normalized event handlers for one plugin."""
         if hasattr(plugin, 'get_event_handlers'):
-            handlers = plugin.get_event_handlers()
-        elif hasattr(plugin, 'get_callbacks'):
-            handlers = plugin.get_callbacks()
-        else:
-            return None
-
-        if handlers is None:
-            return None
-        if not isinstance(handlers, Mapping):
-            self.logger.error(
-                "Plugin '%s' event handlers must be a mapping. Skipping."
-                % module_name
-            )
-            return None
-
-        return handlers
+            return plugin.get_event_handlers()
+        if hasattr(plugin, 'get_callbacks'):
+            return plugin.get_callbacks()
+        return None
 
     def get_event_handlers(self, name):
         """Return all event handlers registered for ``name``, sorted by priority."""
         callbacks = []
 
-        for module_name, plugin in self.plugins.items():
+        for plugin in self.plugins.values():
             try:
-                plugin_callbacks = self._get_plugin_event_handlers(
-                    module_name,
-                    plugin,
-                )
+                plugin_callbacks = self._get_plugin_event_handlers(plugin)
                 if plugin_callbacks and name in plugin_callbacks:
                     callbacks.append(plugin_callbacks[name])
             except Exception:
