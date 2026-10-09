@@ -849,3 +849,18 @@ runmanager and hyde each need a small matching edit, which their owners make.
 - Step 6, style: `lookup_format.py` and `plugins.py`, both created by the fork,
   carry a Monash University banner; whether rule 14 applies is a step-6
   question.
+
+## On merge
+
+These describe Development, which still holds the code step 1 removed. Whoever
+merges CodeHealth into Development updates them in the meta repo:
+
+- `issues/server_interfaces_2026_09_25.md:112-113` lists `LinkIndicator`'s
+  `interval=2` argument, now an attribute.
+- `issues/blacs_issues_2026_08_28.md`, slice 11 (lines 294-306, 320), plans to
+  silence plugin deprecation warnings that are gone.
+- `issues/seen_while_mapping.md:40` names the duplicated `_is_accepted_path`,
+  now removed.
+- `CODEX.md:961-964` lists "icons" among `MenuContext`'s features.
+- `labscript_project.md:97` says `qtwidgets/__init__.py` lazily re-exports the
+  shot queue widget.
