@@ -1226,33 +1226,14 @@ class PluginManager(object):
             )
 
             for contribution in ui_contributions:
-                if not isinstance(contribution, dict):
-                    self.logger.error(
-                        "UI contribution from plugin '%s' is not a dictionary. "
-                        "Skipping." % module_name
-                    )
-                    continue
-                if 'context' not in contribution:
-                    self.logger.error(
-                        "UI contribution from plugin '%s' missing context. "
-                        "Skipping." % module_name
-                    )
-                    continue
-
-                context_name = contribution['context']
-                if context_name not in self.contexts:
-                    self.logger.error(
-                        "UI contribution from plugin '%s' requested unknown "
-                        "context '%s'. Skipping." % (module_name, context_name)
-                    )
-                    continue
-
                 try:
-                    self.contexts[context_name].add(module_name, contribution, data)
+                    self.contexts[contribution['context']].add(
+                        module_name, contribution, data
+                    )
                 except Exception:
                     self.logger.exception(
-                        "Error adding UI contribution from plugin '%s' to "
-                        "context '%s'. Skipping." % (module_name, context_name)
+                        "Error adding UI contribution from plugin '%s'. "
+                        "Skipping." % module_name
                     )
 
             menu_contributions = self._get_contributions(
@@ -1261,20 +1242,7 @@ class PluginManager(object):
                 'menu',
             )
 
-            if menu_contributions and 'menus' not in self.contexts:
-                self.logger.error(
-                    "Plugin '%s' provided menu contributions, but no 'menus' "
-                    "context is registered. Skipping." % module_name
-                )
-                continue
-
             for contribution in menu_contributions:
-                if not isinstance(contribution, dict):
-                    self.logger.error(
-                        "Menu contribution from plugin '%s' is not a "
-                        "dictionary. Skipping." % module_name
-                    )
-                    continue
                 try:
                     self.contexts['menus'].add(module_name, contribution, data)
                 except Exception:
