@@ -1329,11 +1329,14 @@ class PluginManager(object):
         return (data,)
 
     def _get_plugin_event_handlers(self, plugin):
-        """Return normalized event handlers for one plugin."""
-        if hasattr(plugin, 'get_event_handlers'):
-            return plugin.get_event_handlers()
+        """Return one plugin's event handlers, or None."""
+        # Old name first: BasePlugin's get_callbacks forwards to
+        # get_event_handlers, so this also reaches a subclass that overrides
+        # only get_callbacks, which BasePlugin's default would otherwise hide.
         if hasattr(plugin, 'get_callbacks'):
             return plugin.get_callbacks()
+        if hasattr(plugin, 'get_event_handlers'):
+            return plugin.get_event_handlers()
         return None
 
     def get_event_handlers(self, name):
