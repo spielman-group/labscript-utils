@@ -32,8 +32,10 @@ def load_toml_file(filename):
 
 
 def dump_toml_file(filename, data):
+    # Serialise before opening, so data TOML cannot hold leaves the file intact.
+    text = tomli_w.dumps(data)
     with open(filename, 'wb') as f:
-        tomli_w.dump(data, f)
+        f.write(text.encode('utf-8'))
 
 
 class TomlBasicInterpolation(configparser.BasicInterpolation):

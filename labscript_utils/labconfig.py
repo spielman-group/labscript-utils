@@ -247,32 +247,6 @@ def backup_legacy_config(path):
     return backup_path
 
 
-def _to_toml_compatible(value, location='value'):
-    if isinstance(value, dict):
-        converted = {}
-        for key, child in value.items():
-            if not isinstance(key, str):
-                msg = f"{location} contains a non-string dict key {key!r}"
-                raise TypeError(msg)
-            if child is not None:
-                converted[key] = _to_toml_compatible(child, f"{location}.{key}")
-        return converted
-    if isinstance(value, (list, tuple)):
-        return [
-            _to_toml_compatible(child, f"{location}[{index}]")
-            for index, child in enumerate(value)
-        ]
-    if isinstance(value, (str, bool, int, float)):
-        return value
-    if value is None:
-        # A None in a dict is dropped, as TOML represents absence by omission.
-        # Inside a list there is no way to drop one without shifting every later
-        # index, so that stays an error.
-        msg = f"{location} is None, which a TOML list cannot represent"
-        raise TypeError(msg)
-    msg = f"{location} value {value!r} is not representable in TOML app config"
-    raise TypeError(msg)
-
 # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
 def _load_legacy_appconfig_value(value):
     """Temporary legacy INI app-config decoder. Slated for removal soon."""
@@ -287,19 +261,9 @@ def _load_legacy_appconfig_value(value):
 def save_appconfig(filename, data):
     """Save a dictionary as a TOML app config.
 
-    TOML has no null, and represents absence by omitting the key. Options, and
-    entries of dicts within them, whose value is ``None`` are therefore left out;
-    ``load_appconfig()`` returns mappings, so callers reading them back with
-    ``.get()`` see ``None`` again. ``None`` in a list cannot be saved.
+    The data goes to ``tomli_w`` as it is, so a ``None`` at any depth, which TOML
+    cannot represent, raises its ``TypeError``.
     """
-    data = {
-        section_name: {
-            name: _to_toml_compatible(value, f"{section_name}/{name}")
-            for name, value in section.items()
-            if value is not None
-        }
-        for section_name, section in data.items()
-    }
     filename = _resolve_appconfig_save_path(filename)
     filename.parent.mkdir(parents=True, exist_ok=True)
     dump_toml_file(filename, data)
