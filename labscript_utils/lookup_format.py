@@ -47,7 +47,6 @@ def format_lookup_string(
     template,
     context,
     dt=None,
-    preserve_unresolved=False,
     preserve_unresolved_roots=(),
 ):
     """Format a template using optional ``strftime`` plus lookup-only fields.
@@ -56,7 +55,6 @@ def format_lookup_string(
         template (str): Format template.
         context (dict): Top-level lookup context.
         dt (datetime, optional): Datetime used for a first ``strftime`` pass.
-        preserve_unresolved (bool): If True, unresolved lookups are left intact.
         preserve_unresolved_roots (iterable): Root names that may be preserved when a
             lookup below them is unresolved.
 
@@ -68,7 +66,6 @@ def format_lookup_string(
         template = dt.strftime(template)
     formatter = _LookupFormatter(
         context,
-        preserve_unresolved=preserve_unresolved,
         preserve_unresolved_roots=preserve_unresolved_roots,
     )
     return formatter.format(template)
@@ -78,16 +75,14 @@ class _LookupFormatter(object):
     def __init__(
         self,
         context,
-        preserve_unresolved=False,
         preserve_unresolved_roots=(),
     ):
         self.context = context
-        self.preserve_unresolved = preserve_unresolved
         self.preserve_unresolved_roots = set(preserve_unresolved_roots)
         # Preserved placeholders only mean anything to a later pass, so when any
         # preservation is enabled this pass is producing a template rather than
         # final text.
-        self.produces_template = bool(preserve_unresolved or self.preserve_unresolved_roots)
+        self.produces_template = bool(self.preserve_unresolved_roots)
         self.formatter = string.Formatter()
 
     def format(self, template, produces_template=None):
@@ -113,7 +108,7 @@ class _LookupFormatter(object):
                 # a field by the next pass.
                 parts.append(_escape_braces(formatted) if produces_template else formatted)
             except UnresolvedLookupField as exc:
-                if self.preserve_unresolved or exc.root_name in self.preserve_unresolved_roots:
+                if exc.root_name in self.preserve_unresolved_roots:
                     # The placeholder must stay parseable for the next pass.
                     parts.append(placeholder)
                 else:
