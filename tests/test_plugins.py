@@ -494,7 +494,7 @@ def test_discovery_keeps_an_enable_flag_already_in_the_config(tmp_path):
 
 
 def test_failing_plugin_setup_complete_is_called_only_once():
-    """The BasePlugin signature must not be re-run by an old-API retry."""
+    """A plugin_setup_complete that raises is not called again."""
     calls = []
 
     class OptionalArgumentPlugin(BasePlugin):

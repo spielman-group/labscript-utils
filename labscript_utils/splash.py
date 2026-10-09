@@ -39,8 +39,7 @@ def configure_qapplication(qapplication):
     if sys.platform == 'darwin':
         icon_path = qapplication.property('_labscript_icon_path')
         if icon_path:
-            icon = QtGui.QIcon(icon_path)
-            qapplication.setWindowIcon(icon)
+            qapplication.setWindowIcon(QtGui.QIcon(icon_path))
         if qapplication.property('_labscript_qapplication_configured'):
             return qapplication
         # Native macOS widget styling makes many Qt controls look inconsistent
@@ -48,8 +47,7 @@ def configure_qapplication(qapplication):
         # current palette so dark/light appearance still follows the active
         # theme.
         palette = QtGui.QPalette(qapplication.palette())
-        style = QtWidgets.QStyleFactory.create('Fusion')
-        qapplication.setStyle(style)
+        qapplication.setStyle('Fusion')
         qapplication.setPalette(palette)
     elif qapplication.property('_labscript_qapplication_configured'):
         return qapplication

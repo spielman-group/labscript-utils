@@ -231,6 +231,12 @@ is not used::
         def get_setting_classes(self):
             return [SettingsPage]
 
+        def set_menu_instance(self, menu):
+            self.menu = menu
+
+        def set_notification_instances(self, notifications):
+            self.notifications = notifications
+
         def get_event_handlers(self):
             return {
                 'settings_changed': self.on_settings_changed,
@@ -685,6 +691,11 @@ class BasePlugin(object):
 
     Subclass this when you want a concrete starting point, but it is not
     required; a plugin can also satisfy the contract by duck typing.
+    It provides only the hooks a contribution-based application reaches. A
+    plugin driven through ``setup_plugins()`` and ``close_plugins()``, as BLACS
+    drives its plugins, also defines ``get_setting_classes``,
+    ``get_notification_classes``, ``set_menu_instance``,
+    ``set_notification_instances`` and ``close``.
 
     ``initial_settings`` contains the saved configuration for the plugin.
     """

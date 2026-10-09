@@ -9,13 +9,9 @@ def as_config_list(value):
 
     TOML gives options native types, so a path-list option may arrive either as
     a comma-separated string, as it always did under INI, or as a real TOML
-    array. Accept both.
+    array. Accept both; a single number or boolean raises ``TypeError``.
 
-    Use it for any option that code would otherwise read as a string. Two of its
-    callers cannot report a ``TypeError``: ``_get_device_dirs()`` runs when
-    ``labscript_utils.device_registry`` is imported, and
-    ``add_userlib_and_pythonlib()`` runs from ``labscript-suite.pth`` at
-    interpreter start.
+    Use it for any option that code would otherwise read as a string.
     """
     if value is None:
         return []

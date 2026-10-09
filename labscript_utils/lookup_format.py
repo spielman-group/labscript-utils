@@ -119,13 +119,10 @@ class _LookupFormatter(object):
         root_name, lookups = _parse_lookup_field(field_name)
         try:
             value = self.context[root_name]
+            for lookup in lookups:
+                value = value[lookup]
         except KeyError:
             raise UnresolvedLookupField(root_name)
-        for lookup in lookups:
-            try:
-                value = value[lookup]
-            except KeyError:
-                raise UnresolvedLookupField(root_name)
         return value
 
     @staticmethod

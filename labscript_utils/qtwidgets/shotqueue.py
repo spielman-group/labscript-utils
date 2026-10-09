@@ -85,7 +85,7 @@ class ShotQueueTreeView(QTreeView):
 
 
 class ShotQueueWidget(QWidget):
-    """Reusable shot queue editor widget."""
+    """Reusable shot queue widget."""
 
     def __init__(self, parent=None, *, column_titles, path_column=FILEPATH_COLUMN):
         QWidget.__init__(self, parent)
