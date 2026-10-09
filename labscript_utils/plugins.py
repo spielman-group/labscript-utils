@@ -333,8 +333,8 @@ menu objects by ``MenuBuilder``. It expects menus and actions to support
             pass
 
 Expected UI result: the app user sees a top-level menu labeled ``Example``,
-with an ``Open`` action, a separator, and a ``Settings`` action. If the app
-supplies ``icon_factory``, the ``Settings`` action can also show an icon.
+with an ``Open`` action, a separator, and a ``Settings`` action showing the
+icon that the app's ``icon_factory`` returns for ``gear``.
 
 Contribution menu skeleton with MenuContext
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -782,16 +782,12 @@ class MenuBuilder(object):
     * ``icon``: icon name passed to ``icon_factory`` for actions
     * ``action``: callable connected to the action's ``triggered`` signal
     * ``separator``: a truthy sentinel that inserts a separator
-
-    ``icon_factory`` is optional and should return a Qt icon object or other
-    value accepted by ``addAction``. Supplying it keeps this module free of a
-    direct Qt dependency.
     """
-    def __init__(self, icon_factory=None):
+    def __init__(self, icon_factory):
         """Create a menu builder.
 
         Args:
-            icon_factory (callable, optional): Function called as
+            icon_factory (callable): Function called as
                 ``icon_factory(icon_name)`` before adding an icon-bearing menu
                 action. Applications using Qt typically pass ``QIcon``.
         """
@@ -805,9 +801,7 @@ class MenuBuilder(object):
                 for child_menu_params in menu_parameters['menu_items']:
                     self.create_menu(child, child_menu_params)
             else:
-                # ``icon_factory`` stays outside this module so labscript-utils
-                # does not need to import a Qt binding directly.
-                if 'icon' in menu_parameters and self.icon_factory is not None:
+                if 'icon' in menu_parameters:
                     child = parent.addAction(
                         self.icon_factory(menu_parameters['icon']),
                         menu_parameters['name'],

@@ -207,7 +207,7 @@ def test_setup_plugins_returns_each_plugins_settings_changed_handler():
     _, settings_callbacks = manager.setup_plugins(
         data={},
         notifications=NoNotifications(),
-        menu_builder=MenuBuilder(),
+        menu_builder=MenuBuilder(lambda name: name),
         menubar=FakeMenu(),
     )
 
