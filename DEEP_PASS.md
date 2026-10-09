@@ -44,10 +44,10 @@ as one.
   "drag/drop, add/delete/clear/reorder, selection handling, queue
   serialization".
 
-All 16 tests marked "Step 2.1" in `CONTRACT.md` are covered. Eight are in
-entries 5 (two tests), 6, 7, 14, 15 and 20 (one test), 25 and 34. Seven test
-the base `MenuContext.render` and one `PluginManager.get_callbacks`; both go at
-step 4.
+All 16 tests marked "Step 2.1" in `CONTRACT.md`, since deleted, are covered.
+Eight are in entries 5 (two tests), 6, 7, 14, 15 and 20 (one test), 25 and
+34. Seven test the base `MenuContext.render` and one
+`PluginManager.get_callbacks`; both go at step 4.
 
 ### 1. An INI labconfig is converted to TOML at every interpreter start
 
@@ -77,6 +77,8 @@ step 4.
 - Proposed: remove, once Ian confirms that no lab machine has only an INI
   labconfig. Both callers use `default_labconfig_path()`.
 - Step: 1, possibly 4.
+- Outcome: kept. Ian: INI files are converted to TOML at once, with no user
+  intervention, and many labs still have them.
 
 ### 2. ShotQueueWidget as a list of shot files kept by path
 
@@ -113,6 +115,8 @@ step 4.
   (`accepted_extensions=`, `allow_duplicates=`, `connect_delete_requested=False`)
   and `column_titles` becomes required.
 - Step: 1, possibly 4.
+- Outcome: removed in b857f3e, with the shot-queue group; runmanager's matching
+  edits are with its owner.
 
 ### 3. Loading an INI app config writes a TOML file and renames the INI
 
@@ -142,6 +146,7 @@ step 4.
   runviewer, made by their owners. `_resolve_appconfig_load_path` then matches
   `_resolve_appconfig_save_path` (step 2).
 - Step: 1, possibly 4.
+- Outcome: kept, for the reason given at entry 1.
 
 ### 4. Dropping shot files onto the shot queue
 
@@ -166,6 +171,8 @@ step 4.
 - Proposed: remove. runmanager drops its four switch-off lines and the
   argument.
 - Step: 1, possibly 4.
+- Outcome: removed in b857f3e, with the shot-queue group; runmanager's matching
+  edits are with its owner.
 
 ### 5. Old and new plugin hooks: which one is used, and deprecation warnings
 
@@ -195,6 +202,8 @@ step 4.
   otherwise. Drop the warnings and `_log_once`. Doing slice 11 instead would
   silence the warnings without removing them.
 - Step: 1.
+- Outcome: removed in 4ac2114. Handlers come from `get_event_handlers` if a
+  plugin has it, else `get_callbacks`; no warnings.
 
 ### 6. BasePlugin's do-nothing versions of BLACS's hooks
 
@@ -221,6 +230,7 @@ step 4.
   `get_event_handlers`, `get_ui_contributions`, `get_menu_contributions` and
   `get_services`.
 - Step: 1, possibly 4.
+- Outcome: removed in 0e5eafe.
 
 ### 7. Checks on plugin UI and menu contributions in setup_contexts
 
@@ -245,6 +255,7 @@ step 4.
   must sit inside the `try`, or a bad item escapes.
 - Proposed: simplify to one `try`/`logger.exception` around each `add` call.
 - Step: 1.
+- Outcome: removed in 1e0d90e; one `try` around each context's `add`.
 
 ### 8. An INI labconfig passed to LabConfig is read with a warning
 
@@ -268,6 +279,7 @@ step 4.
 - Proposed: remove; `_read_path` reads TOML, and `LabConfig` inherits
   ConfigParser's `read`.
 - Step: 1, possibly 4.
+- Outcome: kept, for the reason given at entry 1.
 
 ### 9. Checks on malformed plugin setup activities
 
@@ -288,6 +300,7 @@ step 4.
 - Proposed: build the records inside one per-plugin `try`, and drop the five
   checks.
 - Step: 1.
+- Outcome: removed in 75183dc; one `try` per plugin.
 
 ### 10. The shot queue's Add button and file dialog
 
@@ -308,6 +321,8 @@ step 4.
 - Proposed: remove. runmanager drops `file_dialog_filter=`,
   `connect_add_button=False` and the `hide()` call.
 - Step: 1, possibly 4.
+- Outcome: removed in b857f3e, with the shot-queue group; runmanager's matching
+  edits are with its owner.
 
 ### 11. A second type check on app configs, which drops None
 
@@ -333,6 +348,10 @@ step 4.
 - Proposed: remove the checker. Ian chooses whether `None` is dropped, which
   would keep one filter line, or raises, the same way at every level.
 - Step: 1, possibly 3.
+- Outcome: removed in 5b37296. Ian: a `None` raises tomli_w's own error at every
+  level. `dump_toml_file` now serialises before it opens the file, so a failed
+  save leaves the old config intact. An INI app config holding `None` now fails
+  to convert, leaving the INI in place; upstream's saved data holds no `None`.
 
 ### 12. BasePlugin's default setup activity
 
@@ -353,6 +372,7 @@ step 4.
 - Proposed: remove both defaults and the sentence; the manager's branch is the
   one implementation.
 - Step: 1, possibly 2.
+- Outcome: removed in 2023a8a.
 
 ### 13. Checks on what a contribution hook returns
 
@@ -369,6 +389,7 @@ step 4.
   logged and skipped.
 - Proposed: simplify to `return list(hook() or ())` inside the existing `try`.
 - Step: 1.
+- Outcome: removed in 2cce0b5, with entry 14.
 
 ### 14. Contributions read into a list before they are tested
 
@@ -384,6 +405,7 @@ step 4.
 - Removal user-visible: no.
 - Proposed: remove with entry 7; entry 13's `list(...)` stays inside the `try`.
 - Step: 1, possibly 3: a bug-fix guard whose cause is entry 7.
+- Outcome: removed in 2cce0b5, with entry 13.
 
 ### 15. Collecting services: inputs that are not mappings
 
@@ -402,6 +424,7 @@ step 4.
 - Proposed: `services = dict(base_services or {})`, and
   `services.update(plugin.get_services())` inside the `try`.
 - Step: 1.
+- Outcome: removed in 1010e61.
 
 ### 16. A home-directory `~` in the window title
 
@@ -420,6 +443,13 @@ step 4.
 - Proposed: simplify to `os.path.abspath(filename)` in
   `set_config_window_title`.
 - Step: 1. Lower confidence: it is a detail of a requested feature.
+- Outcome: kept for now. Ian's concern is a long path. Neither Qt nor macOS
+  shortens it at the front: Qt passes the title to the window unchanged, and the
+  macOS 26 title bar, rendered at 420 and 700 px, cuts the end with "…", so the
+  file name is what is lost. Proposed, not built: in `set_config_window_title`,
+  put the name first, as
+  `f'{name} - {self.base_window_title} - {folder}'`,
+  so the folder is what is cut.
 
 ### 17. Shot-queue change and selection signals
 
@@ -437,6 +467,8 @@ step 4.
 - Removal user-visible: no.
 - Proposed: remove.
 - Step: 1, possibly 4.
+- Outcome: removed in b857f3e, with the shot-queue group; runmanager's matching
+  edits are with its owner.
 
 ### 18. Package-level names in labscript_utils.qtwidgets
 
@@ -452,6 +484,7 @@ step 4.
 - Removal user-visible: no.
 - Proposed: restore `master`'s banner-only file.
 - Step: 1.
+- Outcome: removed in ef1d5c3; the file is `master`'s again.
 
 ### 19. The shot queue's own "Delete selected rows" menu
 
@@ -467,6 +500,8 @@ step 4.
 - Removal user-visible: no.
 - Proposed: remove.
 - Step: 1.
+- Outcome: removed in b857f3e, with the shot-queue group; runmanager's matching
+  edits are with its owner.
 
 ### 20. When two plugins offer the same service name, the first keeps it
 
@@ -485,6 +520,8 @@ step 4.
 - Proposed: remove, so the later registration wins. If Ian wants a collision to
   stay loud, raise `ValueError` at it instead.
 - Step: 1.
+- Outcome: changed in cf70352. Ian: a duplicate service name raises
+  `ValueError`, naming the service and the plugin.
 
 ### 21. Saving and restoring the shot queue's file list
 
@@ -501,6 +538,8 @@ step 4.
 - Removal user-visible: no.
 - Proposed: remove.
 - Step: 1, possibly 4.
+- Outcome: removed in b857f3e, with the shot-queue group; runmanager's matching
+  edits are with its owner.
 
 ### 22. Rows and columns given as bare strings
 
@@ -517,6 +556,8 @@ step 4.
 - Removal user-visible: no.
 - Proposed: remove, together with runmanager's pass-through.
 - Step: 1, possibly 4.
+- Outcome: removed in b857f3e, with the shot-queue group; runmanager's matching
+  edits are with its owner.
 
 ### 23. The `preserve_unresolved` switch on output-path templates
 
@@ -535,6 +576,7 @@ step 4.
 - Removal user-visible: no.
 - Proposed: keep only `preserve_unresolved_roots`.
 - Step: 1.
+- Outcome: removed in bb1570e.
 
 ### 24. Starting the next indexed file name from an existing suffix
 
@@ -551,6 +593,9 @@ step 4.
 - Removal user-visible: no.
 - Proposed: make `start` required.
 - Step: 1, possibly 4.
+- Outcome: kept. runmanager's `reindex_run_file_infos` passes `start=None` when
+  a batch joins the last sequence and no sequence is recorded; making `start`
+  required failed 8 runmanager tests.
 
 ### 25. Checking that a plugin's event handlers are a mapping
 
@@ -566,6 +611,7 @@ step 4.
   plugin's handlers are returned.
 - Proposed: remove.
 - Step: 1.
+- Outcome: removed in 025bdcf.
 
 ### 26. MenuBuilder without an icon factory
 
@@ -581,6 +627,7 @@ step 4.
 - Removal user-visible: no.
 - Proposed: make `icon_factory` required, and use it whenever `icon` is given.
 - Step: 1.
+- Outcome: changed in 7116dad; the factory is required.
 
 ### 27. An option to keep labconfig section names' case
 
@@ -596,6 +643,7 @@ step 4.
 - Removal user-visible: no.
 - Proposed: remove; lower-casing stays.
 - Step: 1, possibly 4.
+- Outcome: removed in dfda81c.
 
 ### 28. LinkIndicator's `interval` and `status_width` arguments
 
@@ -615,6 +663,8 @@ step 4.
 - Proposed: fix 220 px, and let the test assign `indicator.interval`. The
   weakest entry; Ian may count it settled by his width decision.
 - Step: 1.
+- Outcome: changed in a17a9b5. Ian: `status_width` stays; `interval` is an
+  attribute the test assigns.
 
 ### 29. MenuContext's icon factory
 
@@ -632,6 +682,7 @@ step 4.
 - Proposed: remove. hyde's `HydeMenuContext` would also lose its `icon_factory`
   argument and its icon branch (3 to 5 lines).
 - Step: 1, possibly 4, with the base `render`.
+- Outcome: removed in 58c931e; hyde's matching edit is with its owner.
 
 ### 30. A guard for application classes missing their names
 
@@ -648,6 +699,7 @@ step 4.
 - Removal user-visible: no.
 - Proposed: remove.
 - Step: 1, possibly 4.
+- Outcome: removed in a02dfc1.
 
 ### 31. List options given as a tuple or a bare value
 
@@ -665,6 +717,7 @@ step 4.
 - Proposed: accept a string or a list only. The array form itself came from a
   bug fix (step 3).
 - Step: 1.
+- Outcome: changed in e39ce15; a string is split, and anything else is iterated.
 
 ### 32. get_qapplication's `argv` argument
 
@@ -680,6 +733,7 @@ step 4.
 - Removal user-visible: no.
 - Proposed: `argv = sys.argv`.
 - Step: 1.
+- Outcome: removed in 6410d75.
 
 ### 33. Two checks in configure_qapplication that cannot fail
 
@@ -696,6 +750,7 @@ step 4.
 - Removal user-visible: no.
 - Proposed: remove both checks.
 - Step: 1.
+- Outcome: removed in 3558785.
 
 ### 34. Name order among one plugin's equal-priority setup activities
 
@@ -712,6 +767,7 @@ step 4.
 - Removal user-visible: no.
 - Proposed: sort by `(priority, module_name)`.
 - Step: 1.
+- Outcome: removed in 6980591.
 
 ### 35. Index and type errors in a template reported as unresolved
 
@@ -730,6 +786,7 @@ step 4.
 - Proposed: catch `KeyError` only. Low confidence; the line fits the
   "unresolved" idea.
 - Step: 1, possibly 3.
+- Outcome: changed in fe68382.
 
 ### Total
 
@@ -743,6 +800,14 @@ plugin framework's guards, warnings and defaults (243 lines).
 Removal changes what a user sees in four entries: 1 and 3 for anyone still
 holding INI files, 8 only for a script of their own that opens one, and 16 in
 the title bar. Entry 5 changes only the log.
+
+### Outcome
+
+Ian kept entries 1, 3, 8 and 16; entry 24 was kept because a runmanager path
+passes `start=None`. Entries 11, 20 and 28 were done as Ian decided, and the
+rest as proposed, in 23 commits from b857f3e to 3558785. `labscript_utils` and
+`labscript_profile` went from 9744 to 9211 non-blank lines, 533 fewer. runmanager
+and hyde each need a small matching edit, which their owners make.
 
 ### Seen for later steps
 
