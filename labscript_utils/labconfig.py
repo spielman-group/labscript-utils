@@ -87,10 +87,18 @@ class LabscriptApplication(object):
             ensure_directory=ensure_directory,
         )
 
-    def set_config_window_title(self, filename):
-        self.ui.setWindowTitle(
-            f'{self.base_window_title} - {format_path_for_display(filename)}'
-        )
+    def set_config_window_title(self, filename, max_length=60):
+        path = format_path_for_display(filename)
+        separator = '\\' if os.name == 'nt' else '/'
+        parts = path.split(separator)
+        # A long path loses its middle: the start says which drive or install it
+        # is on, and the end names the folder and file.
+        if len(path) > max_length and len(parts) > 4:
+            head, tail = 2, parts[-2:]
+            while len(separator.join(parts[:head + 1] + ['…'] + tail)) <= max_length:
+                head += 1
+            path = separator.join(parts[:head] + ['…'] + tail)
+        self.ui.setWindowTitle(f'{self.base_window_title} - {path}')
 
 
 class EnvInterpolation(TomlBasicInterpolation):
