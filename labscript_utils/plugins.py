@@ -1226,7 +1226,14 @@ class PluginManager(object):
                     )
 
     def collect_services(self, base_services=None):
-        """Merge app-owned and plugin-owned services into one registry."""
+        """Merge app-owned and plugin-owned services into one registry.
+
+        Raises
+        ------
+        ValueError
+            If a plugin offers a service name that the application or an
+            earlier plugin has already registered.
+        """
         services = dict(base_services or {})
 
         for module_name, plugin in self.plugins.items():
@@ -1242,15 +1249,13 @@ class PluginManager(object):
                 )
                 continue
 
-            for service_name, service in plugin_services.items():
+            for service_name in plugin_services:
                 if service_name in services:
-                    self.logger.error(
-                        "Plugin '%s' service '%s' conflicts with an existing "
-                        "service. Keeping the original registration."
-                        % (module_name, service_name)
+                    raise ValueError(
+                        f"Plugin '{module_name}' offers service '{service_name}', "
+                        "which is already registered."
                     )
-                    continue
-                services[service_name] = service
+            services.update(plugin_services)
 
         self.services = services
         return services
