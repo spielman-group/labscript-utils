@@ -58,11 +58,11 @@ def configure_qapplication(qapplication):
     qapplication.setProperty('_labscript_qapplication_configured', True)
     return qapplication
 
-def get_qapplication(argv=None, application_name=None, icon_path=None):
+def get_qapplication(application_name=None, icon_path=None):
     qapplication = QtWidgets.QApplication.instance()
 
     if qapplication is None:
-        argv = sys.argv if argv is None else argv
+        argv = sys.argv
         if application_name is not None:
             # Create a new argv so QApplication can alter it without mutating sys.argv.
             argv = [application_name] + argv[1:]
