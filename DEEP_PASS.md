@@ -202,8 +202,10 @@ Eight are in entries 5 (two tests), 6, 7, 14, 15 and 20 (one test), 25 and
   otherwise. Drop the warnings and `_log_once`. Doing slice 11 instead would
   silence the warnings without removing them.
 - Step: 1.
-- Outcome: removed in 4ac2114. Handlers come from `get_event_handlers` if a
-  plugin has it, else `get_callbacks`; no warnings.
+- Outcome: removed in 4ac2114, with no warnings left. 23571b2 then asks for
+  `get_callbacks` first, since `BasePlugin` forwards it to `get_event_handlers`;
+  asking for `get_event_handlers` first hid a subclass overriding only the old
+  name.
 
 ### 6. BasePlugin's do-nothing versions of BLACS's hooks
 
@@ -300,7 +302,8 @@ Eight are in entries 5 (two tests), 6, 7, 14, 15 and 20 (one test), 25 and
 - Proposed: build the records inside one per-plugin `try`, and drop the five
   checks.
 - Step: 1.
-- Outcome: removed in 75183dc; one `try` per plugin.
+- Outcome: removed in 75183dc; one `try` per plugin, and since c982a8d a bad
+  record skips the whole plugin.
 
 ### 10. The shot queue's Add button and file dialog
 
@@ -805,9 +808,10 @@ the title bar. Entry 5 changes only the log.
 
 Ian kept entries 1, 3, 8 and 16; entry 24 was kept because a runmanager path
 passes `start=None`. Entries 11, 20 and 28 were done as Ian decided, and the
-rest as proposed, in 23 commits from b857f3e to 3558785. `labscript_utils` and
-`labscript_profile` went from 9744 to 9211 non-blank lines, 533 fewer. runmanager
-and hyde each need a small matching edit, which their owners make.
+rest as proposed, in 23 commits from b857f3e to 3558785, followed by three from
+the code-quality review (23571b2, c982a8d, 2bb4f6d). `labscript_utils` and
+`labscript_profile` went from 9744 to 9216 non-blank lines, 528 fewer.
+runmanager and hyde each need a small matching edit, which their owners make.
 
 ### Seen for later steps
 
