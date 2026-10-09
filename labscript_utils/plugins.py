@@ -31,7 +31,7 @@ The usual package layout is::
 The module name becomes the plugin name. ``PluginManager`` looks for a module
 attribute named ``Plugin`` and passes the saved per-plugin settings dictionary
 to ``Plugin(initial_settings)``. Existing plugins do not have to inherit
-``BasePlugin``; they only need to provide the same methods by duck typing.
+``BasePlugin``; they only need to provide the methods the manager calls.
 
 Configuration behavior is intentionally conservative:
 
@@ -689,8 +689,7 @@ class BasePlugin(object):
     """Reference implementation of the plugin interface.
 
     Subclass this when you want a concrete starting point, but it is not
-    required. The manager only relies on the methods defined here; a plugin
-    can also satisfy the contract by duck typing.
+    required; a plugin can also satisfy the contract by duck typing.
 
     ``initial_settings`` contains the saved configuration for the plugin.
     """
@@ -703,8 +702,6 @@ class BasePlugin(object):
         ``plugin_setup_complete()`` to restore UI state or background state.
         """
         self.initial_settings = initial_settings
-        self.menu = None
-        self.notifications = {}
 
     def get_menu_class(self):
         """Return a menu class for this plugin, or ``None``.
@@ -718,25 +715,6 @@ class BasePlugin(object):
         :meth:`get_menu_contributions` instead.
         """
         return None
-
-    def get_notification_classes(self):
-        """Return notification classes contributed by this plugin.
-
-        The application-specific notification manager constructs the
-        notifications. Instances are later passed back to
-        ``set_notification_instances()`` in a dictionary keyed by notification
-        class.
-        """
-        return []
-
-    def get_setting_classes(self):
-        """Return settings-page classes contributed by this plugin.
-
-        The application owns the settings UI and storage. The manager only
-        collects these classes and returns them to the application from
-        ``setup_plugins()``.
-        """
-        return []
 
     def get_event_handlers(self):
         """Return a mapping of event names to handlers, or ``None``.
@@ -787,14 +765,6 @@ class BasePlugin(object):
         """
         return []
 
-    def set_menu_instance(self, menu):
-        """Receive the menu instance constructed for this plugin."""
-        self.menu = menu
-
-    def set_notification_instances(self, notifications):
-        """Receive notification instances constructed for this plugin."""
-        self.notifications = notifications
-
     def plugin_setup_complete(self, data=None):
         """Run after the application has finished plugin setup.
 
@@ -825,15 +795,6 @@ class BasePlugin(object):
             },
         ]
 
-    def get_save_data(self):
-        """Return serializable plugin state for the next application start.
-
-        The shape of this data is application-owned. Return plain data
-        structures that the application can persist and pass back as
-        ``initial_settings`` during the next start.
-        """
-        return {}
-
     def get_services(self):
         """Return named services exposed by this plugin.
 
@@ -843,14 +804,6 @@ class BasePlugin(object):
         order-independent.
         """
         return {}
-
-    def close(self):
-        """Clean up resources owned by the plugin during application shutdown.
-
-        Applications call this during shutdown. Stop timers, workers,
-        listeners, or other plugin-owned resources here.
-        """
-        pass
 
 
 class MenuBuilder(object):

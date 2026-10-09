@@ -41,13 +41,10 @@ def test_a_plugin_that_overrides_nothing_contributes_nothing():
 
     assert plugin.initial_settings == {'x': 1}
     assert plugin.get_menu_class() is None
-    assert plugin.get_notification_classes() == []
-    assert plugin.get_setting_classes() == []
     assert plugin.get_event_handlers() is None
     assert plugin.get_callbacks() is None
     assert plugin.get_ui_contributions() == []
     assert plugin.get_menu_contributions() == []
-    assert plugin.get_save_data() == {}
 
 
 def make_plugin_package(tmp_path, modules):
@@ -188,6 +185,15 @@ def test_get_event_handlers_sorts_modern_handlers_by_priority():
 
 def test_setup_plugins_returns_each_plugins_settings_changed_handler():
     class Plugin(BasePlugin):
+        def get_setting_classes(self):
+            return []
+
+        def get_notification_classes(self):
+            return []
+
+        def set_notification_instances(self, notifications):
+            pass
+
         def get_event_handlers(self):
             return {'settings_changed': self.settings_changed}
 
