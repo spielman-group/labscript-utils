@@ -80,10 +80,6 @@ class LabscriptApplication(object):
         self.base_window_title = self.ui.windowTitle().split(' - ', 1)[0]
 
     def get_default_config_file(self, ensure_directory=False):
-        if self.app_name is None or self.default_config_filename is None:
-            raise NotImplementedError(
-                'LabscriptApplication requires app_name and default_config_filename'
-            )
         return get_default_appconfig_file(
             self.exp_config,
             self.app_name,
