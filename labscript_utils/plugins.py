@@ -621,7 +621,6 @@ import inspect
 import logging
 import os
 import warnings
-from collections.abc import Mapping
 from types import MethodType
 
 
@@ -1228,34 +1227,17 @@ class PluginManager(object):
 
     def collect_services(self, base_services=None):
         """Merge app-owned and plugin-owned services into one registry."""
-        if base_services is None:
-            services = {}
-        elif isinstance(base_services, Mapping):
-            services = dict(base_services)
-        else:
-            self.logger.error(
-                "Base services must be a mapping. Ignoring invalid registry."
-            )
-            services = {}
+        services = dict(base_services or {})
 
         for module_name, plugin in self.plugins.items():
             if not hasattr(plugin, "get_services"):
                 continue
 
             try:
-                plugin_services = plugin.get_services()
+                plugin_services = dict(plugin.get_services())
             except Exception:
                 self.logger.exception(
                     "Error getting services from plugin '%s'. Skipping."
-                    % module_name
-                )
-                continue
-
-            if plugin_services is None:
-                continue
-            if not isinstance(plugin_services, Mapping):
-                self.logger.error(
-                    "Plugin '%s' services must be a mapping. Skipping."
                     % module_name
                 )
                 continue
