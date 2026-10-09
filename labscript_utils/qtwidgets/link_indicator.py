@@ -49,8 +49,6 @@ class LinkIndicator(QtWidgets.QWidget):
     command : str, optional
         A request to make in place of a hello, such as ``'get_status'``, for an
         ``on_answer`` that needs its answer.
-    interval : float, optional
-        Seconds to wait after each probe before the next.
     on_answer : callable, optional
         Called on the GUI thread as ``on_answer(reachable, answer)`` after each
         answer is shown: ``True`` and the server's answer, or ``False`` and the
@@ -72,7 +70,6 @@ class LinkIndicator(QtWidgets.QWidget):
         host,
         port,
         command=None,
-        interval=2,
         on_answer=None,
         status_width=220,
         parent=None,
@@ -85,7 +82,7 @@ class LinkIndicator(QtWidgets.QWidget):
             self._probe = self._client.say_hello
         else:
             self._probe = functools.partial(self._client.request, command)
-        self.interval = interval
+        self.interval = 2
         self.on_answer = on_answer
         self.setFixedWidth(status_width)
         self.title_label = QtWidgets.QLabel(name)

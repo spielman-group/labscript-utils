@@ -46,9 +46,9 @@ def test_indicator_follows_a_server_answering_and_then_gone():
         'Shots',
         'localhost',
         server.port,
-        interval=0.1,
         on_answer=lambda *answer: answers.append(answer),
     )
+    indicator.interval = 0.1
     icon_label, text_label = indicator.icon_label, indicator.text_label
     indicator.start()
     try:
