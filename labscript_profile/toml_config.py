@@ -9,7 +9,7 @@ def as_config_list(value):
 
     TOML gives options native types, so a path-list option may arrive either as
     a comma-separated string, as it always did under INI, or as a real TOML
-    array. Accept both, and treat anything else as a single entry.
+    array. Accept both.
 
     Use it for any option that code would otherwise read as a string. Two of its
     callers cannot report a ``TypeError``: ``_get_device_dirs()`` runs when
@@ -21,9 +21,7 @@ def as_config_list(value):
         return []
     if isinstance(value, str):
         return [item.strip() for item in value.split(',') if item.strip()]
-    if isinstance(value, (list, tuple)):
-        return [str(item).strip() for item in value if str(item).strip()]
-    return [str(value).strip()]
+    return [str(item).strip() for item in value if str(item).strip()]
 
 
 def load_toml_file(filename):
