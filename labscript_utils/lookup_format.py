@@ -124,7 +124,7 @@ class _LookupFormatter(object):
         for lookup in lookups:
             try:
                 value = value[lookup]
-            except (IndexError, KeyError, TypeError):
+            except KeyError:
                 raise UnresolvedLookupField(root_name)
         return value
 
