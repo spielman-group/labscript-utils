@@ -1178,40 +1178,15 @@ class PluginManager(object):
         self.contexts[name] = context
 
     def _get_contributions(self, hook, module_name, label):
-        """Return a plugin contribution iterable, logging malformed results."""
+        """Return a plugin's contributions as a list, logging a hook that raises."""
         if hook is None:
             return []
 
         try:
-            contributions = hook()
+            return list(hook() or ())
         except Exception:
             self.logger.exception(
                 "Error getting %s contributions from plugin '%s'. Skipping."
-                % (label, module_name)
-            )
-            return []
-
-        if contributions is None:
-            return []
-
-        if (
-            isinstance(contributions, (dict, str, bytes))
-            or not hasattr(contributions, '__iter__')
-        ):
-            self.logger.error(
-                "Plugin '%s' %s contributions must be an iterable of "
-                "dictionaries. Skipping." % (module_name, label)
-            )
-            return []
-
-        # Materialise so that callers can test emptiness and iterate. A
-        # generator is truthy even when it yields nothing, which would report a
-        # plugin that contributed none as having contributed some.
-        try:
-            return list(contributions)
-        except Exception:
-            self.logger.exception(
-                "Error reading %s contributions from plugin '%s'. Skipping."
                 % (label, module_name)
             )
             return []
