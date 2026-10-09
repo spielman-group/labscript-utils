@@ -849,6 +849,584 @@ runmanager and hyde each need a small matching edit, which their owners make.
   carry a Monash University banner; whether rule 14 applies is a step-6
   question.
 
+## Step 2: duplication
+
+"The map shows where a problem is solved twice. One implementation stays." For
+the pilot that means two kinds:
+
+- a problem solved twice inside labscript-utils;
+- a problem solved in several repos whose one implementation belongs in
+  labscript-utils, consolidated across the suite in one round.
+
+Each entry gives:
+- every copy, with its repo, file and function;
+- how the copies differ, read from the code;
+- the one implementation that stays;
+- the core lines saved;
+- the edits each other repo makes. Those edits go to each repo's owner in the
+  same round as the labscript-utils change, and only once Ian has approved.
+
+Refs and counting:
+- Refs are `Development`, except labscript-utils `CodeHealth` at 6df3017,
+  runmanager `CodeHealth` (the same as Development outside `queueing.py`) and
+  hyde `HEAD`.
+- "Upstream" means the copy is on that repo's `master`.
+- Core lines are non-blank lines, docstrings and comments included. Where a
+  survivor was drafted in a scratch copy, the figure is that draft's.
+- A new module adds the suite's 12-to-13-line licence banner, which the figures
+  do not include unless stated.
+
+Candidates came from four sources:
+- this file's step 2 notes;
+- the meta repo's `issues/seen_while_mapping.md`;
+- the librarian's list, from labscript-library edfa619;
+- three sweeps: inside labscript-utils, non-GUI helpers across repos, and GUI
+  code across repos. The sweeps used name scans and clone scans of every
+  repository.
+
+Every "no other caller" claim was searched with `git -C <repo> grep` over every
+file of every repo, beside a control that matches. hyde is left out as a source
+of duplicates (Ian), but counted as a consumer.
+
+### 1. `__version__.py`, copied into eight repos
+
+- Copies: `__version__.py` in labscript, labscript-devices, labscript-utils,
+  runmanager, blacs, lyse, runviewer and labscript-suite.
+  - All are upstream, 25 lines each, and byte-identical apart from runmanager's
+    missing final newline.
+  - zprocess (13 lines) and desktop-app (22) have their own variants. They
+    cannot join, because labscript-utils depends on zprocess, not the other way
+    round.
+- Differences: none among the eight. Each does the same thing:
+  - in a git checkout, `setuptools_scm` with `release-branch-semver` and
+    `node-and-date`;
+  - otherwise `importlib.metadata`;
+  - else `None`.
+- Stays: one function in `labscript_utils/versions.py`, called from each
+  `__init__` as `__version__ = package_version(__package__)`.
+  - The existing `versions.get_version` is not a drop-in. It uses no version
+    scheme: in a scratch git repo it gave `1.0.1.dev1` where these files give
+    `1.1.0.dev1`.
+  - It also returns sentinel classes where these files return `None`.
+- Core lines saved: 171.
+  - Seven repos each delete 25 lines and add 1.
+  - labscript-utils' own 25 lines become about 21, plus 1 import.
+- Consumer edits: delete `__version__.py`, and change one `__init__` line, in:
+  - labscript `labscript/__init__.py:14`;
+  - labscript-devices `labscript_devices/__init__.py:5`;
+  - runmanager `runmanager/__init__.py:41`;
+  - blacs `blacs/__init__.py:14`;
+  - lyse `lyse/__init__.py:31`;
+  - runviewer `runviewer/__init__.py:15`;
+  - labscript-suite `labscript_suite/__init__.py:1`.
+  Nothing else imports the module.
+- Visible to a user: no. `pkg.__version__` keeps its value.
+- Decision for Ian: this is upstream boilerplate in seven repos, so it widens the
+  fork's difference from upstream at every sync. The new function was not run in
+  a real checkout.
+
+### 2. Output widgets: lock menu, wheel pass-through, lock and unlock, four times
+
+- Copies, all upstream, in `labscript_utils/qtwidgets/`:
+  - `analogoutput.py:AnalogOutput`: eventFilter 224-232, `_menu_triggered`,
+    lock 241-246, unlock 248-253;
+  - `digitaloutput.py:DigitalOutput`: eventFilter 43-64, `_menu_triggered`,
+    lock 73-77, unlock 79-83;
+  - `enumoutput.py:EnumOutput`: eventFilter 125-146, `_menu_triggered`,
+    lock 155-160, unlock 162-167;
+  - `imageoutput.py:ImageOutput`: eventFilter 169-191, `_menu_triggered`,
+    lock 200-205, unlock 207-212;
+  - the image widget's children pop the same menu twice more.
+  - The disabled-widget wheel pass-through is 12 lines, written three times.
+- Differences:
+  - `ImageOutput.eventFilter` returns True after its menu; the other three fall
+    through. The survivor falls through.
+  - The menu label is read from a different child in each widget. The survivor
+    reads one `_lock_target`.
+  - The lock keywords differ: `notify_ao`, `notify_do`, `notify_eo` and
+    `notify_Image`. They become one, `notify_output`.
+  - An offscreen drive of the old and drafted widgets agreed, except for the
+    image's return value. Nothing in the suite handles that event above the
+    widget.
+- Stays: a `LockableOutput` mixin in a new `qtwidgets/lockable.py`. Each widget
+  becomes `class X(LockableOutput, <its Qt base>)`.
+  - `set_AO`, `set_DO`, `set_EO` and `set_Image` stay per class, because they
+    call `remove_widget` with different arguments.
+  - `LockableOutput` is a new public name, for the librarian.
+- Core lines saved: 91, with the new file's banner counted. 14 of these are
+  step 4 matter that goes with the edit: EnumOutput's unused `_lock_action`, and
+  a commented-out `ImageView.eventFilter`.
+- Consumer edits: none. blacs `output_classes.py` calls `lock(False)` and
+  `unlock(False)` positionally, and the theme plugin styles by class name; both
+  keep working. The stylesheet pixels matched offscreen.
+- Visible to a user: no. A lab-local BLACS tab calling
+  `widget.lock(notify_do=False)` by keyword would break; nothing in the suite
+  does.
+
+### 3. Starting a zprocess server, and connecting to zlock and zlog
+
+- Copies, all upstream:
+  - the `main()` of `remote.py` (30-57), `zlock.py` (28-60) and `zlog.py`
+    (29-60): the same command build, the same security block, and the same
+    daemon-or-foreground launch;
+  - `ls_zprocess.connect_to_zlock_server` (421-452) and
+    `ensure_connected_to_zlog` (458-483): the same ping, else start the daemon
+    and ping again.
+- Differences: the module name and the port key. Each also has its own extras:
+  - zlog adds its rotating-file arguments;
+  - remote adds `-tui`;
+  - zlock refuses a remote `zlock_host`, checks the protocol version and sets
+    the default timeout;
+  - zlog's connect returns early once connected.
+  Drafted and compared: the command lines matched for 3 modules, 3 security
+  settings and 3 argument lists, and the ping and daemon sequences matched.
+- Stays:
+  - `run_server(module, port, *extra_args, tui=False)` and a private
+    `_ping_starting_locally` in `ls_zprocess.py`;
+  - the three `-m` scripts, as the documented entry points, each reduced to its
+    own configuration plus one call;
+  - `connect_to_zlock_server` and `ensure_connected_to_zlog`, which keep their
+    names and their extras.
+- Core lines saved: 68.
+- Consumer edits: none. Callers of the two connect functions, and the `-m`
+  command lines, are unchanged.
+- Visible to a user: no. `run_server` is a new public name.
+
+### 4. Save, save as, revert and load configuration in lyse and runmanager
+
+- Copies, all upstream: lyse `__main__.py:Lyse` and runmanager
+  `__main__.py:RunManager` each have:
+  - `on_save_configuration_triggered`;
+  - `on_revert_configuration_triggered`;
+  - `on_save_configuration_as_triggered`;
+  - `save_configuration`;
+  - `on_load_configuration_triggered`.
+  That is 72 lines in lyse (255-368) and 74 in runmanager (4272-4413).
+  runviewer's `save_configuration` (384-390, not upstream) is a seventh copy of
+  the save body.
+- Differences:
+  - the state key, which is `<app_name>_state` in each;
+  - the dialog captions, which differ by app name;
+  - the error-dialog helper;
+  - three lines in runmanager's Save as, which put the path on the Save menu
+    item.
+  The survivor keeps runmanager's, so lyse's Save item would start showing the
+  path after a Save as.
+- Stays: a `LabscriptGuiApplication(LabscriptApplication)` in a new
+  `qtwidgets/application.py`, which holds the five methods and reads its key and
+  captions from `app_name`.
+  - It cannot go on `LabscriptApplication` itself: `labconfig.py` is imported by
+    the compiler (`labscript/compiler.py:19`) and must stay free of Qt.
+  - Each app keeps its own `get_save_data()` and `load_configuration()`.
+- Core lines saved: 67.
+- Consumer edits:
+  - lyse `__main__.py`: imports 50-55, class line 113, and delete 255-294 and
+    330-368;
+  - runmanager `__main__.py`: imports 65-70, class line 2064, and delete
+    4272-4314 and 4376-4413;
+  - runviewer `__main__.py`: imports 71-77, class line 205, and delete 384-390.
+  - The menu wiring, the `.ui` actions and runmanager's
+    `tests/test_configuration.py` are unchanged.
+- Visible to a user: yes, in two small ways.
+  - lyse's Save item follows a Save as, which it does not do today.
+  - lyse's Load prompt says "which groups are active/open", wording copied from
+    runmanager; lyse has no groups.
+- Decision for Ian: whether labscript-utils should hold a GUI application layer
+  at all. Entries 12 and 19 share the same new module.
+- Optional, about 17 more lines: the "save changes?" Yes/No/Cancel prompt
+  appears four times (lyse 232, 340; runmanager 2512, 4385). One method could
+  serve all four, but the wording differs per app.
+
+### 5. Views that signal a left click, in lyse and runmanager
+
+- Copies, both upstream:
+  - lyse `widgets.py:TableView` 95-141 and `TreeView` 143-187, each with its own
+    mouse handlers. The docstring claims a shared mixin is impossible;
+    runmanager's shows it works.
+  - runmanager `__main__.py:ItemView` 514-601, a mixin under `TreeView` and
+    `TableView`.
+- Differences: runmanager reads the pressed index before the base handler runs,
+  and lyse after; they also call different event APIs for the same point.
+  runmanager adds key handling, highlighting and cursor moves, which it keeps.
+  Simulated mouse sequences gave identical signals from both.
+- Stays: a `LeftClickMixin`, plus `TreeView` and `TableView` built on it, in a
+  new `qtwidgets/leftclick.py`. It takes runmanager's press order.
+  runmanager's `ItemView` derives from it and keeps its extras.
+- Core lines saved: 67.
+- Consumer edits:
+  - lyse: delete `widgets.py:95-187`; `filebox.py:690` and `routines.py:63`
+    register the new classes.
+  - runmanager: `__main__.py:514-564` reduced to the extras, plus an import.
+  - The `.ui` files promote by class name and need no edit.
+- Visible to a user: no. `lyse.widgets.TreeView` and `TableView` go, but nothing
+  outside lyse uses them.
+
+### 6. File dialogs that return a path
+
+- Copies: the same steps at 22 call sites: call `QFileDialog`, unwrap the tuple,
+  return on cancel, then `os.path.abspath`.
+  - runmanager: 8 sites;
+  - lyse: 7, in `__main__.py`, `filebox.py` and `routines.py`;
+  - runviewer: 5;
+  - blacs: `shot_execution.py:223`;
+  - labscript-utils: `qtwidgets/imageoutput.py:38`.
+  17 of the 22 are upstream.
+- Differences: none in behaviour. Two sites never apply `abspath` today and
+  would gain it.
+- Stays: `open_file`, `open_files`, `save_file` and `choose_folder` in a new
+  `qtwidgets/file_dialogs.py`. Each returns an absolute path, or None on cancel.
+- Core lines saved: 55. The smaller alternative is step 4 only: the
+  `if type(x) is tuple` test is always true under PyQt6, so deleting it saves
+  one line at each of about 25 sites with no new module.
+- Consumer edits: the 22 sites, and one import each in runmanager `__main__.py`,
+  lyse `__main__.py`, `filebox.py` and `routines.py`, runviewer `__main__.py`,
+  and blacs `shot_execution.py`.
+- Visible to a user: no.
+
+### 7. `unitconversions.test`, a copy of `example1`
+
+- Copies, both upstream: `unitconversions/test.py:test` and
+  `unitconversions/example.py:example1`.
+- Differences: `base_unit` (`MHz` against `V`), and where `derived_units` is
+  set. The conversions themselves are identical, character for character.
+- Stays: `example1`, which labscript's example uses.
+- Core lines saved: 46, the whole file with its banner.
+- Consumer edits: none. No repo names `test`.
+- Visible to a user: possibly. Every unit-conversion class reaches a sequence's
+  namespace through `from labscript import *`. A lab sequence or an old shot
+  file naming `unitconversions.test.test` would break; nothing in the suite
+  does. Ian's call. This is also a step 4 candidate.
+
+### 8. Finger tabs, in labscript-utils and runmanager
+
+- Copies, both upstream:
+  - labscript-utils `qtwidgets/fingertab.py`, the gist: fixed 100x25 tabs, text
+    only. Only the Preferences dialog uses it (`settings.py:16, 90`).
+  - runmanager `__main__.py:FingerTabBarWidget`, `TabToolButton` and
+    `FingerTabWidget` (296-496): the same gist grown, with sizes from the text,
+    icons, movable and closable tabs, and clipping.
+- Differences: runmanager's tabs measure 180x30 or more. The Preferences dialog
+  would show the larger tabs.
+- Stays: runmanager's three classes, moved into `qtwidgets/fingertab.py` in
+  place of the gist.
+- Core lines saved: 29, plus 12 if the file's `__main__` demo goes, which it
+  must change anyway.
+- Consumer edits:
+  - runmanager: delete `__main__.py:296-496` and import the classes. Its tests,
+    which take `FingerTabWidget` from `runmanager.__main__`, still find it.
+  - `main.ui` needs no edit.
+- Visible to a user: yes, larger tabs in the Preferences dialog. Also,
+  `FingerTabBarWidget(width=, height=)` becomes `minwidth=, minheight=`; only the
+  demo passes them.
+
+### 9. Restyling on a theme change, and the first-paint signal
+
+- Copies:
+  - The child restyle on a palette or style change is written in three apps:
+    lyse `utils/gui.py:ThemedWindow` (a mixin), blacs
+    `__main__.py:BLACSWindow.changeEvent`, and runmanager
+    `RunmanagerMainWindow.changeEvent` with `on_theme_changed`.
+  - The first-paint signal is written twice: lyse `LyseMainWindow` and
+    runmanager `RunmanagerMainWindow`.
+  Upstream had the loop inline in each; the mixin and the signal are the fork's.
+- Differences: the order of `setStyleSheet` and `setPalette`, which cannot be
+  seen. Each app's own follow-up work, such as blacs's tab colours and
+  runmanager's group colours, stays with the app.
+- Stays: lyse's `ThemedWindow` with a `themeChanged` signal, and a first-paint
+  mixin beside it, in a new `qtwidgets/themed_window.py`. Checked offscreen
+  against what blacs's theme test pins.
+- Core lines saved: 25.
+- Consumer edits:
+  - lyse: the base classes at `__main__.py:81`, `analysis_subprocess.py:83` and
+    `routine.py:55`; delete `utils/gui.py:128-141` and `LyseMainWindow`'s
+    first-paint code.
+  - blacs: the base class at `__main__.py:122`, delete 148-167, add a slot
+    connected to `themeChanged`; `tests/test_theme_events.py` follows the slot.
+  - runmanager: the base class at `__main__.py:2024`, and delete 2025-2029,
+    2031-2033, 2035-2042, 2050-2055 and 2501-2505.
+- Visible to a user: no.
+
+### 10. `dict_diff`, in labscript-utils and runmanager (approved)
+
+- Copies, both upstream: `labscript_utils/dict_diff.py:dict_diff` and
+  `runmanager/__init__.py:dict_diff` (940-966).
+- Differences:
+  - labscript-utils tests only the first value for iterability and compares
+    with `np.any(a != b)`.
+  - runmanager tests either value and uses `np.array_equal`, which is
+    upstream's 2014 fix that labscript-utils' copy never got.
+  - On arrays of different lengths, or a scalar against an array,
+    labscript-utils raises `ValueError` or calls them equal; runmanager reports
+    a difference.
+- Stays: labscript-utils' function, with runmanager's comparison and plain
+  `dict`/`set` key handling, keeping the signature and adding no mode flag. It
+  gave the same results as runmanager's on all 53 test cases.
+- Core lines saved: 21, or a few more with the set handling.
+- Consumer edits: runmanager deletes `__init__.py:940-966` and imports
+  `labscript_utils.dict_diff`. The call at 1059 is unchanged.
+- Visible to a user: yes, in lyse's public `Run.globals_diff` and
+  `lyse.globals_diff`. They stop raising on a shape mismatch, and stop calling an
+  all-zero array equal to 0. Keys print as `'a'` instead of `np.str_('a')`.
+- Ian approved this, on 2026-10-09, together with the coupling it brings:
+  - runmanager's `labscript_utils` floor (`pyproject.toml:34`,
+    `labscript_utils>=3.3.0`) must rise to the version that carries the change;
+  - no fork version number exists yet for that floor, and dependency floors
+    are an open item.
+
+### 11. Reading a TOML file
+
+- Copies:
+  - `labscript_profile.toml_config.load_toml_file`;
+  - labscript-agents `config.py:loads` (6-24), a pass-through to
+    `tomllib.loads` with one caller;
+  - runmanager `globals_file.py:136-138`, the same `open` plus `tomllib.load`.
+  labscript-optimization's `loads` validates into a `Config`, so it is not a
+  copy.
+- Differences: invalid UTF-8 raises `TOMLDecodeError` instead of
+  `UnicodeDecodeError`.
+- Stays: `load_toml_file`.
+- Core lines saved: 20, of which 19 are in labscript-agents.
+- Consumer edits:
+  - labscript-agents: delete `config.py`, and `routine.py:39, 257-258` call
+    `load_toml_file`;
+  - runmanager: `globals_file.py:28, 136-138`.
+- Visible to a user: no. labscript-optimization is unchanged: its config code
+  must not depend on labscript-utils.
+
+### 12. The event loop that Ctrl-C ends, and a QApplication made twice
+
+- Copies, all upstream: the same five lines, a 500 ms timer plus a SIGINT
+  handler that exits the loop, in runmanager `__main__.py:5625-5632`, lyse
+  558-563 and runviewer 1776-1781. In addition:
+  - runmanager (5616-5619) and runviewer (1758-1760) fall back to creating a
+    `QApplication` that `Splash` has already made, so the fallback never runs;
+  - runmanager repeats `configure_qapplication`'s `AA_DontShowIconsInMenus`
+    line;
+  - runviewer wraps `exec` in a one-call `execute_program`.
+- Differences: none. blacs has no such loop, and adopting it there would change
+  how Ctrl-C ends BLACS, so blacs is left out.
+- Stays: `exec_qapplication(qapplication)` in the new `qtwidgets/application.py`
+  of entry 4. It cannot go in `splash.py`, because runmanager's and runviewer's
+  test fixtures stub that module with only `Splash`.
+- Core lines saved: 16.
+- Consumer edits: the lines above in the three `__main__` files, each taking the
+  application from `splash.qapplication`.
+- Visible to a user: no.
+
+### 13. Choosing a readable text colour by contrast
+
+- Copies:
+  - blacs `plugins/progress_bar/__init__.py:black_has_good_contrast` (49-64),
+    upstream;
+  - runmanager `__main__.py:_relative_luminance` and `_contrast_ratio`
+    (198-217), the fork's.
+- Differences: both use WCAG relative luminance. Over 248,877 colours, blacs's
+  rule equals choosing black or white by contrast ratio, with no mismatch. A
+  deliberately wrong rule failed the same check.
+- Stays: `contrast_ratio(a, b)` and `best_contrast(reference, candidates)` on
+  `QColor`, in a new `qtwidgets/contrast.py`.
+- Core lines saved: 14. After the new file's banner the saving is 1, so this is
+  worth doing only in a module shared with other helpers.
+- Consumer edits:
+  - blacs: delete `progress_bar/__init__.py:49-64` and change 201-204;
+  - runmanager: delete `__main__.py:198-217` and change 229-232.
+- Visible to a user: no.
+
+### 14. Reading properties from the connection table
+
+- Copies, both upstream: `properties.py:_get_con_table_properties` (124-129) and
+  `_get_unit_conversion_parameters` (132-137). Each also has an unused
+  `import h5py`.
+- Differences: only the column read.
+- Stays: `properties.get`, with a two-entry map from location to column.
+  Checked against a real HDF5 file.
+- Core lines saved: 11.
+- Consumer edits: none. The helpers are private, and `get` keeps its signature.
+- Visible to a user: no.
+
+### 15. `quad_monitor` and `quad_driver`
+
+- Copies, both upstream: `unitconversions/quad_monitor.py` and
+  `quad_driver.py`. They share `__init__`, `base_unit`, `derived_units` and the
+  Gcm conversions.
+- Differences: the driver clamps its current conversion and the monitor is
+  linear; that stays per class. Both now share one mutable dict as a default
+  argument.
+- Stays: a private `_QuadConversion` base holding the shared parts, with a
+  `None` default.
+- Core lines saved: 11.
+- Consumer edits: none.
+- Visible to a user: no. Outputs are identical over eight inputs and four
+  parameter sets.
+
+### 16. `FileWatcher.add_files` and `add_folders`
+
+- Copies, both upstream: `filewatcher.py:add_files` (208-224) and `add_folders`
+  (226-244). They update the clean baseline the same way.
+- Differences: none for the new files each adds.
+- Stays: a private `_set_clean_modified_info`, called by both.
+- Core lines saved: 10.
+- Consumer edits: none.
+- Visible to a user: no. The baseline maps matched before and after.
+
+### 17. `_ensure_str`, defined four times
+
+- Copies, all upstream and identical
+  (`s.decode() if isinstance(s, bytes) else str(s)`):
+  - blacs `front_panel_settings.py:27` and `plugins/progress_bar/__init__.py:44`;
+  - labscript-utils `connections.py:25`;
+  - runmanager `globals_file.py:46`.
+  lyse and three labscript-devices files already import the private
+  labscript-utils copy. Inline copies sit in runviewer (`__main__.py:479`,
+  1573-1577, 1587), labscript-devices FunctionRunner, and lyse `asdatetime`.
+- Differences: none.
+- Stays: a public `ensure_str` in `labscript_utils/__init__.py`, beside
+  `dedent`. It is public because three other repos already import it.
+- Core lines saved: 10, or 4 without the inline copies. Ian's own example.
+- Consumer edits:
+  - labscript-utils: `connections.py:25-27` deleted, its uses renamed, and the
+    no-op at 241 deleted.
+  - blacs: `front_panel_settings.py:27-29, 88, 91, 107`;
+    `progress_bar/__init__.py:44-46, 113, 192, 215`;
+    `tests/test_front_panel_settings.py:14, 83-91`.
+  - runmanager: `globals_file.py:46-47` and eleven uses.
+  - lyse: `dataframe_utilities.py:22, 81, 83, 90, 92, 108`, and the dead branch
+    at 57-58.
+  - labscript-devices: `CiceroOpalKellyXEM3001.py:20, 616`;
+    `NI_DAQmx/blacs_workers.py:30, 563, 654, 655, 819`;
+    `PrawnBlaster/blacs_workers.py:19, 241`.
+  - runviewer: `__main__.py:479, 1573-1577, 1587`.
+- Visible to a user: no. A lab-local device that copied the private import
+  would need the new name.
+
+### 18. Reading a labconfig option with a default, two ways in `get_config`
+
+- Copies: `ls_zprocess.get_config` (72-123, upstream) wraps each read in
+  try/except. `ZMQClient.__init__` (283-296, the fork's) uses `fallback=`.
+- Differences: none. The returned dict was identical for eight configs.
+- Stays: `fallback=` throughout.
+- Core lines saved: 9. This is as much style as duplication.
+- Consumer edits: none.
+- Visible to a user: no.
+
+### 19. Error and question dialogs
+
+- Copies, both upstream: lyse `utils/gui.py:error_dialog` and `question_dialog`
+  take the application as an argument; runmanager
+  `__main__.py:error_dialog` and `question_dialog` (260-269) read a module
+  global.
+- Differences: only where the parent window comes from. The title is the app
+  name in both.
+- Stays: `error_dialog` and `question_dialog` as methods of the
+  `LabscriptGuiApplication` in entry 4.
+- Core lines saved: 8.
+- Consumer edits:
+  - lyse: delete `utils/gui.py:23-31`; calls at `__main__.py:474`,
+    `filebox.py:342` and `routines.py:247`.
+  - runmanager: delete `__main__.py:260-269`; 21 calls become
+    `app.error_dialog` or `self.error_dialog`.
+- Visible to a user: no.
+
+### 20. `ElidedLabelContainer.setElideMode` repeats the scroll area's checks
+
+- Copies, both upstream: `qtwidgets/elide_label.py` 28-31 and 87-90. The same
+  type check and refusal of `ElideMiddle`; the container then calls the scroll
+  area, which checks again.
+- Differences: none.
+- Stays: the scroll area's checks.
+- Core lines saved: 4.
+- Consumer edits: none.
+- Visible to a user: no.
+
+### Considered, and proposed to leave
+
+- `FreqConversion` against `NovaTechDDS9mFreqConversion`, 9 lines. Merging
+  changes the last bit of `MHz_from_base` for about 30% of inputs.
+- `ConnectionTable.find_by_name` as `self.table.get(...)`, 8 lines. It differs at
+  the edges after `remove_device`, which blacs calls.
+- `get_unit_conversion_class` against `import_class_by_fullname`, 4 lines.
+  Sharing would make every sequence import `device_registry` and
+  `labscript_devices`.
+- `ConnectionTable.compare_to` against `Connection.compare_to`, about 10 lines.
+  The two differ in logging, so a merge decides what is logged.
+- `ConnectionTable.__init__`'s three log-and-raise handlers, about 8 lines; a
+  merge changes the log.
+- The child-process connection in lyse `analysis_subprocess.py` and runmanager
+  `batch_compiler.py`. The shared part is the prescribed use of
+  `ProcessTree.connect_to_parent()`, about 5 lines.
+- `check_child_exited` in lyse and runmanager, about 12 lines. Each is tied to
+  its own timer and output box, so a helper would be no smaller.
+- `ShotQueueWidget.selected_ids` and `select_ids`. A shared helper saves no
+  lines.
+- `dedent` in zprocess. It is a different function, and zprocess cannot import
+  labscript-utils.
+- `setup_logging` in zprocess. It does a different job.
+- The program launcher. It is already one implementation, `open_in_editor`.
+
+### Totals
+
+20 candidates hold 753 core lines. Entry 2 counts its new module's banner; the
+others do not.
+- inside labscript-utils (entries 2, 3, 7, 14, 15, 16, 18, 20): 250;
+- across repos with one implementation in labscript-utils (entries 1, 4, 5, 6,
+  8, 9, 10, 11, 12, 13, 17, 19): 503.
+
+The new modules would be `lockable.py`, `application.py`, `leftclick.py`,
+`file_dialogs.py`, `themed_window.py` and `contrast.py`, all in
+`qtwidgets/`. Entries 4, 12 and 19 share one of them.
+
+Decisions beyond the entries:
+- whether labscript-utils should hold a GUI application layer (entries 4, 12,
+  19);
+- whether to widen the fork's difference from upstream for `__version__.py`
+  (entry 1);
+- whether lyse's Save menu, the Preferences tabs and `unitconversions.test` may
+  change as described (entries 4, 7, 8).
+
+### Seen for later steps
+
+- **A bug, step 3:** `enumoutput.EnumOutput.set_EO` calls
+  `self._EO.remove_widget(self, False)`, but blacs's `EO.remove_widget` takes one
+  argument.
+  - Run against blacs Development: moving an `EnumOutput` to a second `EO`
+    raises `TypeError: EO.remove_widget() takes 2 positional arguments but 3
+    were given`.
+  - The same line is on upstream `master`.
+  - It is latent: blacs's only caller, `EO.add_widget`, hands over a fresh
+    widget, and nothing moves a widget between `EO`s.
+- **Step 3, other bugs and guards:**
+  - `FreqConversion` and `NovaTechDDS9mFreqConversion` append to a class-level
+    `derived_units` list on every instantiation.
+  - The quad conversions share one mutable dict as a default argument.
+  - The apps' `required_params` still demand the program keys, although
+    `open_in_editor` now handles a missing program with a dialog.
+  - runmanager's `batch_compiler` connects to its parent at import, which is why
+    its docs mock `connect_to_parent`.
+- **Step 4, dead code and pass-throughs:**
+  - `ConnectionTable.assert_superset`, with `Connection.diff` and an import:
+    about 40 lines, no caller.
+  - The `ls_zprocess` one-line forwarders `zmq_get*`, `zmq_push*`, `Event` and
+    `Handler`: 20 lines. Callers: runmanager `__init__.py:35, 881, 919`, blacs
+    `progress_bar/__init__.py:32, 85`, and `setup_logging.py:17, 52`.
+  - `_resolve_appconfig_save_path`. Entry 3 of step 1 was kept, so
+    `_resolve_appconfig_load_path` is not the same call after all.
+  - The `if type(x) is tuple` unwraps after file dialogs, at about 25 sites; see
+    entry 6.
+  - The `fingertab.py` demo.
+  - lyse's `get_check_state` binding shim.
+  - runmanager's `get_shot_globals` forwarder and its unused `dedent` import.
+- **For other owners:**
+  - labscript-agents keeps unused copies of labscript-optimization's routine
+    plumbing, 242 lines, on purpose according to its plan.
+  - labscript-agents imports labscript_utils unconditionally, in `relay.py:28-29`
+    and `server.py:31`, but lists it only under its `lyse` extra.
+  - runmanager starts runviewer by hand rather than with
+    `zprocess.start_daemon`, whose `os.fork()` is the reason; that is the zprocess
+    session's to fix.
+  - blacs's `shot_execution.tempfilename` duplicates the stdlib's `tempfile`.
+  - `docs/source/conf.py` boilerplate is copied in eight repos (step 5).
+  - zprocess's zlock and zlog servers share code.
+
 ## On merge
 
 These describe Development, which still holds the code step 1 removed. Whoever
