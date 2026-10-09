@@ -1265,16 +1265,18 @@ class PluginManager(object):
                 else:
                     continue
 
-                for activity in plugin_activities:
-                    setup_activities.append(
-                        {
-                            'module_name': module_name,
-                            'plugin': plugin,
-                            'name': activity['name'],
-                            'priority': activity['priority'],
-                            'action': activity['action'],
-                        }
-                    )
+                # Built in full before it is added, so a bad record skips the
+                # whole plugin rather than leaving it half set up.
+                setup_activities.extend([
+                    {
+                        'module_name': module_name,
+                        'plugin': plugin,
+                        'name': activity['name'],
+                        'priority': activity['priority'],
+                        'action': activity['action'],
+                    }
+                    for activity in plugin_activities
+                ])
             except Exception:
                 self.logger.exception(
                     "Error getting setup activities from plugin '%s'. "
