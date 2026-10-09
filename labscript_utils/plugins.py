@@ -584,10 +584,7 @@ keeps that compatibility path.
 
 Plugins that need ordered startup work can return setup activity records from
 ``get_setup_activities()``. Each record has ``name``, ``priority``, and
-``action`` keys; lower priority values run first. The default
-``get_setup_activities()`` implementation returns one activity for
-``plugin_setup_complete()``, so existing plugins use the same ordered pipeline
-as modern plugins::
+``action`` keys; lower priority values run first::
 
     class Plugin(BasePlugin):
         def get_setup_activities(self):
@@ -765,42 +762,12 @@ class BasePlugin(object):
         """
         return []
 
-    def plugin_setup_complete(self, data=None):
-        """Run after the application has finished plugin setup.
-
-        ``data`` is an application-defined dictionary. Plugins commonly store
-        references to services or state they will need later when handling
-        events, building menus, or opening UI. For BLACS it contains
-        references such as the main UI, experiment config, plugin mapping, and
-        settings object. Older plugins may define this method without a
-        ``data`` argument; ``PluginManager.setup_complete()`` keeps that
-        compatibility behavior.
-        """
-        pass
-
-    def get_setup_activities(self):
-        """Return ordered setup activities for this plugin.
-
-        Existing plugins can override :meth:`plugin_setup_complete` and inherit
-        this method. Modern plugins can override this method to return multiple
-        activity records. Each record must provide ``name``, ``priority``, and
-        ``action`` keys; the manager executes all plugin activities through one
-        ordered setup pipeline.
-        """
-        return [
-            {
-                'name': 'plugin_setup_complete',
-                'priority': DEFAULT_SETUP_PRIORITY,
-                'action': self.plugin_setup_complete,
-            },
-        ]
-
     def get_services(self):
         """Return named services exposed by this plugin.
 
         Return a mapping of service names to concrete objects. Applications can
         aggregate these mappings into a shared service registry before calling
-        :meth:`plugin_setup_complete`, making plugin-to-plugin dependencies
+        ``plugin_setup_complete()``, making plugin-to-plugin dependencies
         order-independent.
         """
         return {}
