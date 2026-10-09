@@ -51,24 +51,16 @@ class TomlConfigParser(configparser.ConfigParser):
     """ConfigParser variant that preserves native TOML values."""
 
     def __init__(self, *args, **kwargs):
-        self.lowercase_keys_and_sections = kwargs.pop('lowercase_keys_and_sections', True)
-        if self.lowercase_keys_and_sections:
-            kwargs.setdefault('default_section', 'default')
+        kwargs.setdefault('default_section', 'default')
         kwargs.setdefault('interpolation', TomlBasicInterpolation())
         super().__init__(*args, **kwargs)
-        if not self.lowercase_keys_and_sections:
-            self.optionxform = str
 
     def _canonical_section_name(self, section):
         if section is None:
             return None
-        if not self.lowercase_keys_and_sections:
-            return section
         return str(section).lower()
 
     def _normalize_loaded_sections(self):
-        if not self.lowercase_keys_and_sections:
-            return
         renamed_sections = {}
         migrated_defaults = {}
         for name, section_data in self._sections.items():
