@@ -99,7 +99,7 @@ new contribution routing looks like this::
                 menubar=self.menubar,
             )
 
-            menus = MenuContext(icon_factory=self.icon_factory, logger=self.logger)
+            menus = MenuContext(logger=self.logger)
             menus.register_location('file', self.file_menu)
             menus.register_location('window', self.window_menu)
 
@@ -211,7 +211,6 @@ is not used::
                     'order': 20,
                     'name': 'Open Data Browser',
                     'shortcut': 'Ctrl+D',
-                    'icon': 'folder-open',
                     'action': self.open_data_browser,
                 },
             ]
@@ -350,8 +349,8 @@ Contribution menu skeleton with MenuContext
 * ``order``: numeric order within the group; defaults to ``DEFAULT_PRIORITY``
 * ``name``: action text
 * ``action``: callable connected to the action's ``triggered`` signal
-* ``shortcut``, ``icon``, ``checkable``, and ``enabled``: optional action
-  properties applied when the concrete action object supports them
+* ``shortcut``, ``checkable``, and ``enabled``: optional action properties
+  applied when the concrete action object supports them
 
 ``enabled`` may also be a zero-argument callable, for a contribution whose
 availability depends on live application state rather than on a flag known when
@@ -825,16 +824,13 @@ class MenuContext(object):
     Rendering is deferred until all plugins have contributed so ordering and
     group separators can be computed across plugins.
     """
-    def __init__(self, icon_factory=None, logger=None):
+    def __init__(self, logger=None):
         """Create a menu context.
 
         Args:
-            icon_factory (callable, optional): Function called as
-                ``icon_factory(icon_name)`` for icon-bearing actions.
             logger (logging.Logger, optional): Logger used for skipped or
                 malformed menu contributions.
         """
-        self.icon_factory = icon_factory
         self.logger = logger or logging.getLogger(__name__)
         self.locations = {}
         self.contributions = []
@@ -953,11 +949,7 @@ class MenuContext(object):
                 previous_group = group
 
                 name = contribution['name']
-                icon = contribution.get('icon', None)
-                if icon is not None and self.icon_factory is not None:
-                    action = menu.addAction(self.icon_factory(icon), name)
-                else:
-                    action = menu.addAction(name)
+                action = menu.addAction(name)
 
                 callback = contribution.get('action', None)
                 if callback is not None:
