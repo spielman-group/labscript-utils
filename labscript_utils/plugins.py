@@ -1278,72 +1278,34 @@ class PluginManager(object):
         setup_activities = []
 
         for module_name, plugin in self.plugins.items():
-            if hasattr(plugin, 'get_setup_activities'):
-                try:
+            try:
+                if hasattr(plugin, 'get_setup_activities'):
                     plugin_activities = plugin.get_setup_activities()
-                except Exception:
-                    self.logger.exception(
-                        "Error getting setup activities from plugin '%s'. "
-                        "Skipping." % module_name
-                    )
-                    continue
-            elif hasattr(plugin, 'plugin_setup_complete'):
-                plugin_activities = [
-                    {
-                        'name': 'plugin_setup_complete',
-                        'priority': DEFAULT_SETUP_PRIORITY,
-                        'action': plugin.plugin_setup_complete,
-                    },
-                ]
-            else:
-                continue
-
-            if plugin_activities is None:
-                continue
-            if (
-                isinstance(plugin_activities, (dict, str, bytes))
-                or not hasattr(plugin_activities, '__iter__')
-            ):
-                self.logger.error(
-                    "Plugin '%s' setup activities must be an iterable of "
-                    "dictionaries. Skipping." % module_name
-                )
-                continue
-
-            for activity in plugin_activities:
-                if not isinstance(activity, Mapping):
-                    self.logger.error(
-                        "Setup activity from plugin '%s' is not a dictionary. "
-                        "Skipping." % module_name
-                    )
+                elif hasattr(plugin, 'plugin_setup_complete'):
+                    plugin_activities = [
+                        {
+                            'name': 'plugin_setup_complete',
+                            'priority': DEFAULT_SETUP_PRIORITY,
+                            'action': plugin.plugin_setup_complete,
+                        },
+                    ]
+                else:
                     continue
 
-                try:
-                    name = activity['name']
-                    priority = activity['priority']
-                    action = activity['action']
-                except KeyError as exc:
-                    self.logger.error(
-                        "Setup activity from plugin '%s' missing key '%s'. "
-                        "Skipping." % (module_name, exc.args[0])
+                for activity in plugin_activities:
+                    setup_activities.append(
+                        {
+                            'module_name': module_name,
+                            'plugin': plugin,
+                            'name': activity['name'],
+                            'priority': activity['priority'],
+                            'action': activity['action'],
+                        }
                     )
-                    continue
-
-                if not callable(action):
-                    self.logger.error(
-                        "Setup activity '%s' from plugin '%s' action is not "
-                        "callable. Skipping." % (name, module_name)
-                    )
-                    continue
-
-                setup_activities.append(
-                    {
-                        'module_name': module_name,
-                        'plugin': plugin,
-                        'name': name,
-                        'priority': priority,
-                        'action': action,
-                    }
+            except Exception:
+                self.logger.exception(
+                    "Error getting setup activities from plugin '%s'. "
+                    "Skipping." % module_name
                 )
 
         setup_activities.sort(
