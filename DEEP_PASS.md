@@ -353,8 +353,9 @@ Eight are in entries 5 (two tests), 6, 7, 14, 15 and 20 (one test), 25 and
 - Step: 1, possibly 3.
 - Outcome: removed in 5b37296. Ian: a `None` raises tomli_w's own error at every
   level. `dump_toml_file` now serialises before it opens the file, so a failed
-  save leaves the old config intact. An INI app config holding `None` now fails
-  to convert, leaving the INI in place; upstream's saved data holds no `None`.
+  save leaves the old config intact. Since 89ce0b5 the INI conversion leaves
+  out an option upstream wrote as `None`, so such a file still converts
+  unaided.
 
 ### 12. BasePlugin's default setup activity
 
@@ -446,13 +447,11 @@ Eight are in entries 5 (two tests), 6, 7, 14, 15 and 20 (one test), 25 and
 - Proposed: simplify to `os.path.abspath(filename)` in
   `set_config_window_title`.
 - Step: 1. Lower confidence: it is a detail of a requested feature.
-- Outcome: kept for now. Ian's concern is a long path. Neither Qt nor macOS
-  shortens it at the front: Qt passes the title to the window unchanged, and the
-  macOS 26 title bar, rendered at 420 and 700 px, cuts the end with "…", so the
-  file name is what is lost. Proposed, not built: in `set_config_window_title`,
-  put the name first, as
-  `f'{name} - {self.base_window_title} - {folder}'`,
-  so the folder is what is cut.
+- Outcome: kept, and extended in edd75a2. Qt passes a title to the window
+  unchanged, and the macOS 26 title bar cuts the end with "…", losing the file
+  name. Ian: a displayed path longer than `max_length`, 60 characters by
+  default, now loses its middle instead, keeping the drive or install at the
+  start and the folder and file at the end. No resize tracking.
 
 ### 17. Shot-queue change and selection signals
 
