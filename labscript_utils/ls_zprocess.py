@@ -85,41 +85,33 @@ def get_config():
     except (labconfig.NoOptionError, labconfig.NoSectionError):
         msg = "No zlock server specified in labconfig"
         raise RuntimeError(msg)
-    try:
-        config['zlock_port'] = labconfig.get('ports', 'zlock')
-    except (labconfig.NoOptionError, labconfig.NoSectionError):
-        config['zlock_port'] = zprocess.zlock.DEFAULT_PORT
+    config['zlock_port'] = labconfig.get(
+        'ports', 'zlock', fallback=zprocess.zlock.DEFAULT_PORT
+    )
     # We hard-code the zlog host and port, since zlog always runs on the computer with
     # the top-level process
     config['zlog_host'] = 'localhost'
     config['zlog_port'] = zprocess.zlog.DEFAULT_PORT
-    try:
-        config['zprocess_remote_port'] = labconfig.get('ports', 'zprocess_remote')
-    except (labconfig.NoOptionError, labconfig.NoSectionError):
-        config['zprocess_remote_port'] = zprocess.remote.DEFAULT_PORT
-    try:
-        shared_secret_file = labconfig.get('security', 'shared_secret')
-    except (labconfig.NoOptionError, labconfig.NoSectionError):
-        config['shared_secret'] = None
-        config['shared_secret_file'] = None
-    else:
+    config['zprocess_remote_port'] = labconfig.get(
+        'ports', 'zprocess_remote', fallback=zprocess.remote.DEFAULT_PORT
+    )
+    shared_secret_file = labconfig.get('security', 'shared_secret', fallback=None)
+    config['shared_secret'] = None
+    if shared_secret_file is not None:
         with open(shared_secret_file) as f:
             config['shared_secret'] = f.read().strip()
-        config['shared_secret_file'] = shared_secret_file
-    try:
-        config['allow_insecure'] = labconfig.getboolean('security', 'allow_insecure')
-    except (labconfig.NoOptionError, labconfig.NoSectionError):
-        config['allow_insecure'] = False
+    config['shared_secret_file'] = shared_secret_file
+    config['allow_insecure'] = labconfig.getboolean(
+        'security', 'allow_insecure', fallback=False
+    )
     if config['shared_secret'] is None and not config['allow_insecure']:
         raise ValueError(_ERR_NO_SHARED_SECRET.replace('/', os.sep))
-    try:
-        config['logging_maxBytes'] = labconfig.getint('logging', 'maxBytes')
-    except (labconfig.NoOptionError, labconfig.NoSectionError):
-        config['logging_maxBytes'] = 1024 * 1024 * 50
-    try:
-        config['logging_backupCount'] = labconfig.getint('logging', 'backupCount')
-    except (labconfig.NoOptionError, labconfig.NoSectionError):
-        config['logging_backupCount'] = 1
+    config['logging_maxBytes'] = labconfig.getint(
+        'logging', 'maxBytes', fallback=1024 * 1024 * 50
+    )
+    config['logging_backupCount'] = labconfig.getint(
+        'logging', 'backupCount', fallback=1
+    )
     _cached_config = config
     return config
 
