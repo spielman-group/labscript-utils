@@ -17,6 +17,7 @@ import os
 from qtutils.qt import QtCore, QtGui, QtWidgets
 from qtutils.qt.QtCore import pyqtSignal as Signal
 
+from . import file_dialogs
 from .lockable import LockableOutput
 
 
@@ -38,12 +39,11 @@ class BrowseButton(QtWidgets.QPushButton):
         supported_images = supported_images [:-1]
         supported_images += ")"
         
-        image_file = QtWidgets.QFileDialog.getOpenFileName(self, 'Select image file to load', self.last_opened_folder, supported_images)
-        if type(image_file) is tuple:
-            image_file, _ = image_file
-        if image_file == None or image_file == "":
+        image_file = file_dialogs.open_file(
+            self, 'Select image file to load', self.last_opened_folder, supported_images
+        )
+        if image_file is None:
             return
-        image_file = os.path.abspath(image_file)
         if not os.path.exists(image_file):
             return 
             
