@@ -84,13 +84,8 @@ class ElidedLabelContainer(QtWidgets.QWidget):
         return self._elideMode
 
     def setElideMode(self, elideMode):
-        if not isinstance(elideMode, QtCore.Qt.TextElideMode):
-            raise TypeError("Argument must be of type Qt.TextElideMode")
-        if elideMode == QtCore.Qt.TextElideMode.ElideMiddle:
-            raise NotImplementedError("The hack being used to elidetext does not work for ElideMiddle")
-
+        self.scroll_area.setElideMode(elideMode)
         self._elideMode = elideMode
-        self.scroll_area.setElideMode(self._elideMode)
 
         if self.layout.count():
             self.layout.removeWidget(self.ellipsis_label)
