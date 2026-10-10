@@ -15,7 +15,9 @@ import sys
 import os
 import importlib
 
-from .__version__ import __version__ 
+from .versions import package_version
+
+__version__ = package_version(__package__)
 
 from labscript_profile import LABSCRIPT_SUITE_PROFILE
 

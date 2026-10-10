@@ -12,6 +12,7 @@
 #####################################################################
 import sys
 import os
+from pathlib import Path
 import importlib
 import tokenize
 import ast
@@ -140,6 +141,24 @@ def _get_literal_version(filename):
                                 return version
                         except (SyntaxError, ValueError):
                             continue
+
+
+def package_version(package):
+    """Return the version of a labscript suite package, for its ``__version__``.
+
+    Each package's ``__init__`` sets ``__version__ = package_version(__package__)``.
+    In a git checkout the version comes from setuptools_scm, so that it names the
+    commit; otherwise it is the installed distribution's, or None if there is none.
+    """
+    root = Path(sys.modules[package].__file__).parent.parent
+    if (root / '.git').is_dir():
+        return setuptools_scm.get_version(
+            root, version_scheme='release-branch-semver', local_scheme='node-and-date'
+        )
+    try:
+        return importlib_metadata.version(package)
+    except importlib_metadata.PackageNotFoundError:
+        return None
 
 
 def get_version(import_name, project_name=None, import_path=None):
