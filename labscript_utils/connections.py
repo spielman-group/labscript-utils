@@ -21,7 +21,9 @@ import ast
 from labscript_utils.dict_diff import dict_diff
 import sys
 from zprocess import raise_exception_in_thread
+from labscript_utils import ensure_str
 
+# Kept until lyse and labscript-devices import ensure_str instead.
 def _ensure_str(s):
     """convert bytestrings and numpy strings to python strings"""
     return s.decode() if isinstance(s, bytes) else str(s)
@@ -57,7 +59,7 @@ class ConnectionTable(object):
 
                 self.raw_table = dataset[:]
                 try:
-                    self.master_pseudoclock = _ensure_str(dataset.attrs['master_pseudoclock'])
+                    self.master_pseudoclock = ensure_str(dataset.attrs['master_pseudoclock'])
                 except KeyError:
                     pass
 
@@ -180,7 +182,7 @@ class ConnectionTable(object):
         return None
     
     def find_by_name(self,name):
-        name = _ensure_str(name)
+        name = ensure_str(name)
         for device_name, connection in self.toplevel_children.items():
             if device_name == name:
                 return connection
@@ -217,7 +219,7 @@ class Connection(object):
         self._rowdict = self._defaults.copy()
 
         # Put the given values in, overwriting the defaults if applicable:
-        deserialised_items = {_ensure_str(name): self._deserialise(name, value)
+        deserialised_items = {ensure_str(name): self._deserialise(name, value)
                               for name, value in zip(raw_row.dtype.names, raw_row)}
 
         self._rowdict.update(deserialised_items)
@@ -238,12 +240,11 @@ class Connection(object):
         
     def _deserialise(self, name, value):
         """deserialise one item of the row depending on what it is"""
-        name == _ensure_str(name)
         if name in ['parent port', 'unit conversion class']:
             # If no unit conversion class, or parent port, set to the object
             # None, otherwise leave as the parent port string or unit
             # conversion class name as a (unicode) string
-            if _ensure_str(value) == 'None':
+            if ensure_str(value) == 'None':
                 return None
         elif name in ['unit conversion params', 'properties']:
             # deserialise a dict that is stored as a string. In older
@@ -253,8 +254,8 @@ class Connection(object):
                 return labscript_utils.properties.deserialise(value)
             else:
                 # Backward compatibility with older hdf5 files:
-                return ast.literal_eval(_ensure_str(value))
-        return _ensure_str(value)
+                return ast.literal_eval(ensure_str(value))
+        return ensure_str(value)
 
     def _populate_relatives(self, table):
         """Populate child devices based on a list of other connection objects,
@@ -344,7 +345,7 @@ class Connection(object):
         return None
 
     def find_by_name(self, name):
-        name = _ensure_str(name)
+        name = ensure_str(name)
         for device_name, connection in self.child_list.items():
             if device_name == name:
                 return connection

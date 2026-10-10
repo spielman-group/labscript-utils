@@ -91,6 +91,12 @@ def dedent(s):
     return ''.join(unwrapped_lines)
 
 
+def ensure_str(s):
+    """Return ``s`` as a ``str``, decoding it if it is ``bytes``, as HDF5 strings
+    often are."""
+    return s.decode() if isinstance(s, bytes) else str(s)
+
+
 # Enforce that the same file can't be imported under multiple names, to help
 # prevent subtle bugs:
 import labscript_utils.double_import_denier
