@@ -54,3 +54,32 @@ class FirstPaintWindow:
             self._previously_painted = True
             self.firstPaint.emit()
         return result
+
+
+def _relative_luminance(color):
+    def channel(value):
+        value /= 255.0
+        if value <= 0.03928:
+            return value / 12.92
+        return ((value + 0.055) / 1.055) ** 2.4
+
+    return (
+        0.2126 * channel(color.red())
+        + 0.7152 * channel(color.green())
+        + 0.0722 * channel(color.blue())
+    )
+
+
+def contrast_ratio(color_a, color_b):
+    """Return the WCAG 2.0 contrast ratio of two QColors, from 1 up to 21."""
+    luminance_a = _relative_luminance(color_a)
+    luminance_b = _relative_luminance(color_b)
+    lighter = max(luminance_a, luminance_b)
+    darker = min(luminance_a, luminance_b)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def best_contrast(reference, candidates):
+    """Return whichever of the ``candidates`` QColors contrasts most with
+    ``reference``, the first of them on a tie."""
+    return max(candidates, key=lambda color: contrast_ratio(reference, color))
