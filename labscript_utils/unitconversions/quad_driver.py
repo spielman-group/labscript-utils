@@ -12,19 +12,31 @@
 #####################################################################
 from .UnitConversionBase import *
 
-class quad_driver(UnitConversion):
+
+class _QuadConversion(UnitConversion):
+    """Conversions between volts, amps and gauss per cm for a quadrupole coil"""
     base_unit = 'V'
     derived_units = ['A', 'Gcm']
-    
-    def __init__(self,calibration_parameters = {'A_per_V':19.9757, 'Gcm_per_A':1.88679, 'A_offset':-0.642724, 'A_min':-0.09}):            
-        self.parameters = calibration_parameters
-     
-        self.parameters.setdefault('A_per_V',19.9757)
-        self.parameters.setdefault('Gcm_per_A',1.88679)
-        self.parameters.setdefault('A_offset',-0.642724)
-        self.parameters.setdefault('A_min',-0.09)
-        
-        UnitConversion.__init__(self,self.parameters)
+    default_parameters = {}
+
+    def __init__(self, calibration_parameters=None):
+        parameters = {} if calibration_parameters is None else calibration_parameters
+        for name, value in self.default_parameters.items():
+            parameters.setdefault(name, value)
+        self.parameters = parameters
+        super().__init__(parameters)
+
+    def Gcm_to_base(self, gauss_per_cm):
+        return self.A_to_base(gauss_per_cm / self.parameters['Gcm_per_A'])
+
+    def Gcm_from_base(self, volts):
+        return self.parameters['Gcm_per_A'] * self.A_from_base(volts)
+
+
+class quad_driver(_QuadConversion):
+    default_parameters = {
+        'A_per_V': 19.9757, 'Gcm_per_A': 1.88679, 'A_offset': -0.642724, 'A_min': -0.09,
+    }
 
     @vectorise
     def A_to_base(self,amps):
@@ -39,10 +51,3 @@ class quad_driver(UnitConversion):
     def A_from_base(self,volts):
         amps = max(volts * self.parameters['A_per_V'] + self.parameters['A_offset'], self.parameters['A_min'])
         return amps
-    def Gcm_to_base(self,gauss_per_cm):
-        volts = self.A_to_base(gauss_per_cm/self.parameters['Gcm_per_A'])
-        return volts
-    def Gcm_from_base(self,volts):
-        gauss_per_cm = self.parameters['Gcm_per_A'] * self.A_from_base(volts)
-        return gauss_per_cm
-        
