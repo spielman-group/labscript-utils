@@ -14,8 +14,10 @@ import sys
 
 from qtutils.qt import QtCore, QtGui, QtWidgets
 
+from .lockable import LockableOutput
 
-class EnumOutput(QtWidgets.QWidget):
+
+class EnumOutput(LockableOutput, QtWidgets.QWidget):
     def __init__(self, hardware_name, connection_name='-', display_name=None, horizontal_alignment=False, parent=None):
         QtWidgets.QWidget.__init__(self,parent)
         
@@ -28,15 +30,12 @@ class EnumOutput(QtWidgets.QWidget):
         self._label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed,QtWidgets.QSizePolicy.Policy.Minimum)
         self._combobox = QtWidgets.QComboBox()
         self._combobox.setSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum,QtWidgets.QSizePolicy.Policy.Minimum)
+        self._lock_target = self._combobox
 
         self._value_changed_function = None
         
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.MinimumExpanding,QtWidgets.QSizePolicy.Policy.Minimum)
         
-        # Lock/Unlock action        
-        self._lock_action = QtGui.QAction("Lock",self._combobox)
-        self._lock_action.triggered.connect(lambda:self._menu_triggered(self._lock_action))
-
         # Create widgets and layouts        
         if horizontal_alignment:
             self._layout = QtWidgets.QHBoxLayout(self)
@@ -64,21 +63,21 @@ class EnumOutput(QtWidgets.QWidget):
         self.installEventFilter(self)
         
         # The Analog Out object that is in charge of this button
-        self._EO = None
+        self._output = None
     
     # Setting and getting methods for the object in charge of this button
     def set_EO(self,EO,notify_old_EO=True,notify_new_EO=True):
         # If we are setting a new EO, remove this widget from the old one (if it isn't None) and add it to the new one (if it isn't None)
-        if EO != self._EO:
-            if self._EO is not None and notify_old_EO:
-                self._EO.remove_widget(self,False)
+        if EO != self._output:
+            if self._output is not None and notify_old_EO:
+                self._output.remove_widget(self,False)
             if EO is not None and notify_new_EO:
                 EO.add_widget(self)
         # Store a reference to the digital out object
-        self._EO = EO
+        self._output = EO
         
     def get_EO(self):
-        return self._EO
+        return self._output
     
     def set_combobox_model(self,model):
         self._combobox.setModel(model)
@@ -121,52 +120,8 @@ class EnumOutput(QtWidgets.QWidget):
         
     def unblock_combobox_signals(self):
         return self._combobox.blockSignals(False)
-    
-    # The event filter that pops up a context menu on a right click, even when the button is disabled
-    def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.Type.MouseButtonRelease and event.button() == QtCore.Qt.MouseButton.RightButton:
-            menu = QtWidgets.QMenu(self)
-            menu.addAction("Lock" if self._combobox.isEnabled() else "Unlock")
-            menu.triggered.connect(self._menu_triggered)
-            menu.popup(self.mapToGlobal(event.pos()))
-        
-        # pass scrollwheel events of disabled buttons through to the parent
-        # code adapted from: http://www.qtforum.org/article/28540/disabled-widgets-and-wheel-events.html
-        elif obj and not obj.isEnabled() and event.type() == QtCore.QEvent.Type.Wheel:
-            newEvent = QtGui.QWheelEvent(
-                QtCore.QPointF(obj.mapToParent(event.position().toPoint())),
-                event.globalPosition(),
-                event.pixelDelta(), event.angleDelta(),
-                event.buttons(), event.modifiers(),
-                event.phase(), event.inverted(),
-            )
-            QtWidgets.QApplication.instance().postEvent(obj.parent(), newEvent)
-            return True
-        
-        return QtWidgets.QPushButton.eventFilter(self, obj, event)
-     
-    # This method is called whenever an entry in the context menu is clicked
-    def _menu_triggered(self,action):
-        if action.text() == "Lock":
-            self.lock()
-        elif action.text() == "Unlock":
-            self.unlock()
-    
-    # This method locks (disables) the widget, and if the widget has a parent EO object, notifies it of the lock
-    def lock(self,notify_eo=True):        
-        self._combobox.setEnabled(False)
-        self._lock_action.setText("Unlock")
-        if self._EO is not None and notify_eo:
-            self._EO.lock()
-    
-    # This method unlocks (enables) the widget, and if the widget has a parent EO object, notifies it of the unlock    
-    def unlock(self,notify_eo=True):        
-        self._combobox.setEnabled(True)        
-        self._lock_action.setText("Lock")
-        if self._EO is not None and notify_eo:
-            self._EO.unlock()
 
-    
+
 # A simple test!
 if __name__ == '__main__':
     

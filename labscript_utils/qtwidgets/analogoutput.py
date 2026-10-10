@@ -14,6 +14,8 @@ import sys
 
 from qtutils.qt import QtCore, QtGui, QtWidgets
 
+from .lockable import LockableOutput
+
 
 class NoStealFocusDoubleSpinBox(QtWidgets.QDoubleSpinBox):
     """A QDoubleSpinBox that doesn't steal focus as you scroll over it with a
@@ -36,7 +38,7 @@ class NoStealFocusDoubleSpinBox(QtWidgets.QDoubleSpinBox):
         else:
             event.ignore()
 
-class AnalogOutput(QtWidgets.QWidget):
+class AnalogOutput(LockableOutput, QtWidgets.QWidget):
     def __init__(self, hardware_name, connection_name='-', display_name=None, horizontal_alignment=False, parent=None):
         QtWidgets.QWidget.__init__(self,parent)
         
@@ -50,6 +52,7 @@ class AnalogOutput(QtWidgets.QWidget):
         self._spin_widget = NoStealFocusDoubleSpinBox()
         self._spin_widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.MinimumExpanding,QtWidgets.QSizePolicy.Policy.Minimum)
         self._spin_widget.setKeyboardTracking(False)
+        self._lock_target = self._spin_widget
         self._combobox = QtWidgets.QComboBox()
         self._combobox.setSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum,QtWidgets.QSizePolicy.Policy.Minimum)
         self._combobox.currentIndexChanged.connect(self._on_combobox_change)
@@ -97,6 +100,7 @@ class AnalogOutput(QtWidgets.QWidget):
             # Add divider
             menu.addSeparator()
             # Add lock action
+            self._lock_action.setText("Unlock" if self.lock_state else "Lock")
             menu.addAction(self._lock_action)
             menu.addAction(self._stepsize_action)
             
@@ -142,21 +146,21 @@ class AnalogOutput(QtWidgets.QWidget):
         self.installEventFilter(self)
         
         # The Analog Out object that is in charge of this button
-        self._AO = None
+        self._output = None
     
     # Setting and getting methods for the Digitl Out object in charge of this button
     def set_AO(self,AO,notify_old_AO=True,notify_new_AO=True):
         # If we are setting a new AO, remove this widget from the old one (if it isn't None) and add it to the new one (if it isn't None)
-        if AO != self._AO:
-            if self._AO is not None and notify_old_AO:
-                self._AO.remove_widget(self,False)
+        if AO != self._output:
+            if self._output is not None and notify_old_AO:
+                self._output.remove_widget(self,False)
             if AO is not None and notify_new_AO:
                 AO.add_widget(self)
         # Store a reference to the digital out object
-        self._AO = AO
+        self._output = AO
         
     def get_AO(self):
-        return self._AO
+        return self._output
     
     def connect_value_change(self,func):
         self._value_changed_function = lambda value,self=self: func(value,self.selected_unit,True)
@@ -170,8 +174,8 @@ class AnalogOutput(QtWidgets.QWidget):
     
     def _on_combobox_change(self):
         selected_text = self.selected_unit
-        if self._AO is not None:
-            self._AO.change_unit(selected_text)
+        if self._output is not None:
+            self._output.change_unit(selected_text)
             
     def block_spinbox_signals(self):
         return self._spin_widget.blockSignals(True)
@@ -180,10 +184,10 @@ class AnalogOutput(QtWidgets.QWidget):
         return self._spin_widget.blockSignals(False)
     
     def set_spinbox_value(self,value,unit):
-        if self._AO is not None:
+        if self._output is not None:
             # get the value in the selected unit
-            value = self._AO.convert_value_to_base(value,unit)
-            value = self._AO.convert_value_from_base(value,self.selected_unit)            
+            value = self._output.convert_value_to_base(value,unit)
+            value = self._output.convert_value_from_base(value,self.selected_unit)
         self._spin_widget.setValue(value)
     
     @property
@@ -218,41 +222,10 @@ class AnalogOutput(QtWidgets.QWidget):
     
         if ok:
             self.set_step_size(new_step)
-            if self._AO:
-                self._AO.set_step_size(new_step,self.selected_unit)
-    
-    # The event filter that pops up a context menu on a right click, even when the button is disabled
-    def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.Type.MouseButtonRelease and event.button() == QtCore.Qt.MouseButton.RightButton:
-            menu = QtWidgets.QMenu(self)
-            menu.addAction("Lock" if self._spin_widget.isEnabled() else "Unlock")
-            menu.triggered.connect(self._menu_triggered)
-            menu.popup(self.mapToGlobal(event.pos()))
-        
-        return QtWidgets.QWidget.eventFilter(self, obj, event)
-     
-    # This method is called whenever an entry in the context menu is clicked
-    def _menu_triggered(self,action):
-        if action.text() == "Lock":
-            self.lock()
-        elif action.text() == "Unlock":
-            self.unlock()
-    
-    # This method locks (disables) the widget, and if the widget has a parent AO object, notifies it of the lock
-    def lock(self,notify_ao=True):        
-        self._spin_widget.setEnabled(False)
-        self._lock_action.setText("Unlock")
-        if self._AO is not None and notify_ao:
-            self._AO.lock()
-    
-    # This method unlocks (enables) the widget, and if the widget has a parent AO object, notifies it of the unlock    
-    def unlock(self,notify_ao=True):        
-        self._spin_widget.setEnabled(True)        
-        self._lock_action.setText("Lock")
-        if self._AO is not None and notify_ao:
-            self._AO.unlock()
-        
-    
+            if self._output:
+                self._output.set_step_size(new_step,self.selected_unit)
+
+
 # A simple test!
 if __name__ == '__main__':
     

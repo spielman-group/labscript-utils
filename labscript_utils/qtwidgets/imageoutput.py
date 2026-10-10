@@ -17,6 +17,9 @@ import os
 from qtutils.qt import QtCore, QtGui, QtWidgets
 from qtutils.qt.QtCore import pyqtSignal as Signal
 
+from .lockable import LockableOutput
+
+
 class BrowseButton(QtWidgets.QPushButton):
     def __init__(self, image_output, *args, **kwargs):
         QtWidgets.QPushButton.__init__(self, *args, **kwargs)
@@ -58,10 +61,7 @@ class BrowseButton(QtWidgets.QPushButton):
         
     def eventFilter(self, obj, event):
         if event.type() == QtCore.QEvent.Type.MouseButtonRelease and event.button() == QtCore.Qt.MouseButton.RightButton:
-            menu = QtWidgets.QMenu(self)
-            menu.addAction("Lock" if not self.image_output.lock_state else "Unlock")
-            menu.triggered.connect(self.image_output._menu_triggered)
-            menu.popup(self.mapToGlobal(event.pos()))
+            self.image_output.popup_lock_menu(self, event.pos())
             return True
             
         return QtWidgets.QPushButton.eventFilter(self, obj, event)
@@ -73,25 +73,10 @@ class ImageView(QtWidgets.QGraphicsView):
         self.installEventFilter(self)
         
     def contextMenuEvent(self, event):
-        menu = QtWidgets.QMenu(self)
-        menu.addAction("Lock" if not self.parent().lock_state else "Unlock")
-        menu.triggered.connect(self.parent()._menu_triggered)
-        menu.popup(self.mapToGlobal(event.pos()))
-        
-    
-    # def eventFilter(self, obj, event):
-        # if event.type() == QEvent.Type.ContextMenu:
-            # print 'a'
-            # menu = QMenu(self)
-            # menu.addAction("Lock" if self.parent().lock_state else "Unlock")
-            # menu.triggered.connect(self.parent()._menu_triggered)
-            # menu.popup(self.mapToGlobal(event.pos()))
-            # return True
-            
-        # return QGraphicsView.eventFilter(self, obj, event)
-    
-    
-class ImageOutput(QtWidgets.QWidget):
+        self.parent().popup_lock_menu(self, event.pos())
+
+
+class ImageOutput(LockableOutput, QtWidgets.QWidget):
     
     imageUpdated = Signal(str)
 
@@ -116,6 +101,7 @@ class ImageOutput(QtWidgets.QWidget):
         # Add the browse button
         self._browse_button = BrowseButton(self, 'Select Image')
         self._browse_button.setIcon(QtGui.QIcon(':/qtutils/fugue/image-import'))
+        self._lock_target = self._browse_button
         header_layout.addWidget(self._browse_button)
        
         # Add a spacer item to keep everything bunched
@@ -141,76 +127,28 @@ class ImageOutput(QtWidgets.QWidget):
         self.installEventFilter(self)
         
         # The Image Out object that is in charge of this button
-        self._Image = None
+        self._output = None
         
         # the base64encoded value
         self._value = ""
         
         # The image item to be added to the scene
         self._pixmap_item = None
-        
-        # The current lock state
-        self.lock_state = False
     
     # Setting and getting methods for the Image Out object in charge of this button
     def set_Image(self,Image,notify_old_Image=True,notify_new_Image=True):
         # If we are setting a new Image, remove this widget from the old one (if it isn't None) and add it to the new one (if it isn't None)
-        if Image != self._Image:
-            if self._Image is not None and notify_old_Image:
-                self._Image.remove_widget(self)
+        if Image != self._output:
+            if self._output is not None and notify_old_Image:
+                self._output.remove_widget(self)
             if Image is not None and notify_new_Image:
                 Image.add_widget(self)
         # Store a reference to the Image out object
-        self._Image = Image
+        self._output = Image
         
     def get_Image(self):
-        return self._Image
+        return self._output
     
-    # The event filter that pops up a context menu on a right click, even when the button is disabled
-    def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.Type.MouseButtonRelease and event.button() == QtCore.Qt.MouseButton.RightButton:
-            menu = QtWidgets.QMenu(self)
-            menu.addAction("Lock" if not self.lock_state else "Unlock")
-            menu.triggered.connect(self._menu_triggered)
-            menu.popup(self.mapToGlobal(event.pos()))
-            return True
-        
-        # pass scrollwheel events of disabled buttons through to the parent
-        # code adapted from: http://www.qtforum.org/article/28540/disabled-widgets-and-wheel-events.html
-        elif obj and not obj.isEnabled() and event.type() == QtCore.QEvent.Type.Wheel:
-            newEvent = QtGui.QWheelEvent(
-                QtCore.QPointF(obj.mapToParent(event.position().toPoint())),
-                event.globalPosition(),
-                event.pixelDelta(), event.angleDelta(),
-                event.buttons(), event.modifiers(),
-                event.phase(), event.inverted(),
-            )
-            QtWidgets.QApplication.instance().postEvent(obj.parent(), newEvent)
-            return True
-        
-        return QtWidgets.QWidget.eventFilter(self, obj, event)
-     
-    # This method is called whenever an entry in the context menu is clicked
-    def _menu_triggered(self,action):
-        if action.text() == "Lock":
-            self.lock()
-        elif action.text() == "Unlock":
-            self.unlock()
-    
-    # This method locks (disables) the widget, and if the widget has a parent Image object, notifies it of the lock
-    def lock(self,notify_Image=True):        
-        self._browse_button.setEnabled(False)
-        self.lock_state = True
-        if self._Image is not None and notify_Image:
-            self._Image.lock()
-    
-    # This method unlocks (enables) the widget, and if the widget has a parent Image object, notifies it of the unlock    
-    def unlock(self,notify_Image=True): 
-        self._browse_button.setEnabled(True)
-        self.lock_state = False
-        if self._Image is not None and notify_Image:
-            self._Image.unlock()
-        
     @property
     def value(self):
         return self._value
