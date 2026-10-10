@@ -117,32 +117,17 @@ def set_device_properties(h5_file, device_name, properties):
     set_attributes(h5_file['devices/' + device_name], properties)
 
 
-def _get_device_properties(h5_file, device_name):
-    return get_attributes(h5_file['devices/' + device_name])
-
-
-def _get_con_table_properties(h5_file, device_name):
-    import h5py
-    dataset = h5_file['connection table']
-    row = dataset[dataset['name'] == device_name.encode('utf8')][0]
-    json_string = row['properties']
-    return deserialise(json_string)
-
-
-def _get_unit_conversion_parameters(h5_file, device_name):
-    import h5py
-    dataset = h5_file['connection table']
-    row = dataset[dataset['name'] == device_name.encode('utf8')][0]
-    json_string = row['unit conversion params']
-    return deserialise(json_string)
+_CONNECTION_TABLE_COLUMNS = {
+    'connection_table_properties': 'properties',
+    'unit_conversion_parameters': 'unit conversion params',
+}
 
 
 def get(h5_file, device_name, location):
     if location == 'device_properties':
-        return _get_device_properties(h5_file, device_name)
-    elif location == 'connection_table_properties':
-        return _get_con_table_properties(h5_file, device_name)
-    elif location == 'unit_conversion_parameters':
-        return _get_unit_conversion_parameters(h5_file, device_name)
-    else:
-        raise ValueError('location must be one of %s'%str(VALID_PROPERTY_LOCATIONS))
+        return get_attributes(h5_file['devices/' + device_name])
+    if location in _CONNECTION_TABLE_COLUMNS:
+        dataset = h5_file['connection table']
+        row = dataset[dataset['name'] == device_name.encode('utf8')][0]
+        return deserialise(row[_CONNECTION_TABLE_COLUMNS[location]])
+    raise ValueError('location must be one of %s'%str(VALID_PROPERTY_LOCATIONS))
