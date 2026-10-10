@@ -205,23 +205,26 @@ class FileWatcher(object):
     def add_folder(self, folder):
         self.add_folders((folder,))
 
+    def _set_clean_modified_info(self, new_files, clean_modified_info):
+        # Remove keys from the clean_modified_info that are not in the files
+        # watchlist:
+        for name in self.clean_modified_info.copy():
+            if name not in self.files:
+                del self.clean_modified_info[name]
+        # For all files added to the watchlist that we were not given a
+        # clean_modified_info for, set it based on their info now:
+        for name in new_files:
+            if name in clean_modified_info:
+                self.clean_modified_info[name] = clean_modified_info[name]
+            elif name not in self.clean_modified_info:
+                self.clean_modified_info[name] = self._modified_info_of_file(name)
+
     def add_files(self, files, clean_modified_info=None):
         if clean_modified_info is None:
             clean_modified_info = {}
         with self.lock:
             self.files = self.files.union(set(files))
-            # Remove keys from the clean_modified_info that are not in the files
-            # watchlist:
-            for name in self.clean_modified_info.copy():
-                if name not in self.files:
-                    del self.clean_modified_info[name]
-            # For all files added to the watchlist that we were not given a
-            # clean_modified_info for, set it based on their info now:
-            for name in files:
-                if name in clean_modified_info:
-                    self.clean_modified_info[name] = clean_modified_info[name]
-                elif name not in self.clean_modified_info:
-                    self.clean_modified_info[name] = self._modified_info_of_file(name)
+            self._set_clean_modified_info(files, clean_modified_info)
 
     def add_folders(self, folders, clean_modified_info=None):
         if clean_modified_info is None:
@@ -230,18 +233,8 @@ class FileWatcher(object):
             self.folders = self.folders.union(set(folders))
             initial_files = self.files.copy()
             self.update_files(trigger_callback=False)
-            # Remove keys from the clean_modified_info that are not in the files
-            # watchlist:
-            for name in self.clean_modified_info.copy():
-                if name not in self.files:
-                    del self.clean_modified_info[name]
-            # For all files added to the watchlist that we were not given a
-            # clean_modified_info for, set it based on their info now:
-            for name in self.files - initial_files:
-                if name in clean_modified_info:
-                    self.clean_modified_info[name] = clean_modified_info[name]
-                elif name not in self.clean_modified_info:
-                    self.clean_modified_info[name] = self._modified_info_of_file(name)
+            new_files = self.files - initial_files
+            self._set_clean_modified_info(new_files, clean_modified_info)
 
 
 if __name__ == '__main__':
