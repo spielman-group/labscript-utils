@@ -19,45 +19,19 @@ Script to run a zlog server configured according to LabConfig. Run with:
 
 If --daemon is specified, the zlog server will be started in the background.
 """
-import sys
-import subprocess
-from labscript_utils.ls_zprocess import get_config
-from labscript_utils.setup_logging import LOG_PATH
-from zprocess import start_daemon
+from labscript_utils.ls_zprocess import get_config, run_server
 
 
 def main():
     config = get_config()
 
-    cmd = [
-        sys.executable,
-        '-m',
-        'zprocess.zlog',
-        '--port',
-        str(config['zlog_port']),
-        '--cls',
-        'RotatingFileHandler',
-        '--maxBytes',
-        str(config['logging_maxBytes']),
-        '--backupCount',
-        str(config['logging_backupCount']),
-        '-l',
-        LOG_PATH,
-    ]
-    if config['shared_secret_file'] is not None:
-        cmd += ['--shared-secret-file', config['shared_secret_file']]
-    elif config['allow_insecure']:
-        cmd += ['--allow-insecure']
-    else:
-        cmd += ['--no-allow-insecure']
-
-    if '--daemon' in sys.argv:
-        start_daemon(cmd)
-    else:
-        try:
-            subprocess.call(cmd)
-        except KeyboardInterrupt:
-            pass
+    run_server(
+        'zlog',
+        config['zlog_port'],
+        '--cls', 'RotatingFileHandler',
+        '--maxBytes', str(config['logging_maxBytes']),
+        '--backupCount', str(config['logging_backupCount']),
+    )
 
 
 if __name__ == '__main__':

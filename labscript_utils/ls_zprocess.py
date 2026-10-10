@@ -13,6 +13,7 @@
 import sys
 import os
 import pickle
+import subprocess
 import traceback
 from socket import gethostbyname
 from packaging.version import Version
@@ -415,6 +416,70 @@ def RemoteProcessClient(host, port=None):
     return ProcessTree.instance().remote_process_client(host, port)
 
 
+def run_server(module, port, *extra_args, tui=False):
+    """Run a zprocess server configured according to LabConfig.
+
+    Runs ``python -m zprocess.<module>`` with the security settings from LabConfig.
+    With ``--daemon`` on the command line the server starts in the background,
+    otherwise it runs in the foreground until interrupted.
+
+    Parameters
+    ----------
+    module : str
+        Name of the server's module in ``zprocess``, such as ``'zlock'``.
+    port : int
+        Port for the server to listen on.
+    *extra_args : str
+        Further command-line arguments for the server.
+    tui : bool, optional
+        Whether a foreground server shows the text-based interface, unless
+        ``--no-tui`` is on the command line.
+    """
+    # setup_logging imports this module, so LOG_PATH cannot be imported at the top:
+    from labscript_utils.setup_logging import LOG_PATH
+
+    config = get_config()
+    cmd = [
+        sys.executable, '-m', f'zprocess.{module}', '--port', str(port),
+        *extra_args, '-l', LOG_PATH,
+    ]
+    if config['shared_secret_file'] is not None:
+        cmd += ['--shared-secret-file', config['shared_secret_file']]
+    elif config['allow_insecure']:
+        cmd += ['--allow-insecure']
+    else:
+        cmd += ['--no-allow-insecure']
+
+    if '--daemon' in sys.argv:
+        zprocess.start_daemon(cmd)
+    else:
+        if tui and '--no-tui' not in sys.argv:
+            cmd += ['-tui']
+        try:
+            subprocess.call(cmd)
+        except KeyboardInterrupt:
+            pass
+
+
+def _ping_starting_locally(client, module):
+    """Ping a server, starting ``labscript_utils.<module>`` first if the server is
+    meant to run on this computer and does not answer."""
+    if gethostbyname(client.host) == gethostbyname('localhost'):
+        try:
+            # Short timeout on localhost, so as not to waste time:
+            client.ping(timeout=0.05)
+        except zmq.ZMQError:
+            # Not running. Start it, to run forever even after this program exits,
+            # since other programs may use it. Then try again, with a longer
+            # timeout to give it time to start up:
+            zprocess.start_daemon(
+                [sys.executable, '-m', f'labscript_utils.{module}', '--daemon']
+            )
+            client.ping(timeout=15)
+    else:
+        client.ping()
+
+
 ZLOCK_DEFAULT_TIMEOUT = 45
 _zlock_server_supports_readwrite = False
 
@@ -422,23 +487,7 @@ def connect_to_zlock_server():
     # Ensure we are connected to a zlock server, and start one if one is supposed
     # to be running on localhost but is not.
     client = ProcessTree.instance().zlock_client
-    if gethostbyname(client.host) == gethostbyname('localhost'):
-        try:
-            # short connection timeout if localhost, don't want to
-            # waste time:
-            client.ping(timeout=0.05)
-        except zmq.ZMQError:
-            # No zlock server running on localhost. Start one. It will run forever, even
-            # after this program exits. This is important for other programs which might
-            # be using it. I don't really consider this bad practice since the server is
-            # typically supposed to be running all the time:
-            zprocess.start_daemon(
-                [sys.executable, '-m', 'labscript_utils.zlock', '--daemon']
-            )
-            # Try again. Longer timeout this time, give it time to start up:
-            client.ping(timeout=15)
-    else:
-        client.ping()
+    _ping_starting_locally(client, 'zlock')
 
     # Check if the zlock server supports read-write locks:
     global _zlock_server_supports_readwrite
@@ -461,23 +510,5 @@ def ensure_connected_to_zlog():
     global _connected_to_zlog
     if _connected_to_zlog:
         return
-    # setup connection with the zlog server:
-    client = ProcessTree.instance().zlog_client
-    if gethostbyname(client.host) == gethostbyname('localhost'):
-        try:
-            # short connection timeout if localhost, don't want to
-            # waste time:
-            client.ping(timeout=0.05)
-        except zmq.ZMQError:
-            # No zlog server running on localhost. Start one. It will run forever, even
-            # after this program exits. This is important for other programs which might
-            # be using it. I don't really consider this bad practice since the server is
-            # typically supposed to be running all the time:
-            zprocess.start_daemon(
-                [sys.executable, '-m', 'labscript_utils.zlog', '--daemon']
-            )
-            # Try again. Longer timeout this time, give it time to start up:
-            client.ping(timeout=15)
-    else:
-        client.ping()
+    _ping_starting_locally(ProcessTree.instance().zlog_client, 'zlog')
     _connected_to_zlog = True

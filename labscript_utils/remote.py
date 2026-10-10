@@ -20,41 +20,11 @@ If --daemon is specified, the server will be started in the background.
 If --no-tui is specified, the server will run with ordinary terminal output 
 instead of with the interactive text-based user interface (TUI).
 """
-import sys
-import subprocess
-from labscript_utils.ls_zprocess import get_config
-from labscript_utils.setup_logging import LOG_PATH
-from zprocess import start_daemon
+from labscript_utils.ls_zprocess import get_config, run_server
 
 
 def main():
-    config = get_config()
-
-    cmd = [
-        sys.executable,
-        '-m',
-        'zprocess.remote',
-        '--port',
-        str(config['zprocess_remote_port']),
-        '-l',
-        LOG_PATH,
-    ]
-    if config['shared_secret_file'] is not None:
-        cmd += ['--shared-secret-file', config['shared_secret_file']]
-    elif config['allow_insecure']:
-        cmd += ['--allow-insecure']
-    else:
-        cmd += ['--no-allow-insecure']
-
-    if '--daemon' in sys.argv:
-        start_daemon(cmd)
-    else:
-        if '--no-tui' not in sys.argv:
-            cmd += ['-tui']
-        try:
-            subprocess.call(cmd)
-        except KeyboardInterrupt:
-            pass
+    run_server('remote', get_config()['zprocess_remote_port'], tui=True)
 
 if __name__ == '__main__':
     main()

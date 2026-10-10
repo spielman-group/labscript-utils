@@ -18,12 +18,8 @@
 
 If --daemon is specified, the zlock server will be started in the background.
 """
-import sys
-import subprocess
 from socket import gethostbyname
-from labscript_utils.ls_zprocess import get_config
-from labscript_utils.setup_logging import LOG_PATH
-from zprocess import start_daemon
+from labscript_utils.ls_zprocess import get_config, run_server
 
 def main():
     config = get_config()
@@ -35,29 +31,7 @@ def main():
         )
         raise ValueError(msg)
 
-    cmd = [
-        sys.executable,
-        '-m',
-        'zprocess.zlock',
-        '--port',
-        str(config['zlock_port']),
-        '-l',
-        LOG_PATH,
-    ]
-    if config['shared_secret_file'] is not None:
-        cmd += ['--shared-secret-file', config['shared_secret_file']]
-    elif config['allow_insecure']:
-        cmd += ['--allow-insecure']
-    else:
-        cmd += ['--no-allow-insecure']
-
-    if '--daemon' in sys.argv:
-        start_daemon(cmd)
-    else:
-        try:
-            subprocess.call(cmd)
-        except KeyboardInterrupt:
-            pass
+    run_server('zlock', config['zlock_port'])
 
 
 if __name__ == '__main__':
