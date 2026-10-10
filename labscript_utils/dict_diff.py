@@ -16,27 +16,16 @@ import numpy as np
 def dict_diff(dict1, dict2):
     """Return the difference between two dictionaries as a dictionary of key: [val1, val2] pairs.
     Keys unique to either dictionary are included as key: [val1, '-'] or key: ['-', val2]."""
-    diff_keys = []
-    common_keys = np.intersect1d(list(dict1.keys()), list(dict2.keys()))
-    for key in common_keys:
-        if np.iterable(dict1[key]):
-            if np.any(dict1[key] != dict2[key]):
-                diff_keys.append(key)
-        else:
-            if dict1[key] != dict2[key]:
-                diff_keys.append(key)
-
-    dict1_unique = [key for key in dict1.keys() if key not in common_keys]    
-    dict2_unique = [key for key in dict2.keys() if key not in common_keys]
-                
     diff = {}
-    for key in diff_keys:
-        diff[key] = [dict1[key], dict2[key]]
-    
-    for key in dict1_unique:
-        diff[key] = [dict1[key], '-']
-        
-    for key in dict2_unique:
-        diff[key] = ['-', dict2[key]]       
-
+    for key in sorted(dict1.keys() & dict2.keys()):
+        value1, value2 = dict1[key], dict2[key]
+        # array_equal compares shape as well, and never raises on a mismatch.
+        if np.iterable(value1) or np.iterable(value2):
+            equal = np.array_equal(value1, value2)
+        else:
+            equal = value1 == value2
+        if not equal:
+            diff[key] = [value1, value2]
+    diff.update({key: [value, '-'] for key, value in dict1.items() if key not in dict2})
+    diff.update({key: ['-', value] for key, value in dict2.items() if key not in dict1})
     return diff
