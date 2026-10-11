@@ -40,7 +40,6 @@ def test_a_plugin_that_overrides_nothing_contributes_nothing():
     plugin = BasePlugin({'x': 1})
 
     assert plugin.initial_settings == {'x': 1}
-    assert plugin.get_menu_class() is None
     assert plugin.get_event_handlers() is None
     assert plugin.get_ui_contributions() == []
     assert plugin.get_menu_contributions() == []
@@ -161,6 +160,9 @@ def test_setup_plugins_returns_each_plugins_settings_changed_handler():
 
         def get_notification_classes(self):
             return []
+
+        def get_menu_class(self):
+            return None
 
         def set_notification_instances(self, notifications):
             pass

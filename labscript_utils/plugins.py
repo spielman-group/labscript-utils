@@ -691,7 +691,7 @@ class BasePlugin(object):
     It provides only the hooks a contribution-based application reaches. A
     plugin driven through ``setup_plugins()`` and ``close_plugins()``, as BLACS
     drives its plugins, also defines ``get_setting_classes``,
-    ``get_notification_classes``, ``set_menu_instance``,
+    ``get_notification_classes``, ``get_menu_class``, ``set_menu_instance``,
     ``set_notification_instances`` and ``close``.
 
     ``initial_settings`` contains the saved configuration for the plugin.
@@ -705,19 +705,6 @@ class BasePlugin(object):
         ``plugin_setup_complete()`` to restore UI state or background state.
         """
         self.initial_settings = initial_settings
-
-    def get_menu_class(self):
-        """Return a menu class for this plugin, or ``None``.
-
-        Deprecated compatibility hook for BLACS-style nested menus.
-
-        The class is constructed as ``MenuClass(data)`` during
-        ``PluginManager.setup_plugins()``. Its instance should provide
-        ``get_menu_items()``, returning the nested menu dictionary consumed by
-        :class:`MenuBuilder`. New shared plugin code should prefer
-        :meth:`get_menu_contributions` instead.
-        """
-        return None
 
     def get_event_handlers(self):
         """Return a mapping of event names to handlers, or ``None``.
