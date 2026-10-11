@@ -3024,7 +3024,8 @@ judged not a bug.
     - the header widgets after one without an indent (dad06a5).
   - Text: versions.py's missing import and dead fallback (dc9acf4); the
     shared-secret error's example in TOML (e7baae2); "occurred" (abe211f);
-    shot_utils' banner (cc3eccd).
+    shot_utils' banner (cc3eccd). example.toml documents the `[logging]` keys and
+    `allow_insecure` at the values the code uses when they are omitted (81688e0).
   - LabConfig raises ValueError, not bare Exception (777aefc).
   - Dead code removed: imageoutput's store, the plugin key, Settings' pass
     statements, FileWatcher's always-true elif, `_MultiplicativeConversion.__get__`
@@ -3043,8 +3044,6 @@ judged not a bug.
   - The offscreen `ToolPalette.hide()` crash seen in step 4's review did not
     reproduce, with or without focus inside the palette.
 - Design questions for Ian rather than bugs:
-  - document example.toml's missing `[logging]` and `allow_insecure` keys, and
-    with which defaults?
   - re-export `populate_registry`, `BLACS_tab_registry` and `ClassRegister`
     from `device_registry`?
 
