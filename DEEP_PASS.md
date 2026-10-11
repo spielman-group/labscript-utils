@@ -1976,6 +1976,454 @@ Owners who would make a change: runmanager (2, 4, 10, 13's docstring, 14); blacs
 - `configure_qapplication`'s `_labscript_qapplication_configured` property is a
   darwin detail with a dead branch, 3 lines. Step 4.
 
+## Step 4: dead code and compatibility leftovers
+
+"An old interface kept for compatibility, whose remaining users are all in the
+suite, goes, and its users move to the new one. Deciding that a name is unused
+means searching every repo, hyde included."
+
+How the candidates were found:
+- the step 4 notes in this file;
+- the labscript-utils sections of the meta repo's `issues/seen_while_mapping.md`;
+- a sweep of all 661 names defined in labscript-utils, counting each one's
+  tokens in every file of every repo. A name found only where it is defined is
+  a candidate. A second pass counted code tokens only and resolved imports,
+  which finds a name hidden by prose or by a common word.
+
+How they were checked:
+- Refs: labscript-utils `CodeHealth` at e8e3f72, which all line numbers below
+  refer to. The other repos at `CodeHealth`, and desktop-app and
+  labscript-c-extensions at `HEAD`: 14 repos.
+- Each search is a whole-word `git grep` in all 14 repos, giving each repo's
+  exit status. "No caller" means exit 1 in 13 repos, and a hit at the definition
+  only in labscript-utils.
+- Each search ran beside a control that matches, named in its entry.
+- The sweep was checked both ways. A used name, `get_event_handlers`, counts 58
+  tokens against 2 definitions. An unused one, `add_folder`, counts 1 against 1.
+- Every name's presence on `master` was checked. Such a name is published API
+  that lab code may use: sequences, lyse routines, lab-local devices and
+  plugins.
+
+Each proposal is one of three:
+- **Remove:** nothing outside the suite can reach it, or it can never work.
+- **Ian's call:** public on `master`, so lab code could reach it, but nothing in
+  the suite uses it. The proposal is to remove it if Ian agrees.
+- **Keep:** user-facing, or still live. The figure in brackets is what removing
+  it would save.
+
+### Found while listing: step 3 entries 5 and 6 changed upstream plugin forms
+
+- Upstream blacs `master` calls `plugin.get_callbacks()` on every plugin
+  (`__main__.py:423`, `plugins/__init__.py:69`). So a lab-local BLACS plugin
+  written for upstream defines only `get_callbacks`.
+  - Since d515339 the manager asks only for `get_event_handlers`, so such a
+    plugin loses its event handlers silently.
+  - Entry 5 said "Visible to a user: no", and that was wrong.
+  - The meta repo's `issues/blacs_issues_2026_08_28.md:321-323` requires that
+    such a plugin still works.
+- Upstream also retries `plugin_setup_complete()` with no argument, with a
+  warning (`__main__.py:444-450`). Since 2cf4b3b such a plugin's setup step
+  logs an error and does not run.
+  - Entry 6 said it would "log an error instead of a warning", which understated
+    it.
+- Both are Ian's to decide. The fix would restore a fallback in
+  `PluginManager`: `get_callbacks` when a plugin has no `get_event_handlers`,
+  and a no-argument call when `plugin_setup_complete` takes no argument. Each is
+  a few lines. blacs's renamed plugins are unaffected.
+
+### 1. Demo blocks under `if __name__ == '__main__'` that nothing runs
+
+- Where: blocks from the `if` line to the end of the file, 13 files:
+  - `double_import_denier.py:171`, `filewatcher.py:240`, `modulewatcher.py:128`
+    and `splash.py:134`;
+  - `qtwidgets/`: `dragdroptab.py:853`, `elide_label.py:152`,
+    `headerview_with_widgets.py:230`, `analogoutput.py:230`, `ddsoutput.py:117`,
+    `digitaloutput.py:74`, `enumoutput.py:126`, `imageoutput.py:178` and
+    `toolpalette.py:443`.
+  - Also the commented-out block at `connections.py:354-361`.
+  - Seven of the qtwidgets files import `sys` only for their block.
+- Callers: none. pyproject's one entry point is `labscript-profile-create`. No
+  doc or repo runs these files. Control: the same grep finds `zlock.py:37`,
+  which `ls_zprocess.py:468` runs as `-m labscript_utils.zlock`.
+- Public: no, being script tails. On `master`: yes. User code cannot reach them.
+- Proposal: remove, with their `# A simple test!` comments and unused
+  `import sys`. The widget demos are a developer's only visual harness.
+- Core lines: 310.
+- Owner edits: none.
+
+### 2. `AnalogInput` and its `PlotWindow`
+
+- Where: `qtwidgets/analoginput.py` (whole file), and
+  `qtwidgets/InputPlotWindow.py` (whole file), which only it imports.
+- Callers: none.
+  - No file in any repo imports `analoginput`. The class is used only in its own
+    demo.
+  - blacs sets widgets with `set_AO`, `set_DO`, `set_EO` and `set_Image`;
+    nothing calls `set_AI`.
+  - The token count missed it because labscript's `docs/labscript-dev/main.tex`
+    names an unrelated `AnalogInput`.
+  - Control: `set_AO` hits blacs `output_classes.py:261, 289`.
+- Public: yes. On `master`: yes. User code could reach it only through a
+  lab-local BLACS tab that imports it by path.
+- Proposal: Ian's call.
+- Core lines: 176, the two files with banners.
+- Owner edits: none.
+
+### 3. The base `MenuContext.render`
+
+- Where: `plugins.py:847-981`. The class docstring (814-821) and module
+  docstring (56-59, 103-114, 345-371) describe it.
+- Callers: none reach it.
+  - hyde's `HydeMenuContext.render` (`shared/plugin.py:874`) overrides it and
+    never calls `super().render()` (rc=1).
+  - BLACS uses `MenuBuilder`.
+  - Its seven tests went in 16a3589.
+  - Control: `MenuContext` hits hyde `plugin.py:666` and `plugins.py:814`.
+- Public: yes (`__all__`). On `master`: no.
+- Proposal: remove, as Ian already decided. `MenuContext` keeps the
+  registration that hyde uses. The module docstring loses about 39 lines.
+- Core lines: 119.
+- Owner edits: hyde rewords about 14 lines of docstrings and comments that name
+  the base renderer (`plugin.py:495, 647-652, 887-889`).
+
+### 4. `testing_utils`, which nothing imports
+
+- Where: `testing_utils.py`, the whole file: `monkeypatch`, `Any` and `ANY`,
+  `ThreadTestCase` with its debug prints, `dotdict` and `quit_mainloop`.
+- Callers: none.
+  - `testing_utils` matches only its own banner in any repo.
+  - `monkeypatch` hits are pytest's fixture, and the `ANY` hits are licence text.
+  - Control: `LabConfig` matches in 8 repos.
+- Public: yes. On `master`: yes, unchanged. A lab-local test could import it.
+- Proposal: Ian's call. If it stays, the two debug prints in `ThreadTestCase`
+  (lines 84, 87) go anyway.
+- Core lines: 119 with the banner, or 2 if it stays.
+- Owner edits: none.
+
+### 5. `ToolPaletteGroup`'s dead methods, and `ToolPalette.updateMinimumSize`
+
+- Where: `qtwidgets/toolpalette.py`.
+  - Stubs: `insert_new_palette` (102-106) and
+    `remove_from_linked_width_group` (212-214) are `pass`. `remove` (139-143)
+    checks the name and does nothing. `reorder_palette_by_index` (128-137)
+    raises `NameError` on an undefined `count`.
+  - Their forwarders: `reorder_palette` and `remove_by_index`.
+  - Never called: the `*_by_index` methods (87-88, 99-100, 119-120) and the
+    linked-width feature (161-243), that is `widths_linked`,
+    `create_linked_width_group`, `add_to_linked_width_group` and
+    `_create_find_max_function`.
+  - Then unreferenced: `get_name_from_index` and `get_index_from_name`.
+  - `updateMinimumSize` (380-381) is not a Qt virtual.
+- Callers: none. BLACS uses only `has_palette`, `get_palette` and
+  `append_new_palette` (`device_base_class.py:373-376`,
+  `output_classes.py:957-960`). Control: `append_new_palette` hits blacs
+  `device_base_class.py:376`.
+- Public: yes. On `master`: yes. A lab tab building its own group could call
+  one, but four of the methods cannot work.
+- Proposal: Ian's call. `_find_max_item_width(name)` keeps its last branch,
+  which `ToolPalette` calls at line 294.
+- Core lines: 106.
+- Owner edits: none.
+
+### 6. `dragdroptab.debug`, a tracing switch that only a source edit turns on
+
+- Where: `qtwidgets/dragdroptab.py:20-36` (the class) and 39-44 (its print
+  block), plus 42 `@debug.trace` decorators.
+- Callers: `DEBUG = False` is a class constant, so `trace` returns each function
+  unchanged. Nothing sets it: only line 39 contains `debug.DEBUG`. Control:
+  `dragdroptab` hits blacs's three `DragDropTabWidget` imports.
+- Public: the name yes, but nothing uses it. On `master`: yes. User code cannot
+  reach it.
+- Proposal: remove. Behaviour is unchanged, since `trace` is the identity.
+- Core lines: 65.
+- Owner edits: none.
+
+### 7. `ConnectionTable.assert_superset` and `Connection.diff`
+
+- Where: `connections.py:84-124` and 280-281, and the `dict_diff` import (21),
+  which only they use.
+- Callers: none. Upstream's apps never called it either (rc=1 at `master` in
+  blacs, runmanager, lyse, runviewer, labscript and labscript-devices). It does
+  the check `compare_to` does, raising instead of returning. Control:
+  `compare_to` hits blacs `front_panel_settings.py:78` and
+  `shot_execution.py:364`.
+- Public: yes. On `master`: yes. A lab script could call it.
+- Proposal: Ian's call. The `dict_diff` module stays: runmanager and lyse import
+  it.
+- Core lines: 40.
+- Owner edits: none.
+
+### 8. runmanager's `get_shot_globals`, lyse's `get_check_state`, and three more shims in other repos
+
+- runmanager `get_shot_globals` (`__init__.py:928-940`), a FutureWarning
+  forwarder to `labscript_utils.shot_utils.get_shot_globals`.
+  - Callers: none in the suite.
+  - Public, and on `master`: lab lyse routines call
+    `runmanager.get_shot_globals`, which is what the warning is for.
+  - Keep (Ian's call) [12 lines, with its `warnings` and `shot_utils` imports].
+- runmanager `from labscript_utils import dedent` (`__main__.py:76`): unused.
+  Control: `master` uses it at 3712. Remove, 1 line.
+- lyse `get_check_state` (`utils/gui.py:98-111`).
+  - It is a PyQt5 shim in a PyQt6 suite. Its callers are `__main__.py:258` and
+    `263`.
+  - On `master`, but no routine has a reason to import `lyse.utils.gui`.
+  - Remove: the two callers use `.checkState().value`. 12 lines.
+- blacs `plugins.get_callbacks(name)` (`plugins/__init__.py:34-36`) forwards to
+  `manager.get_event_handlers`.
+  - Callers: `shot_execution.py:777, 935, 1032, 1147`. Its test,
+    `tests/test_plugins_compat.py`, covers only it and module loading.
+  - Remove: the callers use `plugins.manager.get_event_handlers`. 3 lines, plus
+    the 61-line test file.
+  - If Ian restores the `get_callbacks` fallback (above), the test file is
+    rewritten to cover it instead.
+- blacs `execute_program` (`__main__.py:691-694`) wraps `qapplication.exec()`
+  and drops its exit code. Remove: `sys.exit(qapplication.exec())`, 2 lines.
+- Controls: each definition, and `compare_to` above.
+- Core lines: 18, or 30 with `get_shot_globals`.
+- Owner edits: runmanager (`__main__.py:76`); lyse (`utils/gui.py`,
+  `__main__.py:258, 263`); blacs (`plugins/__init__.py`, the four
+  `shot_execution.py` calls, the test file, `__main__.py:691-694`).
+
+### 9. `TubingenCameraServer`
+
+- Where: `camera_server.py:140-188`.
+- Callers: none. The header (26-31) points to it as the worked example.
+- Public: yes. On `master`: yes. Lab camera servers copy it rather than import
+  it.
+- Proposal: keep, since it is the documented example (Ian's call). Removing it
+  takes the header sentence and three imports with it.
+- Core lines: 0 [46].
+- Owner edits: none.
+
+### 10. The `ls_zprocess` forwarders
+
+- Where: `ls_zprocess.py`:
+  - `Event` (364-365) and `Handler` (368-369);
+  - eight `zmq_get*` and `zmq_push*` (372-401);
+  - `RemoteProcessClient` (404-408).
+  - `Lock` is not one: it drops `read_only` for an old zlock server.
+- Callers:
+  - `zmq_push_multipart`: runmanager `__init__.py:37, 884, 922`.
+  - `Event`: blacs `plugins/progress_bar/__init__.py:33, 65`.
+  - `Handler`: `setup_logging.py:17, 52`.
+  - `RemoteProcessClient`: blacs `tab_base_classes.py:36, 337`.
+  - The other seven have no caller. labscript-devices' `Camera.py` calls plain
+    `zprocess.zmq_get_string`, not this one.
+  - Control: the runmanager call.
+- Public: yes. On `master`: yes. Lab device code may call `zmq_get` and the
+  rest.
+- Proposal: keep, since they are user-facing (Ian's call). If they go:
+  - callers move to `ProcessTree.instance().event`, `.logging_handler` and
+    `.remote_process_client`, and to `ZMQClient.instance().push_multipart`;
+  - `RemoteProcessClient` loses its labconfig default port.
+- Core lines: 0 [25].
+- Owner edits, only if they go: runmanager (3 lines), blacs (4), labscript-utils
+  `setup_logging` (2).
+
+### 11. `import_or_reload` and `labscript_utils_dir`
+
+- Where: `__init__.py:38-49` and 34-35.
+- Callers: none.
+- Public: yes. On `master`: yes. Lab experiment code imports both from
+  `labscript_utils`.
+- Proposal: keep, since they are user-facing (Ian's call).
+- Core lines: 0 [14].
+- Owner edits: none.
+
+### 12. `BasePlugin.get_menu_class`
+
+- Where: `plugins.py:709-720`. Its default returns None, and its docstring says
+  it is deprecated.
+- Callers:
+  - `PluginManager.setup_plugins` calls it on every plugin (line 1109).
+  - All seven blacs plugins define their own. hyde never calls `setup_plugins`.
+  - Tests: `test_plugins.py:43` asserts the default, and the test at 157-186
+    inherits it.
+  - Control: blacs's seven definitions.
+- Public: yes. On `master`: no, since `BasePlugin` is the fork's.
+- Proposal: remove. The `BasePlugin` docstring lists the hook among those a
+  BLACS plugin defines. The 157-186 test defines its own.
+- Core lines: 10, minus 1 test line and plus 2.
+- Owner edits: none.
+
+### 13. `double_import_denier.disable`, `TomlConfigParser.to_toml_dict` and `write_toml`
+
+- `disable` (`double_import_denier.py:160-168`) undoes `enable()`.
+  - Callers: none. `labscript_utils/__init__.py:100` and `h5_lock.py:21-23` use
+    `enable()` and `_denier`.
+  - Public, and on `master`: Ian's call, 9 lines.
+- `to_toml_dict` and `write_toml` (`labscript_profile/toml_config.py:152-161`).
+  - Callers: none. hyde's `write_toml` is its own function.
+  - Not on `master`. Remove, 9 lines.
+  - `dump_toml_file` stays, with its three callers.
+- Controls: `enable` hits `__init__.py:100`; `read_toml` hits
+  `labscript_profile/__init__.py:70`.
+- Core lines: 9, or 18 with `disable`.
+- Owner edits: none.
+
+### 14. The output widgets' `get_AO`, `get_DO`, `get_EO` and `get_Image`
+
+- Where: `analogoutput.py:162-163`, `digitaloutput.py:42-43`,
+  `enumoutput.py:79-80` and `imageoutput.py:147-148`.
+- Callers: none. Their `set_` pairs are blacs's.
+- Public: yes. On `master`: yes. They are how a lab-local tab reads a widget's
+  output.
+- Proposal: keep, since they are user-facing (Ian's call).
+- Core lines: 0 [8].
+- Owner edits: none.
+
+### 15. `ShotQueueWidget._update_button_states` and `FILEPATH_COLUMN`
+
+- Where: `qtwidgets/shotqueue.py:210-211`, a `pass` stub called at 118.
+  `FILEPATH_COLUMN` is at 21, in `__all__` at 31, and the default of
+  `path_column` at 90.
+- Callers:
+  - The stub: its one call. runmanager's subclass does not override it.
+  - `FILEPATH_COLUMN`: both callers pass `path_column` (runmanager
+    `queueing.py:159`, `tests/test_shotqueue.py:22`). blacs's two constants of
+    that name are its own.
+  - Control: `path_column` hits runmanager.
+- Public: `FILEPATH_COLUMN` yes. On `master`: no, since `shotqueue.py` is the
+  fork's.
+- Proposal: remove both. `path_column` becomes a required keyword.
+- Core lines: 5.
+- Owner edits: none.
+
+### 16. Small private leftovers in labscript-utils
+
+- `COMMUNICATION_DEFAULT_TIMEOUT` (`ls_zprocess.py:235-237`): used once, as a
+  fallback at 288, and imported nowhere. Not on `master`. Inline `60`: 3 lines.
+- `configure_qapplication`'s non-darwin early return (`splash.py:43-44, 52-53`).
+  On other platforms nothing reads the property it sets, so the guard moves
+  into the darwin branch: 3 lines.
+- `_resolve_appconfig_save_path` (`labconfig.py:245-246`). Its two callers call
+  `appconfig_path_with_suffix(filename, '.toml')`: 2 lines.
+  - It is not the load resolver's twin: that one still finds a legacy `.ini`.
+- `TomlConfigParser.read_toml`'s first `isinstance(data, dict)`
+  (`toml_config.py:140-141`): `tomllib` always returns a dict, which was shown
+  on four inputs. 2 lines.
+- `initial_size` (`dragdroptab.py:168`): assigned, never read. 1 line.
+- `get_default_appconfig_file`'s `except (NoOptionError, NoSectionError)`
+  (`labconfig.py:58`).
+  - The `default` section never raises `NoSectionError`, shown by running
+    LabConfig on a file without one. The control, a missing section, raises it.
+  - Edit to `except LabConfig.NoOptionError:`, 0 lines.
+- `ElideScrollArea`'s `self.widget is None or` (`elide_label.py:36, 43`):
+  `widget` is a method, so the test is never true. Edit, 0 lines.
+- Controls: each name's own uses in the file.
+- Public: only the first, which is not on `master`. User code cannot reach any.
+- Proposal: remove or edit all.
+- Core lines: 11.
+- Owner edits: none.
+
+### 17. Public leftovers with no caller: `add_folder`, `remove_callback`, `icon_frac`
+
+- `FileWatcher.add_folder` (`filewatcher.py:205-206`): `add_folders` and
+  `add_file` stay in use. 2 lines.
+- `Settings.remove_callback` (`settings.py:143-144`): its pair
+  `register_callback` is used at blacs `__main__.py:346`. 2 lines.
+- `Splash.icon_frac` (`splash.py:79`): nothing reads it, so a subclass setting
+  it has no effect either. 1 line.
+- Callers: none. On `master`: yes, but these are BLACS, lyse and splash
+  internals that user code has no reason to reach.
+- Proposal: remove.
+- Core lines: 5.
+- Owner edits: none.
+
+### 18. `__main__` blocks that only a developer runs
+
+- Where: `impprof.py:59` (3 lines), `shared_drive.py:38` (6) and
+  `versions.py:302` (6). The last two are assert-only self-checks that pytest
+  does not run.
+- Callers: none in any repo.
+- Public: run as `python -m`. On `master`: yes.
+- Proposal: Ian's call. The two self-checks would belong in `tests/` by rule 13.
+- Core lines: 15.
+- Owner edits: none.
+
+### 19. `FileWatcher.get_modified_times` and its `modified_times` keyword
+
+- Where: `filewatcher.py:201-203`, commented "Backward compat for BLACS from
+  before file hashes", and 62-64.
+- Callers: none, at `CodeHealth` or `master`. BLACS uses `get_modified_info`.
+  Control: `get_modified_info` hits blacs `connection_table/__init__.py:245`.
+- Public: yes. On `master`: yes.
+- Proposal: keep, since it is user-facing (Ian's call).
+- Core lines: 0 [6].
+- Owner edits: none.
+
+### 20. Kept by default: guards that need a test or still hold
+
+- dragdroptab's PyQt4 workaround (`dragdroptab.py:555-561`): it runs on every
+  tab drag. Whether Qt6 still needs it takes a manual drag test, so keep
+  [6].
+- `headerview_with_widgets.do_update_widget_positions`'s `except KeyError:
+  return` (175-178).
+  - It fires when a header widget is set before the model is attached, and the
+    event loop runs before the header is shown.
+  - lyse never does that, but a lab widget could, so keep [3].
+- `memprof.check`'s `return True` (`memprof.py:57`). blacs connects it to a menu
+  action, which drops the return value. Ian's call [1].
+- `UnitConversion.unit_list` (`UnitConversionBase.py:53`), commented as an alias
+  for backward compatibility. A lab unit conversion may read it, so keep [1].
+- `excepthook.l`, a namespace class: it holds the live logger (4 code lines and
+  3 test lines). Keep, 0.
+- `__main__` blocks that code or users run, kept, 0:
+  - zlock and zlog, run by `ls_zprocess.py:468`;
+  - remote, documented;
+  - `tk_exception`, run by `excepthook`;
+  - the profile's connection-table template;
+  - `camera_server`, the documented way to run a server.
+
+### 21. Already gone
+
+- `get_callbacks` in labscript-utils, by d515339. Only prose names it.
+- `Connection._deserialise`'s no-op comparison, by d784002.
+- `EnumOutput.eventFilter`, `EnumOutput._lock_action` and the commented-out
+  `ImageView.eventFilter`, all by f76d464. `_lock_action` lives on in
+  `analogoutput.py`.
+- The tuple unwraps after file dialogs: by d90310a, and in the owners' repos by
+  9877b45, 20aabd4, 7e96ae4 and 4db574e.
+  - Two adjacent one-line leftovers remain for their owners: blacs
+    `connection_table/__init__.py:432` normalises an already absolute path, and
+    runviewer `__main__.py:755` calls `str()` on a str.
+
+### Totals
+
+21 entries.
+- **Remove: 552 core lines, and a 61-line test file.**
+  - labscript-utils: 534. That is 1 demo blocks (310), 3, 6, 12, 13's TOML pair,
+    15, 16 and 17.
+  - Other repos: 18, from entry 8's four shims (blacs 5, lyse 12, runmanager 1).
+- **Ian's call: 466.**
+  - 2 `AnalogInput` (176), 4 `testing_utils` (119), 5 `ToolPaletteGroup` (106),
+    7 `assert_superset` (40), 13's `disable` (9), 18's `__main__` blocks (15),
+    and `memprof`'s `return True` (1).
+- **Keep: 121 in brackets.**
+  - `TubingenCameraServer` 46, the `ls_zprocess` forwarders 25,
+    `get_shot_globals` 12, `import_or_reload` and `labscript_utils_dir` 14;
+  - the `get_` widget methods 8, `get_modified_times` 6, the PyQt4 workaround
+    6, the headerview guard 3, and `unit_list` 1.
+- Entry 3 is already decided.
+- Owners who would make a change:
+  - runmanager: entry 8's import.
+  - lyse: `get_check_state`.
+  - blacs: `get_callbacks` and `execute_program`.
+  - hyde: entry 3's docstrings.
+  - If the forwarders went: runmanager, blacs and labscript-utils.
+- Also for Ian: the step 3 finding above, a fallback for upstream's plugin forms.
+
+### Seen for later steps
+
+- `double_import_denier.py:20` has its own never-set `DEBUG = False`, read at
+  59 and 66. Not checked here.
+- blacs's "Reset profiler" menu item connects `memprof.start` to `triggered`,
+  which may pass `checked` as its `filepath`. Not run; that is for blacs.
+- blacs is the only app that does not use `exec_qapplication`, so it has no
+  Ctrl-C timer. That is for blacs.
+- Stale text in this file: the step 2 and 3 notes say the seven base-render
+  tests and the aliases "go at step 4". Both have already gone.
+
 ## On merge
 
 These describe Development, which still holds the code step 1 removed. Whoever
