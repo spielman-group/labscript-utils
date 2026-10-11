@@ -2949,6 +2949,122 @@ commit is on CodeHealth; none is merged or pushed.
   - entry 12, as it spans eight repos;
   - deleting the untracked `labscript_project.md`.
 
+## Step 6: style
+
+"Whole-file passes under labscript-style." For this step, the skill's "old code
+keeps its old forms unless the work touches them" does not apply: the pass is
+the work.
+
+How it was done:
+- Seven Sonnet workers, each with the skill and a shared brief, covered every
+  `labscript_utils` and `labscript_profile` module, 62 in all.
+- Each worked in its own detached worktree of a273bf1. Their commits were
+  cherry-picked onto CodeHealth, and the worktrees removed.
+- The commits: one module or tight group each, 35 in all.
+
+How it was checked:
+- Per commit: an AST comparison with a273bf1, ignoring docstrings and comments.
+  Each changed block is named in the commit body.
+- Over the whole package:
+  - 19 modules have identical code;
+  - in the other 43, no definition is added, removed or renamed;
+  - all 75 explicit base-class calls that became `super()` reach the same
+    defining class in their MRO, by a check that is shown to catch a mixin
+    difference.
+- The review checked every changed block by reading it, and a fresh-interpreter
+  import of 53 modules, old against new. It also compared every unit
+  conversion's outputs and an offscreen smoke run of 11 widget classes, and both
+  were identical.
+
+### Outcome
+
+- labscript-utils 33dd7ca..b54e51a, 37 commits:
+  - 33dd7ca: the PyQt6 inventory's build script in `docs/`, with conf.py's
+    regenerate note.
+  - 35 style commits, one per module or tight group.
+  - b54e51a: `aom.py` keeps its numpy star import. Finding 2 explains why.
+- What changed in code: only the allowed forms:
+  - `class Foo:`, zero-argument `super()`, and f-strings with identical results;
+  - scoped Qt enums, and `shotqueue.py`'s star imports qualified;
+  - unused imports removed (elide_label's `QtGui`, setup_logging's
+    `logging.handlers`, which every user imports itself);
+  - private and local renames;
+  - `Thread(daemon=True)`.
+  - Public names, signatures and `__all__` are unchanged; a first-pass rename
+    of five public methods was reverted.
+- Rule 14: the JQI banner replaces Monash in the fork's plugins.py,
+  lookup_format.py, file_utils.py and qtwidgets/shotqueue.py, and is added to
+  toml_config.py. Upstream files keep their own.
+- Held: plugins.py's `MenuContext` class and its module-docstring parts, byte
+  for byte.
+- Lines, non-blank: +1572 net.
+  - Docstrings went from 1053 lines to 2800: NumPy docstrings on the public
+    surface.
+  - Comments fell from 1199 to 1090, and code from 5122 to 5013.
+- Tests: labscript-utils passes 25 at b54e51a. Every consumer's suite passes on
+  its CodeHealth against labscript-utils 20b58e6:
+  - runmanager 139, blacs 68, lyse 44, labscript-devices 41;
+  - labscript-optimization 216, labscript-agents 15, runviewer 10, labscript 3;
+  - hyde's 17 plugin-related test files.
+  - b54e51a restores `aom.py`'s import to its a273bf1 form; SineAom's results
+    are identical.
+
+### Findings, none changed
+
+Seen during the pass. Each is a behaviour change, so it is Ian's or the owner's
+to decide.
+
+Likely to be seen by a user:
+1. `ShotQueueWidget._select_rows` calls `setCurrentIndex(rows[0])` after
+   selecting, which collapses an extended selection to its first row.
+   runmanager restores its queue's selection through `select_ids` after every
+   refresh, so a multi-row selection is probably lost each time.
+2. `SineAom` computes `max(c - A, 0)` with the max that numpy's star import
+   supplies. Under numpy 2 that is numpy's `max`, with 0 as an axis, so there is
+   no clamp, and `p_min` is `c - A` (-0.068 with the defaults). Under numpy 1 it
+   is the builtin. Using the builtin everywhere changes numpy-2 results.
+3. `FileWatcher` counts `self` among a bound method's arguments
+   (`filewatcher.py:49`), so a bound callback `cb(self, name, info)` gets three
+   arguments and raises at the first event. BLACS's callback is unaffected.
+4. dragdroptab compares a tab bar with a tab widget (`dragdroptab.py:538`), so
+   the 10-pixel leaving buffer never applies with the default
+   `accept_drops_bar_only=False`.
+5. `h5_lock` acquires `kill_lock` outside its `try`, so the lock is never
+   released if taking the zlock raises.
+6. `setup_logging` calls `sys.stdout.fileno()` before checking for None. With
+   `sys.stdout = None`, a windowless Windows start, it raises AttributeError.
+7. `labscript_profile.hostname()` runs `scutil` on macOS at every interpreter
+   start, through the `.pth`, unguarded.
+
+Latent:
+- `lookup_format._resolve_field` catches only `KeyError`. An out-of-range index
+  escapes as `IndexError`, and a preserved root is lost.
+- `ls_zprocess.Lock` drops `read_only` unless `connect_to_zlock_server()` has
+  run. `_ERR_NO_SHARED_SECRET`'s example is INI syntax, while the labconfig is
+  TOML.
+- `labscript_utils/__init__.py:24` raises TypeError when the profile path is
+  None.
+- `settings.py` evaluates HDF5 attribute text with `eval`.
+- `InvertedDigitalOutput.state` gets the string `'0'` wrong.
+- `elide_label` checks the elide mode last, so a bad mode leaves the label
+  wrapped.
+- dragdroptab lets a tab with group None move between widgets.
+- The unit conversions:
+  - three classes append to a class-level `derived_units` at each
+    instantiation;
+  - 12 of the 14 crash with `calibration_parameters=None`;
+  - quad_driver's `A_from_base` uses the builtin `max` on arrays;
+  - optotunelens divides by zero with its default coefficients.
+
+Cosmetic:
+- `versions.py` has a dead `importlib_metadata` fallback, and uses
+  `importlib.util` without importing it.
+- `shot_utils.py`'s upstream banner names `__init__.py`.
+- excepthook spawns `MAX_WINDOWS` + 1 windows.
+- `tk_exception` shows "occured".
+- Dead stores remain: `imageoutput`'s `raw_data`, and `setup_complete`'s
+  `'plugin'` key.
+
 ## On merge
 
 These describe Development, which still holds the code step 1 removed. Whoever
