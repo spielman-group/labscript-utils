@@ -16,12 +16,7 @@ from .UnitConversionBase import UnitConversion
 
 
 class _All:
-    """Lazy ``__all__`` for ``from labscript_utils.unitconversions import *``.
-
-    Importing every conversion module is slow, so it waits until a star import first
-    asks for the names. This keeps old importers able to find all unit conversion
-    classes in this namespace.
-    """
+    """Lazy ``__all__`` that imports every conversion module when a star import asks."""
 
     __all__ = None
 
@@ -31,7 +26,6 @@ class _All:
         return self.__all__[ix]
 
     def _import_all(self):
-        """Import every conversion module of this package into this module's globals."""
         if self.__all__ is None:
             self.__all__ = []
         for filename in os.listdir(os.path.split(__file__)[0]):
@@ -57,24 +51,14 @@ def get_unit_conversion_class(fullname):
     Parameters
     ----------
     fullname : str
-        Fully qualified class name with an absolute import path, such as
-        ``path.to.some.module.ClassName``. A bare class name is also accepted, for old
-        shot files that do not save the full name; it is looked up among the names of
-        every module in this package.
-
-    Returns
-    -------
-    type
-        The unit conversion class.
+        Absolute import path of the class, such as ``path.to.some.module.ClassName``. A
+        bare class name is also accepted, for old shot files that do not save the full
+        name; it is looked up among the classes of every module in this package.
 
     Raises
     ------
     KeyError
         If a bare class name is not defined in this package.
-    ImportError
-        If the module of a fully qualified name cannot be imported.
-    AttributeError
-        If the module of a fully qualified name does not define the class.
     """
     if '.' not in fullname:
         if __all__.__all__ is None:

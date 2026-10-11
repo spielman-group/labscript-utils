@@ -20,7 +20,7 @@ from numpy import iterable, array
 
 
 class _MultiplicativeConversion:
-    """A conversion that scales another conversion by a constant factor."""
+    """Scales another conversion by a constant factor."""
 
     def __init__(self, name, unprefixed_method, factor, to_base):
         self.unprefixed_method = unprefixed_method
@@ -29,7 +29,6 @@ class _MultiplicativeConversion:
         self.__name__ = name
 
     def __get__(self, instance, class_):
-        """Bind like an instance method."""
         return MethodType(self, instance)
 
     def __call__(self, value):
@@ -42,16 +41,7 @@ class _MultiplicativeConversion:
 def vectorise(method):
     """Make a conversion method accept an iterable as well as a scalar.
 
-    Parameters
-    ----------
-    method : callable
-        Conversion method of the form ``method(self, value)`` for a scalar value.
-
-    Returns
-    -------
-    callable
-        A method that applies `method` to each element of an iterable argument and
-        returns a numpy array, or calls `method` directly for a scalar.
+    An iterable argument gives a numpy array with the method applied to each element.
     """
     def f(instance, arg):
         if iterable(arg):
@@ -81,14 +71,8 @@ class UnitConversion:
     Attributes
     ----------
     derived_units : list of str
-        The derived units including any prefixed ones, ordered by the position of the
+        After construction, includes the prefixed units, ordered by the position of the
         unprefixed unit in the original list and then by magnitude.
-    units : dict
-        Prefix-to-factor mapping for the prefixes in ``params['magnitudes']``. Kept as
-        an alias for backward compatibility.
-    unit_list : dict
-        Prefix-to-factor mapping for every supported prefix. Kept as an alias for
-        backward compatibility.
 
     Raises
     ------
