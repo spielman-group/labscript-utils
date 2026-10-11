@@ -43,8 +43,8 @@ class ModuleWatcher:
     Parameters
     ----------
     debug : bool, optional
-        When True, print the whitelist and the unloaded modules each time
-        modules are unloaded. Default False.
+        Print the whitelist and the unloaded modules each time modules are
+        unloaded.
 
     Attributes
     ----------

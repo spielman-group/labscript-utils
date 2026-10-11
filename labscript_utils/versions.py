@@ -49,16 +49,7 @@ metadata files/folders, then reinstall the package.""".replace('\n', ' ')
 def get_import_path(import_name):
     """Get the folder a module would be imported from, without importing it.
 
-    Parameters
-    ----------
-    import_name : str
-        The module name.
-
-    Returns
-    -------
-    str
-        The path to the folder containing the module, or for a package the
-        folder containing the package.
+    For a package this is the folder containing the package.
 
     Raises
     ------
@@ -84,10 +75,7 @@ def get_import_path(import_name):
 
 
 def _get_metadata_version(project_name, import_path):
-    """Return the metadata version of ``project_name`` at ``import_path``, or None.
-
-    Raise BrokenInstall if several installations match.
-    """
+    """Return the metadata version of ``project_name`` at ``import_path``, or None."""
     for finder in sys.meta_path:
         if hasattr(finder, 'find_distributions'):
             context = importlib_metadata.DistributionFinder.Context(
@@ -129,18 +117,10 @@ def _get_literal_version(filename):
 def package_version(package):
     """Return the version of a labscript suite package, for its ``__version__``.
 
-    Each package's ``__init__`` sets ``__version__ = package_version(__package__)``.
-
-    Parameters
-    ----------
-    package : str
-        The package's import name, already in ``sys.modules``.
-
-    Returns
-    -------
-    str or None
-        In a git checkout, setuptools_scm's version, which names the commit;
-        otherwise the installed distribution's version, or None if there is none.
+    Each package's ``__init__`` sets ``__version__ = package_version(__package__)``,
+    so `package` is already in ``sys.modules``. In a git checkout the version is
+    setuptools_scm's, which names the commit; otherwise it is the installed
+    distribution's, or None if there is none.
     """
     root = Path(sys.modules[package].__file__).parent.parent
     if (root / '.git').is_dir():
@@ -163,19 +143,17 @@ def get_version(import_name, project_name=None, import_path=None):
     """Return the version of a package without importing it.
 
     Look, in order, for a setuptools_scm version, installed metadata for
-    ``project_name`` (the name given to pip, which may differ from the import name),
-    a ``__version__.py`` file, and a ``__version__`` literal in the package source.
+    ``project_name``, a ``__version__.py`` file, and a ``__version__`` literal in
+    the package source.
 
     Parameters
     ----------
-    import_name : str
-        The module name, which must be top-level.
     project_name : str, optional
         The package name, as given to pip. Must be specified if it differs from
         `import_name`.
     import_path : str, optional
-        The path to the folder containing the installed package. Default is
-        where `get_import_path` finds it.
+        The folder containing the installed package. Default is where
+        `get_import_path` finds it.
 
     Returns
     -------
@@ -236,31 +214,11 @@ def get_version(import_name, project_name=None, import_path=None):
 def check_version(module_name, at_least, less_than, version=None, project_name=None):
     """Raise VersionException unless ``at_least <= version < less_than``.
 
-    The version comes from :func:`get_version`, or from ``version``. Pass
-    ``project_name`` when it differs from ``module_name``, as for pyserial imported
-    as 'serial'.
-
-    Parameters
-    ----------
-    module_name : str
-        The name of the module to check.
-    at_least : str
-        The minimum acceptable version.
-    less_than : str
-        The minimum unacceptable version. Usually the next major version, if the
-        package follows `semver <https://semver.org>`_.
-    version : str, optional
-        The installed version, for a package that stores it somewhere
-        `get_version` does not look.
-    project_name : str, optional
-        The package name, as given to pip. Must be specified if it differs from
-        `module_name`.
-
-    Raises
-    ------
-    VersionException
-        If the module is not found, its version cannot be determined, or the
-        version is outside the range.
+    The version comes from :func:`get_version`, or from ``version``, for a package
+    that stores it where `get_version` does not look. Pass ``project_name`` when it
+    differs from ``module_name``, as for pyserial imported as 'serial'.
+    VersionException is also raised if the module is not found or its version
+    cannot be determined.
     """
     if version is None:
         version = get_version(module_name, project_name)
