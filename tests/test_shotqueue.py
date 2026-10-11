@@ -30,6 +30,13 @@ def row_backgrounds(widget, row):
     ]
 
 
+def test_selecting_several_rows_by_identity_keeps_them_all_selected():
+    widget = make_widget()
+    widget.set_row_infos([{'path': f'/tmp/shot_{i}.h5', 'row_id': i} for i in range(5)])
+    widget.select_ids([1, 3, 4])
+    assert widget.selected_ids() == [1, 3, 4]
+
+
 def test_row_background_colours_every_column_of_that_row():
     widget = make_widget()
     widget.set_row_infos(
