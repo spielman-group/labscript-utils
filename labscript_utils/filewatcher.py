@@ -27,14 +27,12 @@ class FileWatcher:
     ----------
     callback : callable
         Called whenever a file event is detected. It is called with
-        ``(name, info, event)`` if `inspect.getfullargspec` lists more than
-        two arguments for it (counting ``self`` of a bound method), otherwise
-        with ``(name, info)``. `event` is one of ``'modified'``, ``'deleted'``,
+        ``(name, info, event)`` if it takes more than two positional arguments
+        (``self`` of a bound method is not counted), otherwise with
+        ``(name, info)``. `event` is one of ``'modified'``, ``'deleted'``,
         ``'created'``, ``'restored'`` or ``'original'``. The 'original' event,
         with `name` ``'all'``, reports a state change that results in the
         original file info at instantiation.
-    files : iterable of str, optional
-        Specific files to watch.
     folders : iterable of str, optional
         Specific folders to watch. If a file is created or deleted in any
         watched folder, it is added to or removed from the `files` attribute.
@@ -43,12 +41,12 @@ class FileWatcher:
         None, or for files not present in it, the initial modified info is
         based on the first polling of files.
     hashable_types : iterable of str, optional
-        File extensions, with the leading dot, for which the MD5 checksum is used to detect
-        modification and restoration. Files of any other type are watched
-        using their modified time, and restoration cannot be detected for
-        them.
+        File extensions, with the leading dot, for which the MD5 checksum is
+        used to detect modification and restoration. Files of any other type
+        are watched using their modified time, and restoration cannot be
+        detected for them.
     interval : float, optional
-        Polling interval in seconds. Default 1.
+        Polling interval in seconds.
     **kwargs
         `modified_times` is accepted as a synonym for `clean_modified_info`,
         which takes precedence.
@@ -125,9 +123,7 @@ class FileWatcher:
             Folders to scan. Default is the `folders` attribute.
         trigger_callback : bool, optional
             Whether to call the callback with a 'created' event for each file
-            added. Default True.
-        recursive : bool, optional
-            Whether to scan subfolders too. Default True.
+            added.
         """
         if folders is None:
             folders = self.folders
@@ -226,11 +222,8 @@ class FileWatcher:
     def get_clean_modified_info(self):
         """Return a copy of the modified info that files are compared against.
 
-        Returns
-        -------
-        dict
-            File name to its modified time or checksum, as of instantiation or
-            when the file was added.
+        Maps file name to modified time or checksum, as of instantiation or
+        when the file was added.
         """
         with self.lock:
             return self.clean_modified_info.copy()
@@ -238,10 +231,7 @@ class FileWatcher:
     def get_modified_info(self):
         """Return a copy of the modified info as of the latest poll.
 
-        Returns
-        -------
-        dict
-            File name to its modified time or checksum.
+        Maps file name to modified time or checksum.
         """
         with self.lock:
             return self.modified_info.copy()
@@ -269,8 +259,6 @@ class FileWatcher:
 
         Parameters
         ----------
-        files : iterable of str
-            Files to watch.
         clean_modified_info : dict, optional
             Modified info to detect modification and restoration of these
             files with respect to. Files not in it are compared against their
@@ -285,12 +273,7 @@ class FileWatcher:
     def add_folders(self, folders, clean_modified_info=None):
         """Add folders to the watchlist, along with the files they contain.
 
-        Parameters
-        ----------
-        folders : iterable of str
-            Folders to watch.
-        clean_modified_info : dict, optional
-            As for `add_files`, for the files found in the folders.
+        `clean_modified_info` is as for `add_files`, for the files found.
         """
         if clean_modified_info is None:
             clean_modified_info = {}

@@ -46,24 +46,15 @@ def setup_logging(
     handlers and gets one that writes ``LOG_PATH/<program_name>.log`` through the
     zlog server, which is started if it is not running. Where stdout is available
     it also gets handlers for the terminal: stdout below WARNING, and stderr for
-    WARNING and above.
+    WARNING and above. It returns the logger, at level DEBUG.
 
     Parameters
     ----------
-    program_name : str
-        The logger's name, which also names the log file.
-    log_level : int, optional
-        The level of the log file's handler.
-    terminal_level : int, optional
-        The level of the stdout handler.
+    log_level, terminal_level : int, optional
+        The levels of the log file's handler and of the stdout handler.
     maxBytes, backupCount : int, optional
         Ignored. They are labconfig settings of the zlog server, and stay in the
         signature for callers that still pass them.
-
-    Returns
-    -------
-    logging.Logger
-        The logger, at level DEBUG.
     """
     ensure_connected_to_zlog()
     logger = logging.getLogger(program_name)
