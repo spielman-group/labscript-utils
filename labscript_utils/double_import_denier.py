@@ -16,7 +16,6 @@ import traceback
 import re
 import importlib.util
 
-DEBUG = False
 # Tensorflow contains true double imports. This is arguably a bug in tensorflow,
 # (reported here: https://github.com/tensorflow/tensorflow/issues/35369), but let's work
 # around it since tensorflow is not our problem:
@@ -54,17 +53,13 @@ class DoubleImportDenier:
         self.stack.add(dict_key)
         try:
             spec = importlib.util.find_spec(fullname, path)
-        except Exception as e:
-            if DEBUG:
-                print('Exception in importlib.util.find_spec ' + str(e))
+        except Exception:
             return
         finally:
             self.stack.remove(dict_key)
 
         if spec is not None and spec.origin is not None and spec.origin != "built-in":
             path = os.path.realpath(spec.origin)
-            if DEBUG:
-                print('loading', fullname, 'from', path)
             tb = traceback.format_stack()
             other_name = self.names_by_filepath.get(path, None)
             if fullname.split('.', 1)[0] not in WHITELIST:
