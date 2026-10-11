@@ -2462,6 +2462,448 @@ none is merged or pushed.
 - `ToolPalette.hide()` on a shown palette crashes Qt under the offscreen platform,
   at cc24b5d as well. Not seen on screen.
 
+## Step 5: spent documents
+
+"A repo keeps its README, NEWS, AGENTS.md, docs/, and findings of bugs that were
+found but not fixed. Any other plan, issue list or observation file goes when
+spent. Intent documents state the current design only."
+
+How the candidates were found:
+- plugins.py's module docstring, section by section against the code;
+- every docstring and comment in `labscript_utils` and `labscript_profile`;
+- labscript-utils' non-code files;
+- documents elsewhere that describe labscript-utils: other repos' docs, the
+  meta repo's `issues/*.md`, `CODEX.md` and other top-level files, and
+  labscript-library.
+
+How they were checked:
+- Refs: labscript-utils `CodeHealth` at 2fcd689, where every line number below
+  points; other repos at `CodeHealth`; the meta repo and labscript-library at
+  `HEAD`.
+- A text is wrong if it names a name that is gone, shown by a `git grep` with
+  exit 1 beside a control that matches, or if it contradicts the code at a
+  given line.
+- The "On merge" items are left to the merge.
+
+Two facts frame the list:
+- The INI-to-TOML conversion stays. Ian kept step 1 entries 1, 3 and 8: many
+  labs still have INI files. So text describing the conversion is right, and
+  text promising its removal is wrong (entry 14).
+- No docstring, comment or non-code file in labscript-utils still names
+  anything steps 2 to 4 removed.
+
+### 1. plugins.py's module docstring, 608 lines
+
+- What: `plugins.py:14-621`, longer than the code it documents (622-1300).
+- Why: little is wrong, and almost all of it duplicates or teaches.
+  - Duplicates: `Callback` and `callback` (45-49), the settings, legacy-menu,
+    notification and event-priority skeletons (289-344, 524-571), and `close()`
+    (608-621). Each repeats a class or method docstring.
+  - Tutorials: a whole-application example (67-145) and a whole-plugin example
+    (146-267).
+    - The application example combines BLACS's `setup_plugins` path with hyde's
+      contexts path, which no application does together.
+    - Both real applications are better examples.
+  - Wrong:
+    - 453-454 name `create_tabs()` and `create_mdi_windows()`, which exist
+      nowhere now;
+    - 16-19 say "callbacks";
+    - 56 says the contribution path is "for future applications", though hyde
+      runs it.
+  - The setup-activity contract (572-607) and the configuration rules (36-44)
+    live only here: `setup_complete` and `discover_modules` have one-line
+    docstrings.
+- Held, verbatim: the `MenuContext` bullet (56-59) and the contribution-menu
+  skeleton (345-445), for the evaluation of the plugin framework at blacs's
+  pass. The same goes for the application's `MenuContext` calls (103-107,
+  113-114), 9 lines, if the hold is read broadly.
+- Proposal: keep 34 lines plus the held 114:
+  - purpose and ownership;
+  - the package layout and the `Plugin(initial_settings)` contract;
+  - the two menu paths, with MenuBuilder's in 3 lines;
+  - the UI-context paragraph.
+  - Delete the rest.
+  - The facts found only here move, as 42 lines, into the docstrings of
+    `PluginManager` (the call order), `discover_modules` (the configuration
+    rules and the `ValueError`), `setup_plugins`, `MenuBuilder`,
+    `register_context`, `setup_contexts` and `setup_complete`. Drafts are in the
+    scratch report.
+- For the evaluation:
+  - flagged: the two-menu-paths framing, the UI-context paragraph, both
+    examples, the UI-homing section (447-523) and the setup activities. The
+    service design is documented only at `BasePlugin.get_services` and
+    `collect_services`.
+  - in the held skeleton: groups sort by name with ungrouped first, so its
+    `Quit` (group `application`) draws first. It was shown by running.
+- Lines: -460 in the docstring, +42 elsewhere, net -418.
+- Owner: labscript-utils.
+
+
+### 2. The meta repo's `labscript_project.md`, an orientation snapshot
+
+- What: `labscript_project.md`, 330 lines. It is untracked: the meta repo's
+  `.gitignore` ignores it.
+- Why wrong: it names code that is gone or renamed:
+  - `__version__.py` (42), `camera_server.py` (53, 104, 251), and
+    `testing_utils.py` with `unitconversions/test.py` as the only tests
+    (114-116; `tests/` now holds eight files);
+  - `blacs/experiment_queue.py` (126), `connections._ensure_str` (192) and
+    `Camera.py` (240).
+  - It has misled agents before. capabilities.md and the inventories do the same
+    job.
+- Proposal: delete. Being untracked, it cannot be got back through git. If kept,
+  correct the lines named.
+- Lines: -330, outside any diff.
+- Owner: coordinator.
+
+
+### 3. labscript-suite's `RunmanagerQueue.md`, a finished plan
+
+- What: `RunmanagerQueue.md`, 215 lines, on labscript-suite `CodeHealth`.
+- Why spent:
+  - It is a worker plan for work merged in every Development (`CODEX.md:65`),
+    ending in "Implemented Follow-Ups".
+  - Some widget features it plans went in step 1 (b857f3e).
+  - Its `BLACS['experiment_queue']` alias (131) is gone.
+- Proposal: delete.
+- Lines: -215.
+- Owner: labscript-suite, edited by the coordinator.
+
+
+### 4. `issues/server_interfaces_2026_09_25.md`: process, steps and status, and three names
+
+- What: Process (125-136), Steps (148-194) and Status (206-232); and lines 5,
+  63-64 and 152-153.
+- Why:
+  - `CODEX.md:55` records ServerInterfaces merged and pushed in all six repos, so
+    "nothing is pushed" (208) is false. The rest is completed work.
+  - `CameraServer` (5, 152-153) is gone.
+  - `COMMUNICATION_DEFAULT_TIMEOUT` (63-64) is now an inline 60 (64e7a27).
+- Proposal: delete the three sections. Line 5 names TriggerableCamera's
+  `ImageReceiver`; 63-64 say "fallback 60".
+- Lines: -87.
+- Owner: coordinator.
+
+
+### 5. Smaller comment and docstring corrections in labscript-utils
+
+- Overlong comments shortened to three lines saying why:
+  - `modulewatcher.py:69-73, 112-116, 122-125`;
+  - `double_import_denier.py:127-132`, whose 98, 100 and 105 restate the code;
+  - `dragdroptab.py:294-301`, and 497-499, which also names PyQt4;
+  - `setup_logging.py:46-50`, and 33-35, which narrates;
+  - `ls_zprocess.py:341-344`. The same file's 170-172 is a spent Python 3 note,
+    and its 333 restates the code. Its 173-175 error message names the
+    `labscript_utils.zprocess` module, which does not exist, and `ZMQserver`.
+- History, or a dead link:
+  - `excepthook/__init__.py:40-44`, a SourceForge tracker link, and 100-104,
+    written in the first person;
+  - `toml_config.py:8-15`, "as it always did under INI".
+- Wrong:
+  - `labscript_profile/__init__.py:18-25`: the `.pth` runs one function, not
+    two.
+  - `filewatcher.py:136` sits above the wrong branch.
+  - `create.py:142` names `appratus_name`.
+  - `analogoutput.py:150, 158` and `enumoutput.py:64, 75` name the wrong
+    widget.
+  - The profile's two IMAQdx examples (line 27) say `python - m`.
+- Overlong docstrings: `appconfig_path_with_suffix` (`labconfig.py:219-226`) and
+  `unescape_braces` (`lookup_format.py:35-42`). The latter explains
+  runmanager's internals.
+- Comments that guard code with no remaining use:
+  - `unitconversions/__init__.py:48-53`, for a BLACS that read full names;
+  - `device_registry/__init__.py:3-7`, for labscript-devices older than 3.1.
+    labscript-suite requires 3.3.
+  - `headerview_with_widgets.py:86, 180`, for QVariant API 1, which PyQt6 never
+    returns.
+  - Ian's call: their code, 21 lines, would go too. That is step 4 matter.
+- Restating: `create.py:94, 96, 98, 119, 172`; `connections.py:98, 208, 271`.
+- Proposal: as each says; the replacement texts are in the scratch report.
+- Lines: -71.
+- Owner: labscript-utils.
+
+
+### 6. `toolpalette.py`: commented-out code and a 17-line comment
+
+- What: 23 lines of commented-out code, among them Python 2 prints, and the
+  `resizeEvent` comment (259-275).
+- Proposal: delete the 23. Shorten the comment to three lines: a column change
+  adds or removes a scrollbar, which triggers another `resizeEvent`, so the
+  layout is skipped until a posted event re-enables it.
+- Lines: -37.
+- Owner: labscript-utils.
+
+
+### 7. `versions.py`'s docstrings
+
+- What: `_get_metadata_version` (82-97) and `_get_literal_version` (114-122),
+  which are internal; and the opening paragraphs of `get_version` (179-187) and
+  `check_version` (250-260).
+- Why: overlong. `get_version`'s paragraph also omits the setuptools_scm lookup
+  that the code tries first (225).
+- Proposal:
+  - one line for each internal docstring;
+  - four lines for `get_version`, naming its lookups in order;
+  - five lines for `check_version`.
+  - `Args` and `Raises` stay.
+- Lines: -33.
+- Owner: labscript-utils.
+
+
+### 8. labscript-library: notes for gone names, two capabilities, and a stale inventory
+
+- What:
+  - 26 notes name code that no longer exists, each one reported by the
+    generator: 19 in `notes/labscript-utils.txt`, 2 in `blacs.txt` and 5 in
+    `labscript-devices.txt`.
+  - `notes/labscript-utils.txt:54` says the first service registration wins,
+    but `collect_services` raises on a duplicate (cf70352).
+  - `capabilities.md:59` names the deleted `fingertab`.
+  - `capabilities.md:62` says `ShotQueueWidget` edits shot files with drops and
+    delete. It now shows rows built from row-info dicts, with selection by id
+    (b857f3e).
+- The inventory is generated at labscript-utils e04a8ef, 31 commits behind.
+  Regenerate it; do not edit it.
+- Proposal: delete the 26 notes, correct 54, delete 59 and correct 62. Then
+  regenerate at the merge.
+- Lines: -27 by hand.
+- Owner: librarian.
+
+
+### 9. `issues/plugin_refactor_prd.md`: deprecated hooks and warnings that went
+
+- What: 36-37, 45-50, 59-61, 81-82, 92-96, 117-121, 127 and 140-148.
+- Why:
+  - `PluginManager` asks only for `get_event_handlers` and warns of nothing
+    (d515339).
+  - `BasePlugin` keeps five methods, not the hooks the text lists (59-61).
+  - Plugins written for upstream are unsupported, by Ian's decision.
+  - blacs's plugins are moved (127; dee664a).
+  - The Status (45-49) and Further Notes (140-148) sections are history.
+- Proposal: delete the spent stories and sections. Lines 81-82 become one line
+  saying only `get_event_handlers` is asked. Lines 59-61 list the five methods.
+- Lines: -27.
+- Owner: coordinator.
+
+
+### 10. `device_registry/_device_registry.py`: a 35-line string about "old" and "new" methods
+
+- What: 12-46, a bare string after the imports, so not a docstring; and 161-164,
+  "will be deprecated in the future".
+- Why: overlong, and it narrates a transition. Both lookup paths still work as
+  described.
+- Proposal: about 11 lines stating the two mechanisms as they are, and a
+  one-line comment at 161.
+- Lines: -26.
+- Owner: labscript-utils.
+
+
+### 11. `issues/seen_while_mapping.md`: entries dealt with
+
+- labscript-utils sections: lines 8-13, 15, 18, 38, 39, 42-44, 47 and 48 are
+  done.
+  - The demo blocks, `debug`, `camera_server`, `unitconversions.test` and the
+    output-widget copies are gone, and so are `assert_superset`, the zprocess
+    helpers, the `widget is None` test and `testing_utils`.
+  - `_deserialise` is gone, `ensure_str` is shared, and the forwarders and
+    `excepthook.l` were kept by decision.
+  - Line 41 keeps only the PyQt4 workaround.
+- Other repos' entries that name removed labscript-utils code: 30, 31, 241-244,
+  270, 274 and 283-284 can go. Lines 85, 154, 157, 247, 268 and 276 each drop a
+  clause.
+- The file itself says each pass deletes what it deals with. Lines 14, 21 and 40
+  are on the merge list.
+- Lines: -25, and 7 changed.
+- Owner: coordinator.
+
+
+### 12. Docs boilerplate shared by eight repos
+
+- What, identical in labscript-utils, runmanager, blacs, lyse, runviewer,
+  labscript, labscript-devices and labscript-suite:
+  - an SVG logo that nothing references (579 lines);
+  - the to-do machinery with no `.. todo::` anywhere: `index.rst:1-4, 37-38`,
+    and `conf.py`'s `sphinx.ext.todo` and `todo_include_todos` (18 lines);
+  - `conf.py`'s `qt` intersphinx mapping to PyQt5, with a 64 KB PyQt 5.11.1
+    inventory file and a stale pyqtgraph comment (6 lines). No cross-reference
+    uses it, and the suite is PyQt6.
+- Evidence: the SVG's name matches nothing outside itself in any of the eight
+  repos (exit 1); the control, `labscript_64x64`, matches `conf.py:32`.
+- Proposal: delete all three, once and for all eight. `conf.py:35` calls its
+  general section identical across projects.
+- Lines in labscript-utils: -24 text lines, plus the SVG and the inventory.
+- Owners: each of the eight repos, the same edit.
+
+
+### 13. `settings.py` and the unit conversions' copied comments
+
+- `settings.py`: 104, 106 and 113-119 are a commented-out `gtk.Image` block, and
+  35-38 speculate. Delete them, and shorten 35-38 to two lines. -11.
+- `aom.py`, `linear_coil_driver.py` and `optotunelens.py`:
+  - "loaded from a globals.h5 type file" is wrong: the parameters come from the
+    connection table (`properties.py:120-123`).
+  - The formula comments name parameters that `aom` and `optotunelens` do not
+    have.
+  - "We should probably also store some hardware limits" is speculation.
+  - Delete them, and correct optotunelens' formula. -11.
+- Lines: -22.
+- Owner: labscript-utils.
+
+
+### 14. Text that promises the INI conversion's removal
+
+- What:
+  - "LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED." 12 times, in
+    `labscript_profile/__init__.py`, `create.py`, `labconfig.py` and
+    `qtwidgets/application.py`;
+  - "Temporary ... Slated for removal soon" in six docstrings
+    (`labscript_profile/__init__.py:52, 83, 147`, `labconfig.py:194, 265, 292`);
+  - `labconfig.py:214`.
+- Why wrong: Ian kept the conversion (step 1, entry 1). The code still runs it
+  (`labscript_profile/__init__.py:88-95`, `labconfig.py:238-241, 297-313`).
+- Proposal: delete the markers, and reword the docstrings to say what they do.
+  `labconfig.py:205` is user-facing, so it is Ian's call: a FutureWarning that
+  says INI support is slated for removal.
+- Lines: -20.
+- Owner: labscript-utils.
+
+
+### 15. `unitconversions/example.py`: one teaching comment three times
+
+- What: the same 5-line comment at 19-23, 57-61 and 86-90, and 54 and 83.
+  "#here is the calibration code" appears at eight places.
+- Proposal: keep the comment once, in `example1`, as three lines; delete the
+  repeats and six of the eight calibration lines.
+- Lines: -20.
+- Owner: labscript-utils.
+
+
+### 16. Commented-out code in five qtwidgets files
+
+- What: `imageoutput.py:34, 118, 159`; `analogoutput.py:130, 131, 141`;
+  `ddsoutput.py:45, 83, 85`; `enumoutput.py:98, 101`; and `elide_label.py:73`
+  with 98-101, a commented-out `resizeEvent`.
+- Proposal: delete.
+- Lines: -16.
+- Owner: labscript-utils.
+
+
+### 17. plugins.py's class docstrings and comments
+
+- What:
+  - `PluginManager`'s docstring (974-978) says it keeps two mappings, but it
+    keeps four (1013-1016).
+  - `BasePlugin.get_event_handlers` says the manager "normalizes" handlers,
+    which it no longer does (1269-1272).
+  - `BasePlugin.get_services` names `plugin_setup_complete()` where it means
+    `setup_complete()`.
+  - `render` has a 5-line comment (956-960), which is held with `render`.
+  - Eight label comments in `setup_plugins` restate the next line.
+  - `setup_plugins` calls its menu and notification hosts "legacy".
+- Proposal: delete 974-978, drop "normalizes", correct the name, delete the
+  labels and drop "legacy". Shorten 956-960 when the hold lifts.
+- Lines: -16.
+- Owner: labscript-utils.
+
+
+### 18. `shotqueue.py` and `link_indicator.py`
+
+- `shotqueue.py:21-25, 44-49, 149-154`: three good reasons, told at length. Cut
+  each to three lines: -8.
+- `LinkIndicator`'s docstring (28-65, 38 lines):
+  - Lines 30-35 describe layout the code shows.
+  - The Examples section repeats the constructor.
+  - Shorten 30-35 to four lines and drop the examples: -8.
+- Lines: -16.
+- Owner: labscript-utils.
+
+
+### 19. `h5_lock.py`: a 16-line comment with a promise
+
+- What: 68-83: "I will report this as an issue in h5py, and will remove this
+  workaround if it is fixed".
+- Proposal: three lines saying why the workaround avoids the deadlock.
+- Lines: -13.
+- Owner: labscript-utils.
+
+
+### 20. `CODEX.md`'s entries about labscript-utils
+
+- `CODEX.md:335-341` is a note about `fingertab.py`, deleted in a885dec.
+  Delete it: -7.
+- The PluginRefactor section (947-950, 976-977, 988-990):
+  - BLACS's events now come only from `get_event_handlers`, and its plugins are
+    moved.
+  - It also cites `plugin_extraction_proposal.md`, which no repo ever held.
+  - Correct both, and drop the citation: -2.
+- 327-329: the shot queue's method counts are out of date, at six defined and
+  about ten inherited. Correct them.
+- The `UpstreamBugFixes` row (66) omits labscript-utils' 635aea9, e08fbe6 and
+  086a267; the last two are unpushed. Add a sentence.
+- Also, in the meta repo:
+  - `issues/code_quality_review_2026_10_07.md` item 15 lacks the new floors
+    (package_version, the new modules, setuptools_scm>=10), +1;
+  - its item 18 example now holds only for excepthook;
+  - `code_health_campaign.md:125`'s "grown by 40%" is now about 18%.
+- Lines: -8.
+- Owner: coordinator.
+
+
+### 21. `README.md`'s upgrade note
+
+- What: `README.md:22-27` repeats the `tomli-w` note in `NEWS.md:3-5`.
+- Why: a fresh install gets the dependency (`pyproject.toml:42`). The note
+  serves old environments, which NEWS already addresses. NEWS keeps it, because
+  `labscript-suite.pth` swallows the `ModuleNotFoundError`.
+- Proposal: delete it from the README.
+- Lines: -6.
+- Owner: labscript-utils.
+
+
+### 22. One-line corrections in labscript-utils' documents
+
+- `example.toml:28`: `zlog = 7340` is read by nothing, since `ls_zprocess.py:91-94`
+  hard-codes the port. Delete it.
+- `labconfig.rst:2`: the title underline is one character short, since the
+  fork's `.toml` edit, and Sphinx warns on every build. Lengthen it.
+- `AGENTS.md:3` says every other suite repo imports labscript-utils. zprocess,
+  desktop-app and labscript-c-extensions do not; say "nearly every".
+- `NEWS.md:70`: the link to PR #92 goes to 88, as it does on `master`. Correct
+  it.
+- Lines: -1, and 3 changed.
+- Owner: labscript-utils.
+
+
+### 23. labscript-devices' `user_devices.rst:16`
+
+- What: it names the labconfig `labconfig.ini`. It is `<host>.toml`.
+- Proposal: "in the labconfig file".
+- Lines: 1 changed.
+- Owner: labscript-devices.
+
+### Totals
+
+23 entries.
+- labscript-utils: 739 lines.
+  - plugins.py's module docstring, net -418;
+  - other docstrings and comments, -290;
+  - documents, -31, of which -24 is boilerplate.
+  - Also the shared SVG (579 lines) and the PyQt5 inventory.
+  - 21 lines of compatibility code are Ian's call.
+- Coordinator: -147 in the meta repo, -215 for labscript-suite, and the
+  untracked `labscript_project.md`, -330.
+- librarian: -27, then a regenerated inventory.
+- labscript-devices: 1 line changed.
+- The seven other docs trees: the same boilerplate edit as entry 12.
+- In all, 1128 hand-edited lines in tracked files.
+- Held: 114 lines of plugins.py's docstring, until the evaluation at blacs's
+  pass.
+- Ian's calls:
+  - the 21 code lines in entry 5;
+  - the FutureWarning text in entry 14;
+  - entry 12, as it spans eight repos;
+  - deleting the untracked `labscript_project.md`.
+
 ## On merge
 
 These describe Development, which still holds the code step 1 removed. Whoever
