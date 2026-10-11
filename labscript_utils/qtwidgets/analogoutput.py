@@ -10,7 +10,6 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-import sys
 
 from qtutils.qt import QtCore, QtGui, QtWidgets
 
@@ -224,23 +223,3 @@ class AnalogOutput(LockableOutput, QtWidgets.QWidget):
             self.set_step_size(new_step)
             if self._output:
                 self._output.set_step_size(new_step,self.selected_unit)
-
-
-# A simple test!
-if __name__ == '__main__':
-    
-    qapplication = QtWidgets.QApplication(sys.argv)
-    
-    window = QtWidgets.QWidget()
-    layout = QtWidgets.QVBoxLayout(window)
-    button1 = AnalogOutput('AO1')
-    button2 = AnalogOutput('AO2')
-        
-    layout.addWidget(button1)
-    layout.addWidget(button2)
-    
-    window.show()
-    
-    
-    sys.exit(qapplication.exec())
-    

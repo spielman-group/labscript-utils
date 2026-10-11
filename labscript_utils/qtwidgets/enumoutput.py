@@ -10,9 +10,8 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-import sys
 
-from qtutils.qt import QtCore, QtGui, QtWidgets
+from qtutils.qt import QtCore, QtWidgets
 
 from .lockable import LockableOutput
 
@@ -120,35 +119,3 @@ class EnumOutput(LockableOutput, QtWidgets.QWidget):
         
     def unblock_combobox_signals(self):
         return self._combobox.blockSignals(False)
-
-
-# A simple test!
-if __name__ == '__main__':
-    
-    qapplication = QtWidgets.QApplication(sys.argv)
-    
-    window = QtWidgets.QWidget()
-    layout = QtWidgets.QVBoxLayout(window)
-
-    test_options = {'option 1':{'index':0,'tooltip':"Option 1 Description"},
-                    'option 2':{'index':1,'tooltip':"Option 2 Description"},
-                    'option 3':2}
-    test_model = QtGui.QStandardItemModel()
-    for key,val in test_options.items():
-        item = QtGui.QStandardItem(key)
-        if type(val) is not dict:
-            item.setData(val,QtCore.Qt.ItemDataRole.UserRole)
-        else:
-            item.setData(val['index'],QtCore.Qt.ItemDataRole.UserRole)
-            item.setData(val['tooltip'],QtCore.Qt.ItemDataRole.ToolTipRole)
-        test_model.appendRow(item)
-    combobox = EnumOutput('Enumerate',display_name='Test Name',
-                            horizontal_alignment=True)        
-    layout.addWidget(combobox)
-    combobox.set_combobox_model(test_model)
-    
-    window.show()
-    
-    
-    sys.exit(qapplication.exec())
-    

@@ -10,7 +10,6 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-import sys
 
 from qtutils.qt import QtCore, QtWidgets
 
@@ -112,20 +111,3 @@ class DDSOutput(QtWidgets.QWidget):
             return
         
         raise RuntimeError('The sub-channel %s must be either gate, freq, amp or phase'%subchnl)
-        
-# A simple test!
-if __name__ == '__main__':
-    
-    qapplication = QtWidgets.QApplication(sys.argv)
-    
-    window = QtWidgets.QWidget()
-    layout = QtWidgets.QVBoxLayout(window)
-    button = DDSOutput('DDS1')
-        
-    layout.addWidget(button)
-    
-    window.show()
-    
-    
-    sys.exit(qapplication.exec())
-    

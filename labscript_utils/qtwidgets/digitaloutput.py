@@ -10,7 +10,6 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-import sys
 
 from qtutils.qt import QtWidgets
 
@@ -68,21 +67,3 @@ class InvertedDigitalOutput(DigitalOutput):
     @state.setter
     def state(self,state):
         DigitalOutput.state.fset(self, not state)
-
-
-# A simple test!
-if __name__ == '__main__':
-    
-    qapplication = QtWidgets.QApplication(sys.argv)
-    
-    window = QtWidgets.QWidget()
-    layout = QtWidgets.QVBoxLayout(window)
-    button = DigitalOutput('very very long Button')
-        
-    layout.addWidget(button)
-    
-    window.show()
-    
-    
-    sys.exit(qapplication.exec())
-    

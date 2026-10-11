@@ -129,18 +129,3 @@ class Splash(QtWidgets.QFrame):
         while self._paint_pending and window is not None and window.isExposed():
             QtCore.QCoreApplication.processEvents(QtCore.QEventLoop.ProcessEventsFlag.AllEvents)
             QtCore.QCoreApplication.sendPostedEvents()
-
-
-if __name__ == '__main__':
-    import time
-    icon = '../../runmanager/runmanager/runmanager.svg'
-    splash = Splash(icon)
-    splash.show()
-    time.sleep(1)
-    splash.update_text('frombulating the dooberwhackies')
-    time.sleep(1)
-    splash.update_text(
-        'The quick brown fox jumped over the lazy dog to get to the other side'
-    )
-    time.sleep(1)
-    splash.hide()

@@ -10,7 +10,6 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-import sys
 
 from qtutils.qt import QtCore, QtGui, QtWidgets
 
@@ -437,44 +436,3 @@ class ToolPalette(QtWidgets.QScrollArea):
             # future calls. This event shouldn't be handled until the resize
             # events generated during _layout_widgets() have run.
             QtCore.QCoreApplication.instance().postEvent(self, QtCore.QEvent(_ENABLE_LAYOUT_EVENT_TYPE))
-
-
-# A simple test!
-if __name__ == '__main__':
-    
-    qapplication = QtWidgets.QApplication(sys.argv)
-
-    from labscript_utils.qtwidgets.ddsoutput import DDSOutput
-
-    window = QtWidgets.QWidget()
-    layout = QtWidgets.QVBoxLayout(window)
-    widget = QtWidgets.QWidget()
-    layout.addWidget(widget)
-    tpg = ToolPaletteGroup(widget)
-    toolpalette = tpg.append_new_palette('Digital Outputs')
-    toolpalette2 = tpg.append_new_palette('Digital Outputs 2')
-    #toolpalette = ToolPalette()
-    #layout.addWidget(toolpalette)
-    #layout.addItem(tpg)
-    #toolpalette.show()
-    
-    layout.addItem(QtWidgets.QSpacerItem(0,0,QtWidgets.QSizePolicy.Policy.Minimum,QtWidgets.QSizePolicy.Policy.MinimumExpanding))
-    for i in range(20):
-        #button = QPushButton('Button %d'%i)
-        button = DDSOutput('DDS %d'%i)
-        #button.setSizePolicy(QSizePolicy.Policy.Minimum,QSizePolicy.Policy.Minimum)
-        toolpalette.addWidget(button)
-        
-    for i in range(20):
-        button = QtWidgets.QPushButton('very very long Button %d'%i)
-        
-        button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum,QtWidgets.QSizePolicy.Policy.Minimum)
-        toolpalette2.addWidget(button)
-    
-    #tpg.create_linked_width_group("Digital outs", ['Digital Outputs','Digital Outputs 2'])
-    
-    window.show()
-    
-    
-    sys.exit(qapplication.exec())
-    

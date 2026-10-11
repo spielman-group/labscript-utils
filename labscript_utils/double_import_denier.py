@@ -166,24 +166,3 @@ def disable():
         raise RuntimeError('not enabled')
     sys.meta_path.remove(_denier)
     _denier.enabled = False
-
-
-if __name__ == '__main__':
-    # Run from this directory as __main__:
-    enable()
-
-    def test1():
-        # Import numpy.linalg twice under different names:
-        import numpy as np
-        np.linalg.__file__ = None
-        # Add the numpy folder to the search path:
-        sys.path.append(os.path.dirname(np.__file__))
-        import linalg
-
-    def test2():
-        # This also gets detected, since this module already exists as
-        # __main__ but this line would import it as double_import_denier.
-        import double_import_denier
-
-    test1()
-    test2()

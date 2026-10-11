@@ -11,7 +11,6 @@
 #                                                                   #
 #####################################################################
 import base64
-import sys
 import os
 
 from qtutils.qt import QtCore, QtGui, QtWidgets
@@ -172,21 +171,3 @@ class ImageOutput(LockableOutput, QtWidgets.QWidget):
         
         # Tell the Image object that the value has been updated
         self.imageUpdated.emit(self._value)
-    
-    
-# A simple test!
-if __name__ == '__main__':
-    
-    qapplication = QtWidgets.QApplication(sys.argv)
-    
-    window = QtWidgets.QWidget()
-    layout = QtWidgets.QVBoxLayout(window)
-    button = ImageOutput('hello', 200, 200)
-        
-    layout.addWidget(button)
-    
-    window.show()
-    
-    
-    sys.exit(qapplication.exec())
-    

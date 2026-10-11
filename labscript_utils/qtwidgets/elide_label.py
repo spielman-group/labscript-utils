@@ -1,5 +1,3 @@
-import sys
-
 from qtutils.qt import QtCore, QtGui, QtWidgets
 
 
@@ -147,50 +145,3 @@ def elide_label(label, layout, elide_mode):
     label.setVisible(True)
     layout.insertWidget(index, container)
     container.setElideMode(elide_mode)
-
-
-if __name__ == '__main__':
-    # test:
-    
-    test_text = "The <b>quick</b> brown fox <b>jumped over the lazy dog</b>"
-    app = QtWidgets.QApplication(sys.argv)
-    window = QtWidgets.QWidget()
-    hlayout = QtWidgets.QHBoxLayout(window)
-    tabwidget = QtWidgets.QTabWidget()
-    widget = QtWidgets.QWidget()
-    tabwidget.addTab(widget, 'test')
-    layout = QtWidgets.QVBoxLayout(widget)
-    normal_label = QtWidgets.QLabel("Normal label")
-    normal_label.setStyleSheet("QLabel { background-color : red; color : blue; }")
-    hlayout.addWidget(normal_label)
-    hlayout.addWidget(tabwidget)
-
-    elide_left = QtWidgets.QLabel("ElideLeft: " + test_text)
-    elide_left.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-    elide_right = QtWidgets.QLabel("ElideRight: " + test_text)
-    smaller_label = QtWidgets.QLabel("Smaller label")
-    smaller_label2 = QtWidgets.QLabel("Smaller label")
-    smaller_label3 = QtWidgets.QLabel("Smaller label")
-    smaller_label.setStyleSheet("QLabel { background-color : red; color : blue; }")
-    smaller_label2.setStyleSheet("QLabel { background-color : red; color : blue; }")
-    smaller_label3.setStyleSheet("QLabel { background-color : red; color : blue; }")
-
-    layout.setSpacing(0)
-
-    layout.addWidget(smaller_label)
-    layout.addWidget(elide_left)
-    layout.addWidget(smaller_label2)
-    layout.addWidget(elide_right)
-    layout.addWidget(smaller_label3)
-
-    window.show()
-    window.resize(20, 20)
-
-    elide_label(elide_left, layout, QtCore.Qt.TextElideMode.ElideLeft)
-    elide_label(elide_right, layout, QtCore.Qt.TextElideMode.ElideRight)
-
-    def foo():
-        elide_left.setText("The <b>quick</b><br>brown fox <b>jumped <br>over the lazy dog</b>")
-
-    QtCore.QTimer.singleShot(3000, foo)
-    app.exec()
