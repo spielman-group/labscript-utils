@@ -30,10 +30,6 @@ class Settings:
         How the settings are stored. Only 'hdf5' is supported.
     file : str
         Path of the HDF5 file whose ``preferences`` group holds the settings.
-    parent : QWidget, optional
-        Parent of the dialog.
-    page_classes : list, optional
-        Page classes to add, as by :meth:`add_settings_interface`.
 
     Raises
     ------
@@ -59,11 +55,6 @@ class Settings:
     def add_settings_interface(self, setting_class):
         """Add a page, loading its saved data.
 
-        Parameters
-        ----------
-        setting_class : type
-            The page class.
-
         Returns
         -------
         bool
@@ -78,11 +69,6 @@ class Settings:
 
     def load(self, name):
         """Return the saved data of a page, creating its entry if there is none.
-
-        Parameters
-        ----------
-        name : str
-            The page's ``name``.
 
         Returns
         -------
@@ -113,15 +99,7 @@ class Settings:
             )
 
     def get_value(self, settings_class, value_name):
-        """Return a value from a page's settings.
-
-        Parameters
-        ----------
-        settings_class : type
-            The page class.
-        value_name : str
-            Name of the value, as the page's ``get_value`` takes it.
-        """
+        """Return a value from a page's settings."""
         return self.pages[settings_class.name].get_value(value_name)
 
     def create_dialog(self, goto_page=None):
@@ -198,12 +176,7 @@ class Settings:
                 )
 
     def register_callback(self, callback):
-        """Register a function to call, without arguments, after settings are saved.
-
-        Parameters
-        ----------
-        callback : callable
-        """
+        """Register a function to call, without arguments, after settings are saved."""
         self.callback_list.append(callback)
 
     def on_save(self, *args, **kwargs):

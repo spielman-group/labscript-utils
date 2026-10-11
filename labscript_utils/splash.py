@@ -40,11 +40,6 @@ def configure_qapplication(qapplication):
     ``_labscript_icon_path`` property, and, once per application, the Fusion style
     with the application's own palette.
 
-    Parameters
-    ----------
-    qapplication : QApplication
-        The application to configure.
-
     Returns
     -------
     QApplication
@@ -76,11 +71,6 @@ def get_qapplication(application_name=None, icon_path=None):
         if a QApplication already exists.
     icon_path : str, optional
         Path of the image to use as the application's window icon on macOS.
-
-    Returns
-    -------
-    QApplication
-        The application, as returned by :func:`configure_qapplication`.
     """
     qapplication = QtWidgets.QApplication.instance()
 
@@ -104,8 +94,6 @@ class Splash(QtWidgets.QFrame):
 
     Parameters
     ----------
-    icon_path : str
-        Path of the image to show.
     application_name : str, optional
         Passed to :func:`get_qapplication`.
 

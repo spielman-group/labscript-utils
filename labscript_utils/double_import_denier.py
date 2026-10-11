@@ -76,8 +76,7 @@ class DoubleImportDenier:
         return spec
 
     def _format_tb(self, tb):
-        """Join a ``traceback.format_stack()`` list into a string, leaving out its
-        last frame and the frames of the Python import machinery."""
+        """Join a stack list, leaving out its last frame and import-machinery frames."""
         frames = [frame for frame in tb[:-1]
                   if 'importlib._bootstrap' not in frame
                   and 'imp.load_module' not in frame
@@ -88,9 +87,6 @@ class DoubleImportDenier:
         return ''.join(frames)
 
     def _restore_tracebacklimit_after_exception(self):
-        """Record the current value of sys.tracebacklimit, if any, and set a
-        temporary sys.excepthook to restore it to that value (or delete it)
-        after the next exception."""
         orig_excepthook = sys.excepthook
         exists = hasattr(sys, 'tracebacklimit')
         orig_tracebacklimit = getattr(sys, 'tracebacklimit', None)
