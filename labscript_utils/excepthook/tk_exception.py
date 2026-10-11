@@ -10,6 +10,9 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
+"""A window showing an error. Run as a script by ``excepthook.tkhandler``, with the
+script name, a short message and the full traceback as its arguments.
+"""
 
 import sys
 import os
@@ -21,8 +24,7 @@ error_im_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'error.
 
 
 class ErrorWindow(tkinter.Text):
-
-    """Class to display the error in a textbox. Parts copied from Tkinter's ScrolledText widget"""
+    """Display the error in a textbox. Parts copied from Tkinter's ScrolledText widget."""
 
     def __init__(self, master=None, **kw):
         self.frame = tkinter.Frame(master, padx=10, pady=10)
@@ -35,8 +37,13 @@ class ErrorWindow(tkinter.Text):
 
         self.imlabel = tkinter.Label(self.upperframe, borderwidth=10, image=error_im)
         self.imlabel.pack(side=constants.LEFT)
-        self.textlabel = tkinter.Label(self.upperframe, text='It looks like an error has occured:\n%s' % sys.argv[2],
-                                       borderwidth=10, wraplength=400, justify='left')
+        self.textlabel = tkinter.Label(
+            self.upperframe,
+            text=f'It looks like an error has occured:\n{sys.argv[2]}',
+            borderwidth=10,
+            wraplength=400,
+            justify='left',
+        )
         self.textlabel.pack(side=constants.LEFT)
 
         self.vbar = tkinter.Scrollbar(self.lowerframe)
@@ -47,7 +54,7 @@ class ErrorWindow(tkinter.Text):
         self.button.pack(side=constants.BOTTOM)
 
         kw.update({'yscrollcommand': self.vbar.set})
-        tkinter.Text.__init__(self, self.lowerframe, **kw)
+        super().__init__(self.lowerframe, **kw)
 
         self.pack(side=constants.LEFT, fill=constants.BOTH, expand=True)
         self.vbar['command'] = self.yview
@@ -55,7 +62,11 @@ class ErrorWindow(tkinter.Text):
         # Copy geometry methods of self.frame without overriding Text
         # methods -- hack!
         text_meths = list(vars(tkinter.Text).keys())
-        methods = list(vars(tkinter.Pack).keys()) + list(vars(tkinter.Grid).keys()) + list(vars(tkinter.Place).keys())
+        methods = (
+            list(vars(tkinter.Pack).keys())
+            + list(vars(tkinter.Grid).keys())
+            + list(vars(tkinter.Place).keys())
+        )
         methods = set(methods).difference(text_meths)
 
         for m in methods:
@@ -72,13 +83,16 @@ class ErrorWindow(tkinter.Text):
         text = self.get("sel.first", "sel.last")
         self.clipboard_append(text)
 
+
 if __name__ == "__main__":
     win = tkinter.Tk()
     error_im = tkinter.PhotoImage(file=error_im_path)
-    win.title('Unhandled exception in %s' % sys.argv[1])
+    win.title(f'Unhandled exception in {sys.argv[1]}')
     win.tk.call('wm', 'iconphoto', win._w, error_im)
     win.geometry('500x500')
-    stext = ErrorWindow(master=win, bg='black', height=10, fg='red', font=("monospace", 10, "bold"))
+    stext = ErrorWindow(
+        master=win, bg='black', height=10, fg='red', font=("monospace", 10, "bold")
+    )
     stext.insert(constants.END, sys.argv[3])
     stext.pack(fill=constants.BOTH, side=constants.LEFT, expand=True)
     stext.config(state=constants.DISABLED)
