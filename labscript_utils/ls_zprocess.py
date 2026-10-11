@@ -74,15 +74,11 @@ in your configuration, but this is not advised."""
 def get_config():
     """Return the zprocess settings from LabConfig, with defaults filled in.
 
-    The result is cached, so LabConfig is read once per process.
-
-    Returns
-    -------
-    dict
-        The keys ``zlock_host``, ``zlock_port``, ``zlog_host``, ``zlog_port``,
-        ``zprocess_remote_port``, ``shared_secret`` (the text of the file named by
-        ``shared_secret_file``, or None), ``shared_secret_file``,
-        ``allow_insecure``, ``logging_maxBytes`` and ``logging_backupCount``.
+    The dict is cached, so LabConfig is read once per process. Its keys are
+    ``zlock_host``, ``zlock_port``, ``zlog_host``, ``zlog_port``,
+    ``zprocess_remote_port``, ``shared_secret`` (the text of the file named by
+    ``shared_secret_file``, or None), ``shared_secret_file``, ``allow_insecure``,
+    ``logging_maxBytes`` and ``logging_backupCount``.
 
     Raises
     ------
@@ -218,11 +214,10 @@ class ZMQServer(zprocess.ZMQServer):
     def handler(self, request_data):
         """Answer ``[command, args, kwargs]`` by calling ``handle_<command>``.
 
-        A subclass defines ``handle_`` methods rather than overriding this one.
-        An exception is returned rather than raised, so the client raises it and
-        this server opens no error dialog. It keeps its message, with the
-        server's traceback attached as a note, and one the client could not
-        unpickle or raise is sent as a ``RuntimeError`` instead.
+        A subclass defines ``handle_`` methods rather than overriding this one. An
+        exception is returned, not raised, so the client raises it and this server
+        opens no error dialog. It carries the server's traceback as a note, and one
+        the client could not unpickle or raise is sent as a ``RuntimeError``.
         """
         try:
             command, args, kwargs = request_data
@@ -450,12 +445,6 @@ def run_server(module, port, *extra_args, tui=False):
 
     Parameters
     ----------
-    module : str
-        Name of the server's module in ``zprocess``, such as ``'zlock'``.
-    port : int or str
-        Port for the server to listen on.
-    *extra_args : str
-        Further command-line arguments for the server.
     tui : bool, optional
         Whether a foreground server shows the text-based interface, unless
         ``--no-tui`` is on the command line.
@@ -487,8 +476,7 @@ def run_server(module, port, *extra_args, tui=False):
 
 
 def _ping_starting_locally(client, module):
-    """Ping a server, starting ``labscript_utils.<module>`` first if the server is
-    meant to run on this computer and does not answer."""
+    """Ping a server, starting a local one that does not answer."""
     if gethostbyname(client.host) == gethostbyname('localhost'):
         try:
             # Short timeout on localhost, so as not to waste time:
