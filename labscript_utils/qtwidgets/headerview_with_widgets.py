@@ -180,7 +180,7 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
                 except KeyError:
                     # A section that did not exist when update_indents last ran
                     # has no indent yet.
-                    return
+                    continue
                 label_text = self.model.headerData(
                     logical_index, QtCore.Qt.Orientation.Horizontal, QtCore.Qt.ItemDataRole.DisplayRole)
                 if label_text is None:
