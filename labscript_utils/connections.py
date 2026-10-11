@@ -23,9 +23,6 @@ import sys
 from zprocess import raise_exception_in_thread
 from labscript_utils import ensure_str
 
-# Kept until lyse and labscript-devices import ensure_str instead.
-_ensure_str = ensure_str
-
 
 class ConnectionTable(object):
     def __init__(self, h5file, logging_prefix=None, exceptions_in_thread=False):
