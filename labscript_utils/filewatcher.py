@@ -33,6 +33,8 @@ class FileWatcher:
         ``'created'``, ``'restored'`` or ``'original'``. The 'original' event,
         with `name` ``'all'``, reports a state change that results in the
         original file info at instantiation.
+    files : iterable of str, optional
+        Specific files to watch.
     folders : iterable of str, optional
         Specific folders to watch. If a file is created or deleted in any
         watched folder, it is added to or removed from the `files` attribute.
@@ -259,6 +261,8 @@ class FileWatcher:
 
         Parameters
         ----------
+        files : iterable of str
+            The files to add.
         clean_modified_info : dict, optional
             Modified info to detect modification and restoration of these
             files with respect to. Files not in it are compared against their

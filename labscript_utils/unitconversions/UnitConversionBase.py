@@ -11,10 +11,9 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-# copy, math and MethodType are unused here, but they reach every conversion module
-# through its `from .UnitConversionBase import *`.
+# copy and math are unused here, but they reach every conversion module through
+# its `from .UnitConversionBase import *`.
 import copy
-from types import MethodType
 import math
 from numpy import iterable, array
 
