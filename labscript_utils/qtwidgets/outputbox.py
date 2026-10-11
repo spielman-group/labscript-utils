@@ -20,16 +20,8 @@ class OutputBox(qtutils.outputbox.OutputBox):
     """A qtutils OutputBox that listens on all network interfaces.
 
     It uses the suite's secure ZMQ Context, so insecure messages from external
-    addresses are discarded. See qtutils.outputbox.OutputBox for the rest of its
-    interface.
-
-    Parameters
-    ----------
-    container : QLayout or QSplitter
-        Anything with an ``addWidget`` method; the output's text widget is added
-        to it.
-    scrollback_lines : int, optional
-        The number of lines of output to keep.
+    addresses are discarded. The output's text widget is added to container,
+    anything with an ``addWidget`` method.
     """
 
     def __init__(self, container, scrollback_lines=1000):
