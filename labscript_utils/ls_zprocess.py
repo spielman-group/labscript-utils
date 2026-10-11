@@ -209,9 +209,9 @@ class ZMQServer(zprocess.ZMQServer):
             return getattr(self, 'handle_' + command)(*args, **kwargs)
         except BaseException as e:
             note = f'{type(self).__name__} traceback:\n{traceback.format_exc()}'
-            # zprocess pickles the reply outside its error handling, and its client
-            # raises only an Exception it can unpickle. A class from this process's
-            # __main__ survives the round trip here but cannot be unpickled there.
+            # zprocess's client raises only an Exception it can unpickle, and its
+            # server meets an unpicklable reply with an error of its own. A class
+            # from this process's __main__ pickles here but cannot unpickle there.
             try:
                 pickle.loads(pickle.dumps(e, protocol=zprocess.PICKLE_PROTOCOL))
                 sendable = isinstance(e, Exception) and type(e).__module__ != '__main__'
