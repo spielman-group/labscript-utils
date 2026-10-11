@@ -1,15 +1,25 @@
 from qtutils.qt import QtCore, QtGui, QtWidgets
 
+
 class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
+    """A QHeaderView that can hold a widget in any of its sections.
 
-    """A QHeaderView that supports inserting arbitrary
-    widgets into sections. Use setWidget(logical_index, widget)
-    to set and setWidget(logical_index, None) to unset.
-    Decorations, checkboxes or anything other than text in the
-    headers containing widgets is unsupported, and may result
-    in garbled output"""
+    Put a widget in a section with ``setWidget(logical_index, widget)`` and
+    remove it with ``setWidget(logical_index, None)``. The section's text is
+    indented to make room for the widget. Decorations, checkboxes and anything
+    other than text in a section that holds a widget are unsupported, and may
+    draw garbled.
 
-    thinspace = u'\u2009'  # For indenting text
+    Parameters
+    ----------
+    model : QStandardItemModel
+        The model whose horizontal header this is. It is also kept as
+        ``self.model``.
+    parent : QWidget, optional
+    """
+
+    # Indents the text of sections that hold widgets.
+    thinspace = u'\u2009'
 
     stylesheet = """
                  QHeaderView::section {
@@ -30,14 +40,14 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
         self.widgets = {}
         self.indents = {}
         self.model = model
-        QtWidgets.QHeaderView.__init__(self, QtCore.Qt.Orientation.Horizontal, parent)
+        super().__init__(QtCore.Qt.Orientation.Horizontal, parent)
         self.setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.sectionMoved.connect(self.update_widget_positions)
         self.sectionResized.connect(self.update_widget_positions)
         self.geometriesChanged.connect(self.update_widget_positions)
         self.sectionCountChanged.connect(self.update_widget_positions)
-        self.model.columnsInserted.connect(self.on_columnsInserted)
-        self.model.columnsRemoved.connect(self.on_columnsRemoved)
+        self.model.columnsInserted.connect(self.on_columns_inserted)
+        self.model.columnsRemoved.connect(self.on_columns_removed)
         self.setSectionsMovable(True)
         self.vertical_padding = 0
         self.position_update_required = False
@@ -45,23 +55,25 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
         self.update_indents()
 
     def setStyleSheet(self, custom_style):
+        """Set style rules to append to the stylesheet this class generates for
+        the sections."""
         self.custom_style = custom_style
         self.update_indents()
 
     def showSection(self, *args, **kwargs):
-        result = QtWidgets.QHeaderView.showSection(self, *args, **kwargs)
+        result = super().showSection(*args, **kwargs)
         self.update_indents()
         self.update_widget_positions()
         return result
 
     def hideSection(self, *args, **kwargs):
-        result = QtWidgets.QHeaderView.hideSection(self, *args, **kwargs)
+        result = super().hideSection(*args, **kwargs)
         self.update_indents()
         self.update_widget_positions()
         return result
 
     def setSectionHidden(self, *args, **kwargs):
-        result = QtWidgets.QHeaderView.setSectionHidden(self, *args, **kwargs)
+        result = super().setSectionHidden(*args, **kwargs)
         self.update_indents()
         self.update_widget_positions()
         return result
@@ -69,9 +81,18 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
     def viewportEvent(self, event):
         if event.type() == QtCore.QEvent.Type.Paint:
             self.update_widget_positions()
-        return QtWidgets.QHeaderView.viewportEvent(self, event)
+        return super().viewportEvent(event)
 
     def setWidget(self, logical_index, widget=None):
+        """Put a widget in a section, or with widget=None remove its widget.
+
+        Parameters
+        ----------
+        logical_index : int
+        widget : QWidget, optional
+            The widget to show in the section; the header becomes its parent.
+            None removes the section's current widget.
+        """
         header_item = self.model.horizontalHeaderItem(logical_index)
         if header_item is None:
             self.model.setHorizontalHeaderItem(logical_index, QtGui.QStandardItem())
@@ -82,12 +103,15 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
                 del self.widgets[logical_index]
                 widget.removeEventFilter(self)
                 del self.indents[widget]
-                label_text = self.model.headerData(logical_index, QtCore.Qt.Orientation.Horizontal, QtCore.Qt.ItemDataRole.DisplayRole)
+                label_text = self.model.headerData(
+                    logical_index, QtCore.Qt.Orientation.Horizontal, QtCore.Qt.ItemDataRole.DisplayRole)
                 if label_text is None:
                     return
                 else:
                     raw_label_text = label_text.replace(self.thinspace, '')
-                    self.model.setHeaderData(logical_index, QtCore.Qt.Orientation.Horizontal, raw_label_text, QtCore.Qt.ItemDataRole.DisplayRole)
+                    self.model.setHeaderData(
+                        logical_index, QtCore.Qt.Orientation.Horizontal, raw_label_text,
+                        QtCore.Qt.ItemDataRole.DisplayRole)
         else:
             self.widgets[logical_index] = widget
             widget.setParent(self)
@@ -98,7 +122,7 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
         self.update_widget_positions()
 
     def showEvent(self, event):
-        QtWidgets.QHeaderView.showEvent(self, event)
+        super().showEvent(event)
         self.update_indents()
         self.update_widget_positions()
 
@@ -123,10 +147,10 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
         height = fontmetrics.height()
         required_padding = (max_widget_height + 2 - height) // 2
         required_padding = max(required_padding, 3)
-        QtWidgets.QHeaderView.setStyleSheet(self, self.stylesheet % (required_padding, required_padding, self.custom_style))
+        super().setStyleSheet(self.stylesheet % (required_padding, required_padding, self.custom_style))
 
     def sectionSizeFromContents(self, logical_index):
-        base_size = QtWidgets.QHeaderView.sectionSizeFromContents(self, logical_index)
+        base_size = super().sectionSizeFromContents(logical_index)
         width, height = base_size.width(), base_size.height()
         if logical_index in self.widgets:
             widget_size = self.widgets[logical_index].size()
@@ -136,8 +160,8 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
         return QtCore.QSize(width, height)
 
     def update_widget_positions(self):
-        # Do later and compress events, so as not to call
-        # self.do_update_widget_positions multiple times:
+        # Do later and compress events, so that do_update_widget_positions is not
+        # called several times over.
         if not self.position_update_required:
             timer = QtCore.QTimer.singleShot(0, self.do_update_widget_positions)
             self.position_update_required = True
@@ -169,23 +193,26 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
                 try:
                     indent = self.indents[widget]
                 except KeyError:
+                    # A section that did not exist when update_indents last ran
+                    # has no indent yet.
                     return
-                label_text = self.model.headerData(logical_index, QtCore.Qt.Orientation.Horizontal, QtCore.Qt.ItemDataRole.DisplayRole)
+                label_text = self.model.headerData(
+                    logical_index, QtCore.Qt.Orientation.Horizontal, QtCore.Qt.ItemDataRole.DisplayRole)
                 if label_text is None:
                     label_text = ''
                 raw_label_text = label_text.replace(self.thinspace, '')
                 if label_text != indent + raw_label_text:
                     self.model.setHeaderData(
-                        logical_index, QtCore.Qt.Orientation.Horizontal, indent + raw_label_text, QtCore.Qt.ItemDataRole.DisplayRole)
+                        logical_index, QtCore.Qt.Orientation.Horizontal, indent + raw_label_text,
+                        QtCore.Qt.ItemDataRole.DisplayRole)
 
     def eventFilter(self, target, event):
-        """Ensure we don't leave the curor set as a resize
-        handle when the mouse moves onto a child widget:"""
+        """Unset the resize cursor when the mouse enters a child widget."""
         if event.type() == QtCore.QEvent.Type.Enter:
             self.unsetCursor()
         return False
 
-    def on_columnsInserted(self, parent, logical_first, logical_last):
+    def on_columns_inserted(self, parent, logical_first, logical_last):
         n_inserted = logical_last - logical_first + 1
         widgets_with_offset = {}
         for logical_index, widget in self.widgets.items():
@@ -196,7 +223,7 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
         self.widgets = widgets_with_offset
         self.update_widget_positions()
 
-    def on_columnsRemoved(self, parent, logical_first, logical_last):
+    def on_columns_removed(self, parent, logical_first, logical_last):
         n_removed = logical_last - logical_first + 1
         widgets_with_offset = {}
         for logical_index, widget in self.widgets.items():
