@@ -165,7 +165,9 @@ def package_version(package):
         import setuptools_scm
 
         return setuptools_scm.get_version(
-            root, version_scheme='release-branch-semver', local_scheme='node-and-date'
+            root,
+            version_scheme='semver-pep440-release-branch',
+            local_scheme='node-and-date',
         )
     try:
         return importlib_metadata.version(package)
