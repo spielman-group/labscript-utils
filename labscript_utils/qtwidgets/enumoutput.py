@@ -70,7 +70,7 @@ class EnumOutput(LockableOutput, QtWidgets.QWidget):
         # If we are setting a new EO, remove this widget from the old one (if it isn't None) and add it to the new one (if it isn't None)
         if EO != self._output:
             if self._output is not None and notify_old_EO:
-                self._output.remove_widget(self,False)
+                self._output.remove_widget(self)
             if EO is not None and notify_new_EO:
                 EO.add_widget(self)
         # Store a reference to the digital out object
