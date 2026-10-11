@@ -61,23 +61,8 @@ def get_default_appconfig_file(
     The folder is ``<app_saved_configs>/<app_name>``, with ``app_saved_configs``
     from the ``[default]`` section of ``exp_config``. If that option is missing it
     is first set on ``exp_config`` to ``userlib/app_saved_configs/<apparatus_name>``
-    in the labscript suite folder.
-
-    Parameters
-    ----------
-    exp_config : LabConfig
-        The experiment's labconfig.
-    app_name : str
-        The application's name, which names the folder.
-    config_filename : str
-        The name of the configuration file.
-    ensure_directory : bool, optional
-        Create the folder if it does not exist.
-
-    Returns
-    -------
-    str
-        The path of the configuration file.
+    in the labscript suite folder. The folder is created if ``ensure_directory`` is
+    true.
     """
     try:
         default_path = os.path.join(
@@ -117,8 +102,7 @@ class LabscriptApplication:
         self.base_window_title = self.ui.windowTitle().split(' - ', 1)[0]
 
     def get_default_config_file(self, ensure_directory=False):
-        """Return this application's default configuration file; see
-        ``get_default_appconfig_file``."""
+        """Return the default configuration file; see ``get_default_appconfig_file``."""
         return get_default_appconfig_file(
             self.exp_config,
             self.app_name,
@@ -339,7 +323,6 @@ def backup_legacy_config(path):
 
 # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
 def _load_legacy_appconfig_value(value):
-    """Temporary legacy INI app-config decoder. Slated for removal."""
     if not isinstance(value, str):
         return value
     try:
@@ -349,7 +332,7 @@ def _load_legacy_appconfig_value(value):
 
 
 def save_appconfig(filename, data):
-    """Save a dictionary as a TOML app config.
+    """Save a dictionary as a TOML app config, and return the path written.
 
     The data goes to ``tomli_w`` as it is, so a ``None`` at any depth, which TOML
     cannot represent, raises its ``TypeError``.
@@ -361,11 +344,6 @@ def save_appconfig(filename, data):
         ``appconfig_path_with_suffix``. Missing folders are created.
     data : dict
         Maps section names to dicts of their values.
-
-    Returns
-    -------
-    str
-        The path written.
     """
     filename = appconfig_path_with_suffix(filename, '.toml')
     filename.parent.mkdir(parents=True, exist_ok=True)
@@ -376,10 +354,8 @@ def save_appconfig(filename, data):
 def load_appconfig(filename, return_save_path=False):
     """Load a TOML app config, or a legacy INI app config if required.
 
-    If a legacy INI file is loaded, a sibling TOML file is immediately written and
-    can be returned as the canonical save path via ``return_save_path=True``. After
-    successful conversion, the legacy INI file is moved aside to ``.old`` so future
-    loads prefer the canonical TOML file. Legacy INI support here is temporary and
+    A legacy INI file is converted: a sibling TOML file is written at once and the
+    INI file is moved aside to ``.old``, so later loads use the TOML. That support is
     slated for removal.
 
     Parameters
@@ -387,8 +363,6 @@ def load_appconfig(filename, return_save_path=False):
     filename : str or os.PathLike
         The app config, with ``.toml`` as its extension as for
         ``appconfig_path_with_suffix``. A missing file gives an empty dict.
-    return_save_path : bool, optional
-        Also return the path a save of this config should use.
 
     Returns
     -------
