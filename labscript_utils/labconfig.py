@@ -34,7 +34,10 @@ default_config_path = default_labconfig_path()
 
 
 def format_path_for_display(path):
-    """Return an absolute path with the user's home abbreviated for display."""
+    """Return an absolute path as a str, with the user's home folder abbreviated.
+
+    The home folder is written ``~``, or ``%USERPROFILE%`` on Windows.
+    """
     absolute_path = os.path.abspath(os.path.expanduser(os.fspath(path)))
     home_path = str(Path.home())
     normalized_path = os.path.normcase(os.path.normpath(absolute_path))
@@ -53,8 +56,33 @@ def format_path_for_display(path):
 def get_default_appconfig_file(
     exp_config, app_name, config_filename, ensure_directory=False
 ):
+    """Return the default path of an application's configuration file.
+
+    The folder is ``<app_saved_configs>/<app_name>``, with ``app_saved_configs``
+    from the ``[default]`` section of ``exp_config``. If that option is missing it
+    is first set on ``exp_config`` to ``userlib/app_saved_configs/<apparatus_name>``
+    in the labscript suite folder.
+
+    Parameters
+    ----------
+    exp_config : LabConfig
+        The experiment's labconfig.
+    app_name : str
+        The application's name, which names the folder.
+    config_filename : str
+        The name of the configuration file.
+    ensure_directory : bool, optional
+        Create the folder if it does not exist.
+
+    Returns
+    -------
+    str
+        The path of the configuration file.
+    """
     try:
-        default_path = os.path.join(exp_config.get('default', 'app_saved_configs'), app_name)
+        default_path = os.path.join(
+            exp_config.get('default', 'app_saved_configs'), app_name
+        )
     except LabConfig.NoOptionError:
         exp_config.set(
             'default',
@@ -66,20 +94,31 @@ def get_default_appconfig_file(
                 '%(apparatus_name)s',
             ),
         )
-        default_path = os.path.join(exp_config.get('default', 'app_saved_configs'), app_name)
+        default_path = os.path.join(
+            exp_config.get('default', 'app_saved_configs'), app_name
+        )
     if ensure_directory:
         os.makedirs(default_path, exist_ok=True)
     return os.path.join(default_path, config_filename)
 
 
-class LabscriptApplication(object):
+class LabscriptApplication:
+    """The configuration-file behaviour shared by labscript applications.
+
+    A subclass sets ``app_name`` and ``default_config_filename``, and provides
+    ``exp_config`` (a LabConfig), ``ui`` (the main window) and ``get_save_data()``.
+    """
+
     app_name = None
     default_config_filename = None
 
     def init_config_window_title(self):
+        """Keep the window's title, without any file name, as ``base_window_title``."""
         self.base_window_title = self.ui.windowTitle().split(' - ', 1)[0]
 
     def get_default_config_file(self, ensure_directory=False):
+        """Return this application's default configuration file; see
+        ``get_default_appconfig_file``."""
         return get_default_appconfig_file(
             self.exp_config,
             self.app_name,
@@ -100,6 +139,11 @@ class LabscriptApplication(object):
         self.set_config_window_title(save_file)
 
     def set_config_window_title(self, filename, max_length=60):
+        """Show ``filename`` after the base title in the window title.
+
+        A path longer than ``max_length`` characters, with more than four parts,
+        loses its middle parts, keeping its start and its last two parts.
+        """
         path = format_path_for_display(filename)
         separator = '\\' if os.name == 'nt' else '/'
         parts = path.split(separator)
@@ -114,17 +158,44 @@ class LabscriptApplication(object):
 
 
 class EnvInterpolation(TomlBasicInterpolation):
-    """Interpolation that expands environment variables after TOML/basic interpolation."""
+    """Interpolation that expands environment variables after basic interpolation."""
 
     def before_get(self, *args):
-        value = super(EnvInterpolation, self).before_get(*args)
+        value = super().before_get(*args)
         if isinstance(value, str):
             return os.path.expandvars(value)
         return value
 
 
 class LabConfig(TomlConfigParser):
-    """TOML labconfig reader with the small ConfigParser-like API used by the suite."""
+    """TOML labconfig reader with the small ConfigParser-like API used by the suite.
+
+    Parameters
+    ----------
+    config_path : str, Path or list, optional
+        The file to read, or the files to read in order. By default it is this
+        computer's labconfig in the suite profile. A file that does not exist is
+        skipped. A ``.toml`` file is read as TOML. A legacy ``.ini`` file is also
+        read, with a FutureWarning; that support is slated for removal.
+    required_params : dict, optional
+        Maps section names to the options that must be present.
+    defaults : dict, optional
+        Values every section inherits, besides ``labscript_suite``, the path of
+        the suite profile folder.
+
+    Raises
+    ------
+    Exception
+        If a required section or option is missing, or the labconfig sets both
+        ``experiment_name`` and ``apparatus_name``.
+    RuntimeError
+        If a file is neither ``.toml`` nor ``.ini``.
+
+    Notes
+    -----
+    The deprecated ``[default] experiment_name`` is read as ``apparatus_name``, with
+    a FutureWarning.
+    """
 
     NoOptionError = configparser.NoOptionError
     NoSectionError = configparser.NoSectionError
@@ -149,17 +220,20 @@ class LabConfig(TomlConfigParser):
             else:
                 self.config_path = None
         else:
-            self.config_path = ensure_labconfig() if config_path == default_config_path else config_path
+            self.config_path = (
+                ensure_labconfig()
+                if config_path == default_config_path
+                else config_path
+            )
             config_paths = [self.config_path]
 
         self.file_format = ""
         for section, options in required_params.items():
-            self.file_format += "[%s]\n" % section
+            self.file_format += f"[{section}]\n"
             for option in options:
-                self.file_format += "%s = <value>\n" % option
+                self.file_format += f"{option} = <value>\n"
 
-        TomlConfigParser.__init__(
-            self,
+        super().__init__(
             defaults=defaults,
             interpolation=EnvInterpolation(),
         )
@@ -216,8 +290,10 @@ APPCONFIG_SUFFIXES = ('.toml', '.ini')
 
 
 def appconfig_path_with_suffix(path, suffix):
-    """Return ``path`` with ``suffix``, appended unless the path already ends in an
-    app config extension, so that ``rb.87.imaging`` is not cut at its last dot.
+    """Return ``path`` as a Path with ``suffix`` as its extension.
+
+    A ``.toml`` or ``.ini`` extension is replaced. Any other name has ``suffix``
+    appended, so that ``rb.87.imaging`` is not cut at its last dot.
     """
     path = Path(path)
     if path.suffix.lower() in APPCONFIG_SUFFIXES:
@@ -239,7 +315,13 @@ def _resolve_appconfig_load_path(filename):
 
 # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
 def backup_legacy_config(path):
-    """Rename a migrated legacy config file to ``.old`` without clobbering backups."""
+    """Rename a migrated legacy config file to ``.old`` without clobbering backups.
+
+    Returns
+    -------
+    pathlib.Path or None
+        The backup's path, or None if the file is missing or cannot be renamed.
+    """
     path = Path(path)
     if not path.exists():
         return None
@@ -271,6 +353,19 @@ def save_appconfig(filename, data):
 
     The data goes to ``tomli_w`` as it is, so a ``None`` at any depth, which TOML
     cannot represent, raises its ``TypeError``.
+
+    Parameters
+    ----------
+    filename : str or os.PathLike
+        The file to write, with ``.toml`` as its extension as for
+        ``appconfig_path_with_suffix``. Missing folders are created.
+    data : dict
+        Maps section names to dicts of their values.
+
+    Returns
+    -------
+    str
+        The path written.
     """
     filename = appconfig_path_with_suffix(filename, '.toml')
     filename.parent.mkdir(parents=True, exist_ok=True)
@@ -281,10 +376,27 @@ def save_appconfig(filename, data):
 def load_appconfig(filename, return_save_path=False):
     """Load a TOML app config, or a legacy INI app config if required.
 
-    If a legacy INI file is loaded, a sibling TOML file is immediately written and can be
-    returned as the canonical save path via ``return_save_path=True``. After successful
-    conversion, the legacy INI file is moved aside to ``.old`` so future loads prefer the
-    canonical TOML file. Legacy INI support here is temporary and slated for removal.
+    If a legacy INI file is loaded, a sibling TOML file is immediately written and
+    can be returned as the canonical save path via ``return_save_path=True``. After
+    successful conversion, the legacy INI file is moved aside to ``.old`` so future
+    loads prefer the canonical TOML file. Legacy INI support here is temporary and
+    slated for removal.
+
+    Parameters
+    ----------
+    filename : str or os.PathLike
+        The app config, with ``.toml`` as its extension as for
+        ``appconfig_path_with_suffix``. A missing file gives an empty dict.
+    return_save_path : bool, optional
+        Also return the path a save of this config should use.
+
+    Returns
+    -------
+    dict
+        Maps section names to dicts of their values. Top-level entries that are not
+        tables are left out.
+    str
+        The ``.toml`` path to save to. Returned only if ``return_save_path`` is true.
     """
     requested_path = Path(filename)
     filename = _resolve_appconfig_load_path(filename)
