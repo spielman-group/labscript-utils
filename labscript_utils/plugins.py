@@ -135,7 +135,7 @@ new contribution routing looks like this::
 
         def fire_event(self, name):
             # App-owned event firing. PluginManager only returns callbacks.
-            for callback in self.plugin_manager.get_callbacks(name):
+            for callback in self.plugin_manager.get_event_handlers(name):
                 callback()
 
         def close_plugins(self):
@@ -541,7 +541,7 @@ Callbacks with priorities
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``@callback(priority=...)`` wraps a method in ``Callback`` metadata. Lower
-numbers run first when the application asks ``PluginManager.get_callbacks()``::
+numbers run first when the application asks ``PluginManager.get_event_handlers()``::
 
     class SlowPlugin(BasePlugin):
         def get_event_handlers(self):
@@ -564,7 +564,7 @@ numbers run first when the application asks ``PluginManager.get_callbacks()``::
             pass
 
 Expected runtime order: when the application fires ``shot_complete`` and calls
-``plugin_manager.get_callbacks('shot_complete')``, the priority 5 callback
+``plugin_manager.get_event_handlers('shot_complete')``, the priority 5 callback
 runs before the priority 20 callback, even if the plugins were discovered in a
 different order.
 
@@ -622,7 +622,6 @@ during shutdown so the plugin can release resources before exit.
 import importlib
 import logging
 import os
-import warnings
 from types import MethodType
 
 
@@ -644,7 +643,7 @@ __all__ = [
 class Callback(object):
     """Wrap a callable with priority metadata and method-style binding.
 
-    ``priority`` is used when ``PluginManager.get_callbacks()`` gathers all
+    ``priority`` is used when ``PluginManager.get_event_handlers()`` gathers all
     callbacks for a named event. Lower numbers run first.
 
     The descriptor protocol is implemented so that a ``Callback`` stored as a
@@ -670,7 +669,7 @@ class callback(object):
     """Decorator that turns a function into a :class:`Callback`.
 
     The decorator is optional. A plain method can still be returned from
-    ``get_callbacks()`` if it already behaves like a callback. Use the
+    ``get_event_handlers()`` if it already behaves like a callback. Use the
     decorator when you want to attach a non-default priority or make the
     callback object explicit in the class body.
     """
@@ -731,18 +730,6 @@ class BasePlugin(object):
         ``priority`` attribute.
         """
         return None
-
-    def get_callbacks(self):
-        """Return callbacks keyed by event name, or ``None``.
-
-        Deprecated compatibility alias for :meth:`get_event_handlers`.
-
-        Existing BLACS-style plugins may still override this method. New
-        shared plugin code should implement :meth:`get_event_handlers`
-        instead. ``BasePlugin`` routes this legacy name to the modern hook so
-        the preferred surface is the real implementation path.
-        """
-        return self.get_event_handlers()
 
     def get_ui_contributions(self):
         """Return app-context UI contributions.
@@ -1293,14 +1280,8 @@ class PluginManager(object):
 
     def _get_plugin_event_handlers(self, plugin):
         """Return one plugin's event handlers, or None."""
-        # Old name first: BasePlugin's get_callbacks forwards to
-        # get_event_handlers, so this also reaches a subclass that overrides
-        # only get_callbacks, which BasePlugin's default would otherwise hide.
-        if hasattr(plugin, 'get_callbacks'):
-            return plugin.get_callbacks()
-        if hasattr(plugin, 'get_event_handlers'):
-            return plugin.get_event_handlers()
-        return None
+        hook = getattr(plugin, 'get_event_handlers', None)
+        return hook() if hook is not None else None
 
     def get_event_handlers(self, name):
         """Return all event handlers registered for ``name``, sorted by priority."""
@@ -1318,16 +1299,6 @@ class PluginManager(object):
             key=lambda callback: getattr(callback, 'priority', DEFAULT_PRIORITY)
         )
         return callbacks
-
-    def get_callbacks(self, name):
-        """Deprecated compatibility wrapper for :meth:`get_event_handlers`."""
-        warnings.warn(
-            "PluginManager.get_callbacks() is deprecated; use "
-            "PluginManager.get_event_handlers() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.get_event_handlers(name)
 
     def close_plugins(self):
         """Call ``close()`` on every plugin during application shutdown."""

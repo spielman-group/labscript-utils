@@ -42,7 +42,6 @@ def test_a_plugin_that_overrides_nothing_contributes_nothing():
     assert plugin.initial_settings == {'x': 1}
     assert plugin.get_menu_class() is None
     assert plugin.get_event_handlers() is None
-    assert plugin.get_callbacks() is None
     assert plugin.get_ui_contributions() == []
     assert plugin.get_menu_contributions() == []
 
@@ -122,9 +121,9 @@ def test_instantiate_plugins_uses_saved_settings():
     assert plugins['plugin'].initial_settings == {'answer': 42}
 
 
-def test_legacy_get_callbacks_handlers_run_lowest_priority_first_and_a_raising_plugin_is_skipped():
+def test_event_handlers_run_lowest_priority_first_and_a_raising_plugin_is_skipped():
     class Slow(object):
-        def get_callbacks(self):
+        def get_event_handlers(self):
             return {'event': self.on_event}
 
         @callback(priority=20)
@@ -132,7 +131,7 @@ def test_legacy_get_callbacks_handlers_run_lowest_priority_first_and_a_raising_p
             pass
 
     class Fast(object):
-        def get_callbacks(self):
+        def get_event_handlers(self):
             return {'event': self.on_event}
 
         @callback(priority=5)
@@ -140,41 +139,13 @@ def test_legacy_get_callbacks_handlers_run_lowest_priority_first_and_a_raising_p
             pass
 
     class Broken(object):
-        def get_callbacks(self):
+        def get_event_handlers(self):
             raise RuntimeError('broken')
 
     manager = make_manager()
     manager.plugins = {
         'slow': Slow(),
         'broken': Broken(),
-        'fast': Fast(),
-    }
-
-    callbacks = manager.get_event_handlers('event')
-
-    assert [callback.priority for callback in callbacks] == [5, 20]
-
-
-def test_get_event_handlers_sorts_modern_handlers_by_priority():
-    class Slow(object):
-        def get_event_handlers(self):
-            return {'event': self.on_event}
-
-        @callback(priority=20)
-        def on_event(self):
-            pass
-
-    class Fast(object):
-        def get_event_handlers(self):
-            return {'event': self.on_event}
-
-        @callback(priority=5)
-        def on_event(self):
-            pass
-
-    manager = make_manager()
-    manager.plugins = {
-        'slow': Slow(),
         'fast': Fast(),
     }
 
