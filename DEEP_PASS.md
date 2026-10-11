@@ -1912,6 +1912,14 @@ CodeHealth unless named otherwise, and none is merged or pushed.
     once the zprocess floor passes a release holding them, as with entry 12.
 - The shared-secret check (635aea9) stays; load_appconfig's comment is two lines,
   in a17e2b5.
+- Removing the warning wrappers showed setuptools_scm's rename of the
+  `release-branch-semver` scheme. Ian chose the new name,
+  `semver-pep440-release-branch`, which needs setuptools_scm 10. Every repo uses
+  it and requires setuptools_scm>=10:
+  - labscript-utils 998b983, zprocess dd92777, runmanager 169056a;
+  - blacs fabe2da, lyse 2aa9328, runviewer b39a93e, labscript e1e3d40;
+  - labscript-devices bf6d896, labscript-agents 68c2dab;
+  - labscript-optimization 3d633bc, labscript-suite 07e6e15.
 - Every consumer's suite passes on its CodeHealth against labscript-utils d515339
   and zprocess 51adae8: runmanager 139, blacs 69, lyse 44, labscript-devices 43,
   labscript-agents 15, runviewer 10, labscript 3, labscript-optimization 216, and
