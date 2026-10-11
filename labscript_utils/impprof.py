@@ -39,11 +39,6 @@ class _ProfilingImporter:
     def enable(self, threshold=0.1):
         """Print each import that takes longer than ``threshold`` seconds.
 
-        Parameters
-        ----------
-        threshold : float, optional
-            Time in seconds above which an import is printed. Default 0.1.
-
         Raises
         ------
         RuntimeError

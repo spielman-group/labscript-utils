@@ -29,17 +29,12 @@ def log(log_path=None, module_names=(), sub=False, all=False, mode='w'):
     Parameters
     ----------
     log_path : str, optional
-        Path of the output file to write to, or None (the default) for stdout.
-    module_names : sequence of str, optional
-        Names of the modules to trace.
+        Path of the output file to write to, or None for stdout.
     sub : bool, optional
         Whether to trace modules whose names begin with one of ``module_names``,
-        such as their submodules. Default False.
+        such as their submodules.
     all : bool, optional
         Whether to trace all modules, in which case ``module_names`` is ignored.
-        Default False.
-    mode : str, optional
-        Mode to open the output file in, if ``log_path`` is not None. Default 'w'.
     """
     if log_path is None:
         outfile = sys.stdout

@@ -50,7 +50,6 @@ class MemoryProfiler:
         ----------
         filepath : str, optional
             File to write the counts to, here and in later calls to :meth:`check`.
-            Default 'memprof.txt'.
         """
         self.filepath = filepath
         self.initial_counts = self.count_types()

@@ -81,15 +81,10 @@ def tkhandler(exceptclass, exception, exec_info, reraise=True):
 
     Parameters
     ----------
-    exceptclass : type
-        The exception's class.
-    exception : BaseException
-        The exception.
     exec_info : traceback
         The exception's traceback.
     reraise : bool, optional
-        Whether to also print the exception with ``sys.__excepthook__``. Default
-        True.
+        Whether to also print the exception with ``sys.__excepthook__``.
     """
     script = os.path.basename(sys.argv[0])
     if not script:
@@ -129,12 +124,7 @@ def logwarning(message, category, filename, lineno, file=None, line=None):
 
 
 def set_logger(logger):
-    """Log exceptions and warnings with ``logger``.
-
-    Parameters
-    ----------
-    logger : logging.Logger
-    """
+    """Log exceptions and warnings with ``logger``."""
     l.logger = logger
     warnings.showwarning = logwarning
 
