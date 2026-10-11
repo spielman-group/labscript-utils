@@ -3043,7 +3043,6 @@ judged not a bug.
   - The offscreen `ToolPalette.hide()` crash seen in step 4's review did not
     reproduce, with or without focus inside the palette.
 - Design questions for Ian rather than bugs:
-  - remove `DragDropTabWidget.tab_bar`, an alias no repo reads?
   - document example.toml's missing `[logging]` and `allow_insecure` keys, and
     with which defaults?
   - re-export `populate_registry`, `BLACS_tab_registry` and `ClassRegister`
