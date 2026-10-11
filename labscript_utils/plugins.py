@@ -40,6 +40,7 @@ Configuration behavior is intentionally conservative:
 * Only enabled modules are imported.
 * Import or instantiation failures are logged and skipped so one broken plugin
   does not stop the application from starting.
+* An enable flag that is not a boolean stops start-up with an error.
 
 ``Callback`` and ``callback`` wrap event handlers with priority metadata.
 Lower priority numbers run first. ``Callback`` behaves like a descriptor, so
@@ -721,8 +722,8 @@ class BasePlugin(object):
     def get_event_handlers(self):
         """Return a mapping of event names to handlers, or ``None``.
 
-        This is the preferred shared event hook surface. Return a mapping such
-        as ``{'shot_complete': self.on_shot_complete}``. Event names are
+        This is the shared event hook. Return a mapping such as
+        ``{'shot_complete': self.on_shot_complete}``. Event names are
         application-defined strings; this shared layer only collects,
         normalizes, and orders handlers. Values may be plain callables or
         :class:`Callback` instances created with the :class:`callback`
