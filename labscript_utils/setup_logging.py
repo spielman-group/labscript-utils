@@ -10,55 +10,86 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-import sys, os
-from io import UnsupportedOperation
-import logging, logging.handlers
+import logging
+import os
+import sys
 import warnings
-from labscript_utils.ls_zprocess import Handler, ensure_connected_to_zlog
-
+from io import UnsupportedOperation
 
 from labscript_profile import LABSCRIPT_SUITE_PROFILE
+from labscript_utils.ls_zprocess import Handler, ensure_connected_to_zlog
 
 LOG_PATH = os.path.join(LABSCRIPT_SUITE_PROFILE, 'logs')
 
+
 class LessThanFilter(logging.Filter):
+    """A filter that passes only records with a level below ``less_than``."""
+
     def __init__(self, less_than):
         self.less_than = less_than
-        logging.Filter.__init__(self)
+        super().__init__()
+
     def filter(self, record):
         return record.levelno < self.less_than
 
 
-def setup_logging(program_name, log_level=logging.DEBUG, terminal_level=logging.INFO, maxBytes=1024*1024*50, backupCount=1):
-    # maxBytes and backupCount are ignored: they are labconfig settings of the zlog
-    # server. They stay in the signature for callers that still pass them.
+def setup_logging(
+    program_name,
+    log_level=logging.DEBUG,
+    terminal_level=logging.INFO,
+    maxBytes=1024*1024*50,
+    backupCount=1,
+):
+    """Log a program's messages to its log file and to the terminal.
+
+    Call it once per program. The logger named ``program_name`` loses its previous
+    handlers and gets one that writes ``LOG_PATH/<program_name>.log`` through the
+    zlog server, which is started if it is not running. Where stdout is available
+    it also gets handlers for the terminal: stdout below WARNING, and stderr for
+    WARNING and above.
+
+    Parameters
+    ----------
+    program_name : str
+        The logger's name, which also names the log file.
+    log_level : int, optional
+        The level of the log file's handler.
+    terminal_level : int, optional
+        The level of the stdout handler.
+    maxBytes, backupCount : int, optional
+        Ignored. They are labconfig settings of the zlog server, and stay in the
+        signature for callers that still pass them.
+
+    Returns
+    -------
+    logging.Logger
+        The logger, at level DEBUG.
+    """
     ensure_connected_to_zlog()
     logger = logging.getLogger(program_name)
-    # Clear any previously added handlers from the logger:
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
-    # Make sure the logging directory exists:
     if not os.path.exists(LOG_PATH):
         os.mkdir(LOG_PATH)
 
-    # The name lets a subprocess's handler use its parent's log path, so zlog makes no
-    # unrelated log files for computers of one process tree installed in different places.
-    log_path = os.path.join(LOG_PATH, '%s.log' % program_name)
+    # The name lets a subprocess's handler use its parent's log path, so zlog makes
+    # no unrelated log files for computers of one process tree installed in
+    # different places.
+    log_path = os.path.join(LOG_PATH, f'{program_name}.log')
     handler = Handler(log_path, name=program_name)
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
     handler.setFormatter(formatter)
     handler.setLevel(log_level)
     logger.addHandler(handler)
     try:
-        # Check that sys.stdout.fileno is callable, which is needed below. It is NOT
-        # callable in Jupyter notebooks.
+        # fileno() is needed below. It raises in Jupyter notebooks, where log
+        # messages are then not printed to stdout or stderr.
         stdout_fileno = sys.stdout.fileno()
     except UnsupportedOperation:
-        # In this case the code is likely being run from a Jupyter notebook, warn the
-        # user that log messages won't be printed to stdout or stderr.
         warnings.warn(
-            "Logging to stdout and stderr is disabled. See the log files for log messages."
+            "Logging to stdout and stderr is disabled. "
+            "See the log files for log messages."
         )
     else:
         if sys.stdout is not None and stdout_fileno >= 0:
@@ -69,10 +100,10 @@ def setup_logging(program_name, log_level=logging.DEBUG, terminal_level=logging.
             if sys.stderr is not None and sys.stderr.fileno() >= 0:
                 # Send warnings and greater to stderr instead of stdout:
                 stdout_handler.addFilter(LessThanFilter(logging.WARNING))
-                sterr_handler = logging.StreamHandler(sys.stderr)
-                sterr_handler.setFormatter(formatter)
-                sterr_handler.setLevel(logging.WARNING)
-                logger.addHandler(sterr_handler)
+                stderr_handler = logging.StreamHandler(sys.stderr)
+                stderr_handler.setFormatter(formatter)
+                stderr_handler.setLevel(logging.WARNING)
+                logger.addHandler(stderr_handler)
         else:
             # Prevent bug on windows where writing to stdout without a command
             # window causes a crash:
