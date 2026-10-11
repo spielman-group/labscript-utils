@@ -262,7 +262,7 @@ def backup_legacy_config(path):
 
 # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
 def _load_legacy_appconfig_value(value):
-    """Temporary legacy INI app-config decoder. Slated for removal soon."""
+    """Temporary legacy INI app-config decoder. Slated for removal."""
     if not isinstance(value, str):
         return value
     try:
@@ -289,7 +289,7 @@ def load_appconfig(filename, return_save_path=False):
     If a legacy INI file is loaded, a sibling TOML file is immediately written and can be
     returned as the canonical save path via ``return_save_path=True``. After successful
     conversion, the legacy INI file is moved aside to ``.old`` so future loads prefer the
-    canonical TOML file. Legacy INI support here is temporary and slated for removal soon.
+    canonical TOML file. Legacy INI support here is temporary and slated for removal.
     """
     requested_path = Path(filename)
     filename = _resolve_appconfig_load_path(filename)

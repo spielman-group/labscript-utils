@@ -49,7 +49,7 @@ def default_labconfig_path():
 
 # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
 def legacy_labconfig_path():
-    """Temporary legacy INI labconfig location. Slated for removal soon."""
+    """Temporary legacy INI labconfig location. Slated for removal."""
     if LABSCRIPT_SUITE_PROFILE is None:
         return None
     return LABSCRIPT_SUITE_PROFILE / 'labconfig' / f'{hostname()}.ini'
@@ -80,7 +80,7 @@ def add_userlib_and_pythonlib():
 def ensure_labconfig():
     """Return the TOML labconfig path, converting a legacy INI file if needed.
 
-    The legacy conversion path is temporary and slated for removal soon.
+    The legacy conversion path is temporary and slated for removal.
     """
     labconfig = default_labconfig_path()
     if labconfig is None:
@@ -144,7 +144,7 @@ def _coerce_legacy_value(value, template_value):
 
 # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
 def _convert_legacy_labconfig(legacy_path, toml_path):
-    """Temporary legacy migration path from INI to TOML. Slated for removal soon."""
+    """Temporary legacy migration path from INI to TOML. Slated for removal."""
     config = configparser.ConfigParser(interpolation=None)
     config.read(legacy_path)
     template_data = _example_labconfig_data()
