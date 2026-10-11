@@ -45,12 +45,7 @@ class _All(object):
                     globals()[name] = value
                     if isinstance(value, type) and issubclass(value, UnitConversion):
                         self.__all__.append(name)
-                        # Also add the class to the globals dict under its full name.
-                        # This is a little odd, but ensures that if an unaware version
-                        # of BLACS is dealing with fully qualified class names, it will
-                        # still find them by looking them up in our globals dict. This
-                        # is a backward compatibility hack only and may be removed in
-                        # future.
+                        # Old shot files may name these classes in full; due for removal in future.
                         fullname = 'labscript_utils.unitconversions.%s.%s'
                         fullname = fullname % (module, name)
                         globals()[fullname] = value
