@@ -16,9 +16,22 @@ import numpy as np
 
 
 def get_shot_globals(filepath):
-    """Returns the evaluated globals for a shot, for use by labscript or lyse.
-    Simple dictionary access as in dict(h5py.File(filepath).attrs) would be fine
-    except we want to apply some hacks, so it's best to do that in one place."""
+    """Return the evaluated globals of a shot, for use by labscript or lyse.
+
+    Reading them through here applies, in one place, the conversions that plain
+    attribute access would not.
+
+    Parameters
+    ----------
+    filepath : str or pathlib.Path
+        The shot file.
+
+    Returns
+    -------
+    dict
+        Global names and values. Numpy bools and strings become Python ones,
+        null HDF5 references become None, and bytes are decoded to str.
+    """
     params = {}
     with h5py.File(filepath, 'r') as f:
         for name, value in f['globals'].attrs.items():

@@ -13,9 +13,24 @@
 
 import numpy as np
 
+
 def dict_diff(dict1, dict2):
-    """Return the difference between two dictionaries as a dictionary of key: [val1, val2] pairs.
-    Keys unique to either dictionary are included as key: [val1, '-'] or key: ['-', val2]."""
+    """Return the difference between two dictionaries.
+
+    Parameters
+    ----------
+    dict1, dict2 : dict
+        The dictionaries to compare. Values that are iterable in either are
+        compared with `numpy.array_equal`, so arrays and lists compare by
+        shape and elements.
+
+    Returns
+    -------
+    dict
+        ``key: [val1, val2]`` for each key in both whose values differ, then
+        ``key: [val1, '-']`` for each key only in `dict1` and
+        ``key: ['-', val2]`` for each key only in `dict2`.
+    """
     diff = {}
     for key in sorted(dict1.keys() & dict2.keys()):
         value1, value2 = dict1[key], dict2[key]
