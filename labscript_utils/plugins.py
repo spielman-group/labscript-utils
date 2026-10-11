@@ -29,12 +29,13 @@ The usual package layout is::
 
 The module name becomes the plugin name, and ``Plugin(initial_settings)``
 receives its saved settings dictionary. A plugin need not inherit ``BasePlugin``;
-it only defines the hooks the manager calls, each named in ``PluginManager``.
+it only defines the hooks the application and manager call, each named in
+``BasePlugin`` or ``PluginManager``.
 
 Two menu paths are supported, intentionally with different contracts:
 
-* ``MenuBuilder`` renders the nested menu description a plugin returns from
-  ``get_menu_class()``, immediately, from ``PluginManager.setup_plugins()``.
+* ``MenuBuilder`` renders the nested menu that a plugin's menu class returns
+  from ``get_menu_items()``, immediately, from ``PluginManager.setup_plugins()``.
   BLACS uses it.
 * ``MenuContext`` is the shared contribution path for future applications. It
   collects actions with explicit ``location``, ``path``, ``group``, ``order``,
@@ -230,7 +231,7 @@ class BasePlugin(object):
     plugin driven through ``setup_plugins()`` and ``close_plugins()``, as BLACS
     drives its plugins, also defines ``get_setting_classes``,
     ``get_notification_classes``, ``get_menu_class``, ``set_menu_instance``,
-    ``set_notification_instances`` and ``close``.
+    ``set_notification_instances``, ``get_save_data`` and ``close``.
 
     ``initial_settings`` contains the saved configuration for the plugin.
     """
@@ -514,10 +515,10 @@ class PluginManager(object):
     """Manage plugin discovery, lifecycle, and callback lookup.
 
     An application creates one manager per plugin directory and calls
-    ``discover_modules()`` and ``instantiate_plugins()``, then either
-    ``setup_plugins()`` (settings pages, menus, notifications) or
+    ``discover_modules()`` and ``instantiate_plugins()``, then
+    ``setup_plugins()`` (settings pages, menus, notifications), or
     ``collect_services()``, ``register_context()`` and ``setup_contexts()``,
-    then ``setup_complete()``. It asks ``get_event_handlers()`` for handlers
+    or both, then ``setup_complete()``. It asks ``get_event_handlers()`` for handlers
     when it fires an event, and calls ``close_plugins()`` at shutdown.
     """
     def __init__(
@@ -638,8 +639,8 @@ class PluginManager(object):
         instantiates the class ``get_menu_class()`` returns with ``data``,
         passes its ``get_menu_items()`` to ``menu_builder`` under ``menubar``,
         and hands the instance to ``set_menu_instance()``; adds each class from
-        ``get_notification_classes()`` to ``notifications`` and passes the
-        instances to ``set_notification_instances()``; and keeps the
+        ``get_notification_classes()`` to ``notifications`` and passes a dict
+        of class to instance to ``set_notification_instances()``; and keeps the
         ``settings_changed`` handler from ``get_event_handlers()``. A plugin
         that raises is logged and the rest are still set up.
         """

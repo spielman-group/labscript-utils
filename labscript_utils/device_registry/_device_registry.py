@@ -1,14 +1,3 @@
-import importlib.machinery
-import os
-import importlib
-import warnings
-import traceback
-import inspect
-from labscript_utils import dedent
-from labscript_utils.labconfig import LabConfig
-from labscript_profile.toml_config import as_config_list
-
-
 """Registration and lookup of the BLACS tab and runviewer parser classes that belong to
 a labscript device. Device class names must be unique, such as "PulseBlaster".
 
@@ -21,6 +10,16 @@ populate_registry() to run every such file.
 If a device has no entry, they fall back on a module <DeviceName>.py at the top level of
 labscript_devices, whose classes are decorated with @BLACS_tab or @runviewer_parser.
 """
+
+import importlib.machinery
+import os
+import importlib
+import warnings
+import traceback
+import inspect
+from labscript_utils import dedent
+from labscript_utils.labconfig import LabConfig
+from labscript_profile.toml_config import as_config_list
 
 
 __all__ = [

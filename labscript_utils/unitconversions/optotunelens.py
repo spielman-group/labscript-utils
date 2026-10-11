@@ -20,7 +20,7 @@ class OptotuneLens(UnitConversion):
     def __init__(self, calibration_parameters=None):
         self.parameters = calibration_parameters
         
-        # I[A] = current_cal * V[V], limited to 0..I_Max
+        # I[A] = current_cal * V[V]; distance_from_base limits it to 0..I_Max
         self.parameters.setdefault('current_cal', 0.05) # A/V
         self.parameters.setdefault('I_Max', 0.3)
         
