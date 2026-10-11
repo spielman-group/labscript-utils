@@ -2459,8 +2459,6 @@ none is merged or pushed.
   only labscript-utils, so the dependency stays until that is settled.
 - Unused imports that predate this step: `QtGui` in `elide_label.py` and
   `labscript_utils` in `settings.py`. Step 6.
-- `ToolPalette.hide()` on a shown palette crashes Qt under the offscreen platform,
-  at cc24b5d as well. Not seen on screen.
 
 ## Step 5: spent documents
 
@@ -3011,37 +3009,45 @@ How it was checked:
 
 ### Findings
 
-Seen during the pass. Ian had the seven a user would see fixed (see the next
-section). The rest are behaviour changes, still his or the owner's to decide.
-
-Latent:
-- `lookup_format._resolve_field` catches only `KeyError`. An out-of-range index
-  escapes as `IndexError`, and a preserved root is lost.
-- `ls_zprocess.Lock` drops `read_only` unless `connect_to_zlock_server()` has
-  run. `_ERR_NO_SHARED_SECRET`'s example is INI syntax, while the labconfig is
-  TOML.
-- `labscript_utils/__init__.py:24` raises TypeError when the profile path is
-  None.
-- `settings.py` evaluates HDF5 attribute text with `eval`.
-- `InvertedDigitalOutput.state` gets the string `'0'` wrong.
-- `elide_label` checks the elide mode last, so a bad mode leaves the label
-  wrapped.
-- dragdroptab lets a tab with group None move between widgets.
-- The unit conversions:
-  - three classes append to a class-level `derived_units` at each
-    instantiation;
-  - 12 of the 14 crash with `calibration_parameters=None`;
-  - quad_driver's `A_from_base` uses the builtin `max` on arrays;
-  - optotunelens divides by zero with its default coefficients.
-
-Cosmetic:
-- `versions.py` has a dead `importlib_metadata` fallback, and uses
-  `importlib.util` without importing it.
-- `shot_utils.py`'s upstream banner names `__init__.py`.
-- excepthook spawns `MAX_WINDOWS` + 1 windows.
-- `tk_exception` shows "occured".
-- Dead stores remain: `imageoutput`'s `raw_data`, and `setup_complete`'s
-  `'plugin'` key.
+Seen during the pass. Every one is now fixed, recorded as a known issue, or
+judged not a bug.
+- The seven a user would see: fixed, in the next section.
+- The trivial rest, fixed on CodeHealth in a35f8ea..58cd97d, one commit each.
+  - Behaviour, each reproduced failing before and passing after:
+    - the profile path None (a35f8ea);
+    - InvertedDigitalOutput's '0' (fe380d8);
+    - elide_label's mode check before it wraps the label (670699c);
+    - frequency conversions extending a class-level derived_units
+      (2aaab07);
+    - quad_driver's A_from_base on arrays (53def07);
+    - get_version on single-file modules (16b4e2f);
+    - the header widgets after one without an indent (dad06a5).
+  - Text: versions.py's missing import and dead fallback (dc9acf4); the
+    shared-secret error's example in TOML (e7baae2); "occurred" (abe211f);
+    shot_utils' banner (cc3eccd).
+  - LabConfig raises ValueError, not bare Exception (777aefc).
+  - Dead code removed: imageoutput's store, the plugin key, Settings' pass
+    statements, FileWatcher's always-true elif, `_MultiplicativeConversion.__get__`
+    and double_import_denier's DEBUG switch (b7c547a..58cd97d).
+- Needing thought, listed in `KNOWN_ISSUES.md`: settings' `eval`, the
+  conversions' None calibration, OptotuneLens' default coefficients, Lock's
+  `read_only` before connect, dragdroptab's group None, and app configs' dropped
+  top-level scalars.
+- Not bugs:
+  - lookup_format catching only KeyError is Ian's step 1 decision (entry 35).
+  - excepthook's window past `MAX_WINDOWS` is its documented notice that further
+    errors will not be shown.
+  - `FileWatcher.add_files` takes an iterable, as documented; upstream never
+    promised a bare string.
+  - quad_driver's `v_min` is unreachable only for its default parameters.
+  - The offscreen `ToolPalette.hide()` crash seen in step 4's review did not
+    reproduce, with or without focus inside the palette.
+- Design questions for Ian rather than bugs:
+  - remove `DragDropTabWidget.tab_bar`, an alias no repo reads?
+  - document example.toml's missing `[logging]` and `allow_insecure` keys, and
+    with which defaults?
+  - re-export `populate_registry`, `BLACS_tab_registry` and `ClassRegister`
+    from `device_registry`?
 
 ### Docstring trim and bug fixes
 
