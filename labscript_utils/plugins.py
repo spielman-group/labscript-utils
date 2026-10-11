@@ -754,7 +754,6 @@ class PluginManager:
                 setup_activities.extend([
                     {
                         'module_name': module_name,
-                        'plugin': plugin,
                         'name': activity['name'],
                         'priority': activity['priority'],
                         'action': activity['action'],
