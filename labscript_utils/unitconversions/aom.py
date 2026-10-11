@@ -10,9 +10,10 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-# numpy's max, whose second argument is an axis: `max(c - A, 0)` below returns
-# `c - A` and does not clamp it at 0.
-from numpy import arccos, cos, max, pi
+# A star import, kept because it decides which max the code below uses:
+# numpy's under numpy 2, which does not clamp `max(c - A, 0)` at 0, and the
+# builtin under numpy 1, which does.
+from numpy import *
 from .UnitConversionBase import *
 from .NovaTechDDS9m import NovaTechDDS9mAmpConversion
 
@@ -22,8 +23,8 @@ class SineAom(NovaTechDDS9mAmpConversion):
 
     The power P in 'Power' units depends on the DDS amplitude x, in 'Arb', as
     ``P(x) = A * cos(2*pi*f * x + phase) + c``. The 'fraction' unit is the power as a
-    fraction of the usable range from ``max(c - A, 0)`` to ``A + c``. The 'hardware'
-    unit is inherited from `NovaTechDDS9mAmpConversion`.
+    fraction of the range from ``c - A`` (``max(c - A, 0)`` under numpy 1) to
+    ``A + c``. The 'hardware' unit is inherited from `NovaTechDDS9mAmpConversion`.
 
     Parameters
     ----------
