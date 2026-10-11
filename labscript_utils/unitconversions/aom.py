@@ -26,7 +26,7 @@ class SineAom(NovaTechDDS9mAmpConversion):
     Parameters
     ----------
     calibration_parameters : dict
-        Calibration parameters. Missing keys are filled in place with their defaults.
+        Missing keys are filled in place with their defaults.
 
         - ``'A'``: amplitude of the sine (default 1.969).
         - ``'f'``: frequency of the sine, per 'Arb' (default 0.527).

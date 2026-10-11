@@ -45,10 +45,7 @@ def hostname():
 def default_labconfig_path():
     """Return the path of this machine's TOML labconfig file.
 
-    Returns
-    -------
-    pathlib.Path or None
-        None if the profile directory could not be determined.
+    Returns None if the profile directory could not be determined.
     """
     if LABSCRIPT_SUITE_PROFILE is None:
         return None
@@ -94,12 +91,7 @@ def add_userlib_and_pythonlib():
 def ensure_labconfig():
     """Return the TOML labconfig path, converting a legacy INI file if needed.
 
-    The legacy conversion path is temporary and slated for removal.
-
-    Returns
-    -------
-    pathlib.Path or None
-        None if the profile directory could not be determined.
+    Returns None if the profile directory could not be determined.
     """
     labconfig = default_labconfig_path()
     if labconfig is None:
@@ -165,7 +157,6 @@ def _coerce_legacy_value(value, template_value):
 
 # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
 def _convert_legacy_labconfig(legacy_path, toml_path):
-    """Temporary legacy migration path from INI to TOML. Slated for removal."""
     config = configparser.ConfigParser(interpolation=None)
     config.read(legacy_path)
     template_data = _example_labconfig_data()
