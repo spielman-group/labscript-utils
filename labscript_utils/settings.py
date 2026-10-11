@@ -165,7 +165,6 @@ class Settings:
             # of alphabetical order, such as first.
             if set_page:
                 self.notebook.tabBar().setCurrentIndex(self.notebook.indexOf(set_page))
-                pass
 
             self.dialog.show()
             self.dialog_open = True
@@ -186,9 +185,6 @@ class Settings:
                 group = h5file['/preferences']
                 for page in self.pages.values():
                     group.attrs[page.__class__.name] = repr(page.save())
-        else:
-            # this should never happen as the exception will have been raised on load!
-            pass
 
         for callback in self.callback_list:
             callback()
