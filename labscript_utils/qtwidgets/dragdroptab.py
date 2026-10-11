@@ -530,7 +530,7 @@ class DragDropTabBar(_BaseDragDropTabBar):
                 rect = widget.rect()
                 # While leaving, add a buffer so the tab stays until the mouse
                 # is some distance away.
-                if self.drag_in_progress and self.dragged_tab_parent is widget:
+                if self.drag_in_progress and self.dragged_tab_parent is tab_widget.tabBar():
                     rect.setLeft(rect.left() - 10)
                     rect.setRight(rect.right() + 10)
                     rect.setTop(rect.top() - 10)
