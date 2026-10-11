@@ -22,7 +22,6 @@ __version__ = package_version(__package__)
 from labscript_profile import LABSCRIPT_SUITE_PROFILE
 
 if not os.path.exists(LABSCRIPT_SUITE_PROFILE):
-    # Create new profile if none exists
     from labscript_profile.create import create_profile
     create_profile()
     # This would normally run at interpreter startup but didn't since the profile didn't
@@ -31,17 +30,24 @@ if not os.path.exists(LABSCRIPT_SUITE_PROFILE):
     labscript_profile.add_userlib_and_pythonlib()
 
 
-# This folder
 labscript_utils_dir = os.path.dirname(os.path.realpath(__file__))
 
 
 def import_or_reload(modulename):
+    """Import a module, rerunning its code if it is already loaded.
+
+    Otherwise this behaves as ``import modulename`` would.
+
+    Parameters
+    ----------
+    modulename : str
+        Name of the module to import.
+
+    Returns
+    -------
+    module
+        The imported or reloaded module.
     """
-    Behaves like 'import modulename' would, excepts forces the imported 
-    script to be rerun
-    """
-    # see if the proposed module is already loaded
-    # if so, we will need to re-run the code contained in it
     if modulename in sys.modules.keys():
         importlib.reload(sys.modules[modulename])
         return sys.modules[modulename]
@@ -50,21 +56,30 @@ def import_or_reload(modulename):
 
 
 def dedent(s):
-    """Remove leading spaces from the first line of a string, all common leading
-    indentation (spaces only) from subsequent lines, strip trailing spaces from all
-    lines and replace single newlines prior to lines with the common indentation with
-    spaces. Lines with additional indentation are kept verbatim. Good for unwrapping
-    error messages etc that are in code as multiline triple-quoted strings."""
-    # Strip trailing whitespace:
+    """Unwrap a multiline triple-quoted string, such as an error message.
+
+    Removes leading spaces from the first line, all common leading indentation
+    (spaces only) from subsequent lines, and trailing spaces from all lines, and
+    replaces single newlines prior to lines with the common indentation with
+    spaces. Lines with additional indentation are kept verbatim.
+
+    Parameters
+    ----------
+    s : str
+        The string to unwrap.
+
+    Returns
+    -------
+    str
+        The unwrapped string.
+    """
     lines = [line.rstrip(' ') for line in s.splitlines()]
-    # Get common indentation from lines other than the first one:
     indentation = float('inf')
     for line in lines[1:]:
         if line:
             indentation = min(indentation, len(line) - len(line.lstrip(' ')))
     if not lines[1:]:
         indentation = 0
-    # Dedent the lines:
     dedented_lines = []
     for i, line in enumerate(lines):
         if i == 0:
@@ -72,7 +87,6 @@ def dedent(s):
         else:
             dedented_line = line[indentation:]
         dedented_lines.append(dedented_line)
-    # Then add newline characters where we are going to keep them:
     unwrapped_lines = []
     for i, line in enumerate(dedented_lines):
         if i == 0:
@@ -89,8 +103,19 @@ def dedent(s):
 
 
 def ensure_str(s):
-    """Return ``s`` as a ``str``, decoding it if it is ``bytes``, as HDF5 strings
-    often are."""
+    """Return ``s`` as a ``str``, decoding it if it is ``bytes``.
+
+    HDF5 strings are often ``bytes``.
+
+    Parameters
+    ----------
+    s : bytes or object
+        The value to convert; anything other than ``bytes`` is passed to ``str``.
+
+    Returns
+    -------
+    str
+    """
     return s.decode() if isinstance(s, bytes) else str(s)
 
 
