@@ -1507,6 +1507,432 @@ Decisions beyond the entries:
   - `docs/source/conf.py` boilerplate is copied in eight repos (step 5).
   - zprocess's zlock and zlog servers share code.
 
+## Step 3: root causes
+
+"Each guard added since the fork is traced to its cause, and fixed there where
+the cause is real." A guard is a check, try/except, isinstance or hasattr test,
+fallback, retry, coercion or workaround around a symptom.
+
+How the candidates were found:
+- the step 3 notes in this file;
+- a sweep of all 209 fork commits (`git log master..CodeHealth`), reading every
+  fix commit's message and diff;
+- `git blame` of every guard-shaped line that survives.
+
+How they were checked:
+- Refs: labscript-utils `CodeHealth` at a885dec, the other repos at `CodeHealth`,
+  zprocess and hyde at `HEAD`.
+- Each symptom was shown by running, in a scratch copy, with the guard removed or
+  with the bad input, except where an entry says otherwise.
+- Every caller search ran over every repo, tests included, beside a control that
+  matches.
+
+### 1. excepthook's hook calls `Logger.warn`, so six repos' tests silence warnings
+
+- Guard: nine `with warnings.catch_warnings(): warnings.simplefilter('ignore')`
+  blocks around imports in other repos' tests:
+  - blacs `tests/fixtures.py:73-81`;
+  - runviewer `tests/fixtures.py:79-85`;
+  - runmanager `tests/fixtures.py:85-91`;
+  - lyse `test_analysis_subprocess.py`, `test_filebox.py`, `test_main_window.py`
+    and `test_multishot_paths.py`;
+  - labscript-optimization and labscript-agents `tests/test_lyse_routine.py`.
+  All were added between 2026-09-01 and 2026-10-05. The blacs, runviewer and
+  runmanager blocks state the reason.
+- Symptom: with `excepthook.set_logger()` installed and pytest's filters, any
+  warning raises `RecursionError`. The cause is
+  `labscript_utils/excepthook/__init__.py:logwarning` (line 92): a
+  `warnings.showwarning` hook calling `l.logger.warn`, which warns in turn.
+  - Shown: `RecursionError` on CodeHealth and on `master`;
+  - with `.warn` changed to `.warning`, it runs clean.
+  - Default filters ignore that DeprecationWarning, so a real application run is
+    unaffected.
+- Cause: labscript-utils, one word, and upstream's.
+- Proposal: change `.warn` to `.warning`. Then each owner tries its blocks without
+  the wrapper.
+  - The recursion certainly reaches blacs and runviewer, which call `set_logger`
+    at import.
+  - In runmanager, lyse, labscript-optimization and labscript-agents nothing calls
+    it at import, so the reason given there does not hold by grep; each owner
+    tests the removal.
+- Core lines: guard 44 across six repos; the fix changes 1.
+- Visible to a user: no.
+- Owners: labscript-utils (the fix); blacs and runviewer (wrappers, confirmed);
+  runmanager, lyse, labscript-optimization and labscript-agents (to test).
+- Upstream: yes, on `master`; the fix also goes to UpstreamBugFixes.
+
+### 2. runmanager's `batch_compiler` connects to its parent at import, and its docs mock that
+
+- Guard:
+  - `runmanager/batch_compiler.py` lines 15-21: `ProcessTree.connect_to_parent()`
+    and its aliases at module level;
+  - the 26-line mock of `connect_to_parent` in runmanager's
+    `docs/source/conf.py:74-102`, from 1e3a618 (2020).
+  Both are upstream's.
+- Symptom: importing `runmanager.batch_compiler` outside a process tree raises
+  `RuntimeError: No ZPROCESS_PARENTINFO environment variable found`, which is why
+  the autosummary needs the mock.
+- Cause: runmanager makes the connection at module level instead of in its
+  `__main__` block, where lyse's `analysis_subprocess.py` makes the same one.
+  `compile` also reads the module global `kill_lock` instead of
+  `self.kill_lock`.
+- Proposal: connect inside the `__main__` block and pass the three attributes to
+  `BatchProcessor`, which already takes them. Use `self.kill_lock`, and delete
+  the docs mock.
+  - Shown: the patched module imports with no parent.
+  - A real compile through the original and the patched child gives the same
+    result: a good script succeeds, with the same nine shot-file groups, and a
+    failing script fails.
+- Core lines: guard 32; the fix moves 3 lines, edits 2 and deletes 26.
+- Visible to a user: no.
+- Owners: runmanager.
+- Upstream: the same code on `master`; a design wart, not a bug.
+
+### 3. Case-insensitive section names in `TomlConfigParser`
+
+- Guard: `labscript_profile/toml_config.py:TomlConfigParser._canonical_section_name`,
+  and the overrides that pass every section argument through it: `add_section`,
+  `has_section`, `options`, `has_option`, `remove_section`, `remove_option`,
+  `__getitem__`, `get` and `items`. From 806fab5 and 7a623ba (2026-03).
+- Symptom: `LabConfig().get('DEFAULT', ...)` and `has_section('BLACS/plugins')`,
+  upstream's spellings, reach the lower-case tables. Without the guard they raise
+  `NoSectionError`.
+- Cause: no caller in any repo still uses an upper-case section. The same search
+  on blacs `master` matches, so it can fail. It serves only lab-local scripts and
+  user TOML written against upstream's names, which no search reaches.
+- Proposal: keep, for Ian to decide. It is the one place where upstream's public
+  usage still runs, and AGENTS.md asks that user scripts keep working.
+- Core lines: guard 32. Dropping it also changes 1 line in each of `read_toml`,
+  `set` and `LabConfig.__init__`.
+- Visible to a user: only to a lab-local script or labconfig that spells a section
+  in upper case.
+- Owners: none.
+- Upstream: not applicable.
+
+### 4. Brace escaping in `lookup_format`, so one formatting pass can feed the next
+
+- Guard: `labscript_utils/lookup_format.py`: `_escape_braces`, `unescape_braces`
+  and `_LookupFormatter.produces_template`, with their uses in `format` and the
+  docstring paragraph. From 650646d and a220994 (2026-08-28). runmanager's
+  `__main__.py:3585` also calls `unescape_braces`, for display.
+- Symptom: runmanager formats its output templates in two passes:
+  `new_sequence_details` with `preserve_unresolved_roots=('globals',)`, then
+  `make_run_files` per shot.
+  - Shown before 650646d: a literal brace in a template, or in the script name,
+    makes pass 2 raise.
+  - On CodeHealth, both passes work.
+- Cause: runmanager's design, in which the first pass returns half-formatted text
+  that the second parses again. Only runmanager calls these functions.
+- Proposal: low confidence, and runmanager's decision. Format once per shot:
+  `new_sequence_details` returns the two templates and `now`, and `make_run_files`
+  calls `format_lookup_string` once with the shot's globals. The escaping and
+  `produces_template` then go.
+  - This matches the settled rule that the labconfig templates are formatted once
+    per shot.
+  - It changes two public functions of runmanager, and how runmanager's window
+    shows the default output folder.
+  - If the two-pass design stays, keep this code.
+- Core lines: guard about 28 here and 2 in runmanager; the fix changes about 6 in
+  runmanager.
+- Visible to a user: no. Braces work either way.
+- Owners: runmanager first; labscript-utils removes its side after.
+- Upstream: no; `lookup_format.py` is the fork's.
+
+### 5. The old hook name is asked first in `PluginManager._get_plugin_event_handlers`
+
+- Guard: the `get_callbacks`-before-`get_event_handlers` order, from 23571b2
+  (2026-10-08). BasePlugin defines both names, so `hasattr` is true for both and
+  an order has to be chosen.
+- Symptom: in the other order, a BasePlugin subclass overriding only
+  `get_callbacks` is silently dropped. Shown in scratch: three plugin shapes give
+  three handlers on CodeHealth, and two with the order reversed.
+- Cause: one hook with two names. blacs's 7 plugins still define `get_callbacks`.
+  labscript-utils keeps `BasePlugin.get_callbacks` and
+  `PluginManager.get_callbacks` as aliases. No plugin defines both.
+- Proposal: fix the cause. blacs renames its 7 methods to `get_event_handlers`;
+  labscript-utils then drops both aliases and the ladder, leaving one `getattr`.
+  This is step 4's compatibility leftover; step 3 adds that this order is its
+  symptom.
+- Core lines: guard 10, or 28 with the two aliases it serves. The fix is 7
+  renames in blacs and about 25 lines fewer here.
+- Visible to a user: no.
+- Owners: blacs, then labscript-utils.
+- Upstream: no; upstream blacs has only `get_callbacks`.
+
+### 6. `PluginManager._setup_action_args` keeps the legacy no-argument `plugin_setup_complete()`
+
+- Guard: `labscript_utils/plugins.py:PluginManager._setup_action_args` (27 lines)
+  and its call. From 4cf6f52 (2026-08-28), which replaced upstream's retry; that
+  is blacs e3e5d2f on its UpstreamBugFixes.
+- Symptom:
+  - Before 4cf6f52, a hook that raises after a side effect ran twice. Shown at
+    4cf6f52^.
+  - On CodeHealth it runs once.
+  - A legacy `plugin_setup_complete(self)` runs once, with a warning.
+- Cause: the pre-`data` legacy form. No plugin anywhere uses it: all seven blacs
+  plugins take `BLACS`, and hyde uses setup activities. Only a labscript-utils
+  test defines one.
+- Proposal: drop the legacy form, together with step 4's "no-argument fallback"
+  item. `setup_complete` then calls `action(data)` once; a failing hook still runs
+  only once.
+- Core lines: guard 28, plus a 13-line test.
+- Visible to a user: no, in the suite. A lab's pre-`data` plugin would log an
+  error instead of a warning.
+- Owners: labscript-utils.
+- Upstream: the retry's double run is upstream's bug, and its fix is already
+  offered.
+
+### 7. The plugin enable-flag guard in `PluginManager.discover_modules`
+
+- Guard: the `try: getboolean ... except ValueError:` block (16 lines). From
+  35b76df (2026-08-28) and 16c2e0b (2026-10-07); the first is the counterpart of
+  blacs 87c3774, on its UpstreamBugFixes.
+- Symptom:
+  - With the guard, a plugin directory named like a labconfig default key, and a
+    hand-typed `theme = 1`, both start with a warning.
+  - Without it, each raises `ValueError: Not a boolean: …`, naming no plugin.
+  Both shown with a real `LabConfig`.
+- Cause, two parts:
+  - configparser's `[default]` inheritance makes a default key look like a flag.
+    That bites only if a plugin directory has a default key's name, and none of
+    blacs's seven does.
+  - A hand-typed non-boolean flag, which is a user error.
+- Proposal: Ian decides.
+  - Preferred: drop the block, so a bad flag stops BLACS at start-up like any other
+    malformed labconfig value.
+  - Alternative: keep it as per-plugin containment, shrunk to a warning and the
+    default state, about 5 lines.
+  - `toml_config`'s two `getboolean` lines stay either way.
+- Core lines: guard 16; the fix deletes 15 or keeps about 5. A 19-line test goes,
+  or is rewritten.
+- Visible to a user: yes. A bad flag stops BLACS at start-up with a traceback
+  instead of a log warning.
+- Owners: labscript-utils.
+- Upstream: the collision defect is on blacs `master`, and its fix is already
+  offered.
+
+### 8. `ZMQServer.handler`'s reply checks
+
+- Guard: `labscript_utils/ls_zprocess.py:ZMQServer.handler` lines 210-226:
+  - `except BaseException`;
+  - the pickle round-trip test;
+  - the `__main__`-class test;
+  - the `RuntimeError` stand-in.
+  From 55afd10, df35bd4 and 154f534 (2026-09-25).
+- Symptom, shown with a real server and client in separate processes, on zprocess
+  at HEAD. With the guard, each case below reaches the client as a `RuntimeError`
+  carrying the message:
+  - an exception holding something unpicklable: without the guard, the server
+    shows its own error dialog and the message is lost;
+  - an exception class defined in the server's `__main__`: the client raises
+    `AttributeError`;
+  - an exception with a custom `__init__`: the client raises `TypeError`;
+  - a `SystemExit` in a handler: it ends zprocess's mainloop, and every later
+    request times out.
+- Cause, three parts:
+  - zprocess pickled the reply outside its `try`. That is fixed by zprocess
+    6c31b8f, which is unreleased, and labscript-utils floors `zprocess>=2.18.0`.
+  - zprocess's `except Exception` lets `SystemExit` through.
+  - pickle rebuilds classes by reference and exceptions through `cls(*args)`.
+    That is stdlib behaviour, outside our reach.
+- Proposal: keep the guard.
+  - Ask the zprocess session to catch `BaseException` in `ZMQServer.mainloop`,
+    which would simplify two lines here.
+  - Ask it to add 6c31b8f to its UpstreamBugFixes.
+  - Fix the 3-line comment at `ls_zprocess.py:212-214` now: it is false at zprocess
+    HEAD.
+- Core lines: guard 15; the comment 3.
+- Visible to a user: yes, without the guard: a client gets an unpickling error or
+  a timeout instead of the server's message.
+- Owners: labscript-utils for the comment; zprocess for the rest.
+- Upstream: zprocess `master` pickles outside the `try`, an upstream bug.
+
+### 9. `FreqConversion` and the NovaTech conversions append to `derived_units` in `__init__`
+
+- Guard: the `if hasattr(self, 'derived_units'): … append … else: …` branch, at
+  three sites:
+  - `generic_frequency.FreqConversion`;
+  - `NovaTechDDS9mFreqConversion`;
+  - `NovaTechDDS9mAmpConversion`.
+  All upstream's, identical on `master`.
+- Symptom: nothing in the suite is affected; each instance gets its own list.
+  Shown: a lab's subclass that declares `derived_units` at class level grows that
+  class list by three entries with every instance.
+- Cause: `.append` on what can be the class's list. Upstream's, and latent.
+- Proposal: leave it. If Ian wants it closed, write
+  `self.derived_units = [*getattr(self, 'derived_units', []), 'MHz']` at each
+  site; results in the suite are the same.
+- Core lines: guard 12; the optional fix changes them to 3.
+- Visible to a user: only through such a lab subclass, as repeated units.
+- Owners: labscript-utils.
+- Upstream: yes, latent; not worth offering unless Ian wants it.
+
+### 10. The apps still require the `[programs]` labconfig keys
+
+- Guard: the `programs` entries of each app's `required_params`:
+  - runmanager `__main__.py`, 3 lines;
+  - blacs `__main__.py:654-659`, 1 line;
+  - lyse `__main__.py`, 4 lines.
+  `LabConfig` enforces them. All three are upstream's, where the apps read the
+  keys themselves.
+- Symptom: shown with a labconfig lacking `[programs]`:
+  - `LabConfig` refuses, with "does not have the required keys";
+  - without those entries it starts;
+  - `open_in_editor` then shows its own dialog for the missing program.
+- Cause: the requirement is stale. The fork moved every reader to
+  `labscript_utils.text_editor.open_in_editor`, which handles a missing program
+  itself.
+- Proposal: delete the eight entries.
+- Core lines: guard 8; all of it goes.
+- Visible to a user: yes. An app whose labconfig lacks `[programs]` now starts,
+  and its Edit or Open button shows a dialog, where today the app refuses to
+  start.
+- Owners: runmanager, blacs, lyse.
+- Upstream: required correctly there; not a bug.
+
+### 11. `Splash.update_text` waits for a paint only while the window is exposed
+
+- Guard: `labscript_utils/splash.py:Splash.update_text`, the `isExposed()` test
+  (5 lines). From 0811a4c (2026-10-04); also offered as c8303fa on UpstreamBugFixes.
+- Symptom:
+  - Shown offscreen: upstream's `update_text` before `show()` waits forever, and
+    CodeHealth's returns.
+  - A splash covered by another window on macOS stalls start-up until it is
+    brought forward. That comes from the commit message; it needs a real macOS
+    window server.
+- Cause: macOS paints no covered window, outside our reach, meeting upstream's
+  wait for a paint that may not come.
+- Proposal: keep. `self.repaint()` might replace the whole wait, but that needs a
+  run on a Mac.
+- Core lines: guard 5.
+- Visible to a user: yes, without it: the stall.
+- Owners: none.
+- Upstream: yes, the loop is upstream's, and the fix is offered.
+
+### 12. `LinkIndicator` asks through a client of its own
+
+- Guard: `labscript_utils/qtwidgets/link_indicator.py:LinkIndicator.__init__`,
+  its private `ZMQClient` and the docstring sentence. From 29f21db (2026-10-05).
+- Symptom:
+  - Shown: two threads sharing one zprocess client deadlock for good on zprocess
+    before 162afe7, with 0 of 8 threads finishing in 480 s.
+  - After 162afe7, 8 of 8 finish in 2.3 s.
+- Cause: zprocess's Interruptor waited for an acknowledgement XPUB never sends.
+  Fixed by zprocess 162afe7, which is not on zprocess `master` or in any release
+  labscript-utils' floor allows.
+- Proposal: keep until the zprocess floor carries 162afe7, then drop the
+  docstring sentence. The workspace rule of one client per thread then no longer
+  rests on this deadlock; whether to keep it is Ian's.
+- Core lines: guard 4.
+- Visible to a user: no.
+- Owners: zprocess, for a release.
+- Upstream: the zprocess bug is on its `master`.
+
+### 13. `labscript-profile-create -c` compiles into a file with no `globals` group
+
+- Guard: `labscript_profile/create.py:compile_connection_table`, which writes
+  `with h5py.File(output_h5_path, 'w'): pass`. From 805d94e (2026-03-25, "Fix TOML
+  globals profile bootstrap"). It replaced upstream's
+  `runmanager.new_globals_file(output_h5_path)`.
+- Symptom: a real bug.
+  - The compile's `labscript_init` reads `f['globals']` through
+    `get_shot_globals`, and the empty file has none. Shown by emulating the batch
+    compiler on the profile's example connection table: `KeyError: … 'globals'`.
+  - With the group, the compile succeeds.
+  - The command still prints "Output written to …" and leaves an empty
+    `connection_table.h5`.
+- Cause: the same day, runmanager's `new_globals_file` began writing TOML, and
+  805d94e swapped in an empty HDF5 file without running a compile. The cause is in
+  labscript-utils.
+- Proposal: fix the cause:
+  `with h5py.File(output_h5_path, 'w') as f: f.create_group('globals')`.
+  Optionally, runmanager's `compile_labscript_async` docstring (`__init__.py:818`)
+  stops pointing at the TOML `new_globals_file`.
+- Core lines: guard 4; the fix changes 2, net 0.
+- Visible to a user: yes. Profile creation with `-c` works again.
+- Owners: labscript-utils; optionally runmanager for its docstring.
+- Upstream: no; a regression the fork made.
+
+### 14. runmanager's `FingerTabWidget.setTabClosable(i, False)` raises TypeError
+
+- Guard: `runmanager/__main__.py:FingerTabBarWidget.setTabButton` rejects anything
+  that is not a `TabToolButton`, `None` included. Upstream's (88980c8, 2014),
+  identical on runmanager `master`.
+- Symptom: shown offscreen. On a tab with a close button,
+  `setTabClosable(i, False)` raises
+  `TypeError: Not a TabToolButton, won't paint correctly`. The only caller,
+  `addTab`, never reaches that branch.
+- Cause: the guard rejects the `None` that Qt allows for removing a button.
+- Proposal: let the guard allow `None`, in 2 edits, or delete the unreachable
+  removal branch, 4 lines.
+- Core lines: guard 4; the fix changes 2.
+- Visible to a user: no.
+- Owners: runmanager.
+- Upstream: yes, latent. It could go on runmanager's UpstreamBugFixes.
+
+### 15. `EnumOutput.set_EO` passes `remove_widget` a second argument
+
+- Guard: none; it is a bug. `labscript_utils/qtwidgets/enumoutput.py:set_EO` calls
+  `self._output.remove_widget(self, False)`, but blacs's `EO.remove_widget(widget)`
+  takes one argument. It was copied from AnalogOutput in 5810137 (2019).
+- Symptom: shown with blacs's real `EO`. Moving an `EnumOutput` to a second `EO`
+  raises `TypeError`, and leaves the widget in both `EO`s' lists. Without
+  `, False`, the move works.
+- Cause: labscript-utils, a copy-paste from AnalogOutput.
+- Proposal: drop `, False`.
+- Core lines: guard 0; the fix changes 1.
+- Visible to a user: no. Nothing moves a widget between `EO`s.
+- Owners: labscript-utils.
+- Upstream: yes, on labscript-utils and blacs `master`, and latent. The fix also
+  goes to UpstreamBugFixes.
+
+### Decisions for Ian beyond the entries
+
+- **`get_config`'s shared-secret check (635aea9, on UpstreamBugFixes).** It
+  fixes upstream's misplaced check at its cause, but it changes behaviour.
+  - On `master`, an explicit `allow_insecure = False` with no secret file still
+    starts. On CodeHealth it raises at start-up.
+  - zprocess enforces the rule only per connection, so a loopback-only lab ran on
+    `master`.
+  - No shipped config sets `allow_insecure = False`.
+  - The commit was kept separate so that it could be dropped.
+- **`as_config_list`'s TOML-array form (679bb78).** It is already the
+  cause-level fix of a real cause, so keep it. Without it, a TOML array in
+  `userlib` raises at every Python start, shown by running.
+- **`load_appconfig`'s `default` table (a54da76).** It removed a guard, so none is
+  left. Its 4-line comment can shrink to 2.
+  - A side note: `isinstance(section, dict)` silently drops a top-level scalar
+    from a hand-edited app config.
+
+### Totals
+
+15 entries; their guards hold 262 core lines.
+- **To fix at the cause, or drop:** entries 1, 2, 5, 6, 7, 10, 13, 14 and 15, and
+  entry 4 if runmanager agrees. These hold 194 lines.
+  - Two are real bugs: 13, a regression the fork made, and 15, an upstream bug.
+  - Entries 1, 14 and 15 are upstream bugs, and their fixes can also be offered
+    upstream.
+- **To keep, the cause being out of reach or already the right fix:** entries 3,
+  8, 9, 11 and 12. These hold 68 lines.
+  - Entry 8 needs only its comment fixed.
+  - Entry 12 can go once the zprocess floor rises.
+
+Owners who would make a change: runmanager (2, 4, 10, 13's docstring, 14); blacs
+(1, 5, 10); lyse (1, 10); runviewer, labscript-optimization and labscript-agents
+(1); zprocess (8, 12).
+
+### Seen for later steps
+
+- `TomlConfigParser.read_toml`'s first `isinstance(data, dict)` check can never
+  fail, since `tomllib` always returns a dict. Step 4.
+- `get_default_appconfig_file`'s `except (NoOptionError, NoSectionError)`: the
+  `default` section never raises `NoSectionError`, so half the tuple is dead.
+  Step 4.
+- `properties._default`'s numpy branches could be one `isinstance(o,
+  np.generic)` returning `o.item()`, saving 2 lines. Step 6.
+- `configure_qapplication`'s `_labscript_qapplication_configured` property is a
+  darwin detail with a dead branch, 3 lines. Step 4.
+
 ## On merge
 
 These describe Development, which still holds the code step 1 removed. Whoever
