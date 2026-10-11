@@ -83,12 +83,6 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
                 widget.removeEventFilter(self)
                 del self.indents[widget]
                 label_text = self.model.headerData(logical_index, QtCore.Qt.Orientation.Horizontal, QtCore.Qt.ItemDataRole.DisplayRole)
-                # Compatibility with both API types:
-                if hasattr(QtCore, 'QVariant') and isinstance(label_text, QtCore.QVariant):
-                    if label_text.isNull():
-                        return
-                    else:
-                        label_text = label_text.toString()
                 if label_text is None:
                     return
                 else:
@@ -177,12 +171,6 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
                 except KeyError:
                     return
                 label_text = self.model.headerData(logical_index, QtCore.Qt.Orientation.Horizontal, QtCore.Qt.ItemDataRole.DisplayRole)
-                # Compatibility with both API types:
-                if hasattr(QtCore, 'QVariant') and isinstance(label_text, QtCore.QVariant):
-                    if not label_text.isNull():
-                        label_text = label_text.toString()
-                    else:
-                        label_text = ''
                 if label_text is None:
                     label_text = ''
                 raw_label_text = label_text.replace(self.thinspace, '')
