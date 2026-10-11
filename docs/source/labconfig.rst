@@ -1,5 +1,5 @@
 The *labconfig.toml* file
-========================
+=========================
 
 The `labconfig.toml` file is a global configuration file for your **labscript-suite** installation.
 It contains configurable settings that govern how the individual components of the suite operate.

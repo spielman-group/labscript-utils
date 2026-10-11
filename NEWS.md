@@ -67,4 +67,4 @@ compatibility with a newer version of a library.
   ([PR #91](https://bitbucket.org/labscript_suite/labscript_utils/pull-requests/91))
 
 - Compatibility with `importlib_metadata` >= 0.21. Contributed by Chris Billington
-  ([PR #92](https://bitbucket.org/labscript_suite/labscript_utils/pull-requests/88))
+  ([PR #92](https://bitbucket.org/labscript_suite/labscript_utils/pull-requests/92))
