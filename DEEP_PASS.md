@@ -2881,6 +2881,51 @@ Two facts frame the list:
 - Lines: 1 changed.
 - Owner: labscript-devices.
 
+### Outcome
+
+Ian decided through the coordinator, and in this session for the Qt links. Every
+commit is on CodeHealth; none is merged or pushed.
+- labscript-utils, 15e4b08..61df8f4: every entry as proposed, with these changes.
+  - 1: the held parts are unchanged. The excerpt keeps the lines the proposal
+    chose, so the `mdi` and `dialogs` registrations went with their contexts.
+  - 5: the labscript-devices<3.1 block and headerview's QVariant API 1 branches
+    went with their comments. The unitconversions full-name globals stay,
+    marked due for removal (Ian).
+  - 14: the "will be removed" notes stay, since Ian means to drop the conversion
+    one day. Only "soon" went, and the FutureWarning is unchanged.
+  - 17: `render`'s comment is held with `render`.
+  - 61df8f4, review fixes: four docstrings made exact, and the device registry's
+    text made its module docstring.
+- Entry 12, corrected:
+  - The unused SVG was in labscript-utils and labscript only.
+  - labscript-suite keeps its to-do machinery, since it has real to-dos.
+  - The PyQt5 inventory was not unused: it linked the Qt type names in inherited
+    methods' signatures. Ian chose PyQt6 links instead. adf3168 adds
+    `pyqt6-modified-objects.inv` (89 KB): PyQt6's classes and enums with short
+    aliases, built from Riverbank's `objects.inv` after msl-qt's script.
+  - Nitpicky builds now resolve more than with PyQt5: runmanager 4632
+    unresolved against 4646, and labscript-utils 9314 against 9336.
+- Owners:
+  - runmanager 16857fd, blacs a193f2e, lyse 3a0dff4, runviewer fa6b8d5,
+    labscript e7a5e4d;
+  - labscript-devices f4e6d4f, with `user_devices.rst`;
+  - labscript-suite 45eb515, by the coordinator, with `RunmanagerQueue.md`
+    deleted.
+  - The coordinator makes the meta-repo edits. It leaves
+    `plugin_refactor_prd.md` untouched (Ian), and handles `labscript_project.md`,
+    whose coupling notes go to the librarian.
+  - librarian 1691f7d: the 26 notes, the services note and two capabilities.
+    The inventories are regenerated.
+- Lines in labscript-utils: Python files +183 and -905, net -722; other text -14
+  net; and the SVG, -579.
+- Tests: labscript-utils passes 25 at 61df8f4. Every consumer's suite passes on
+  its CodeHealth against labscript-utils adf3168:
+  - runmanager 139. One run hung while runmanager's own session ran its suite at
+    the same time, and was stopped; the rerun took 11 s.
+  - blacs 68, lyse 44, labscript-devices 41;
+  - labscript-optimization 216, labscript-agents 15, runviewer 10, labscript 3;
+  - hyde's 17 plugin-related test files.
+
 ### Totals
 
 23 entries.
