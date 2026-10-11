@@ -62,18 +62,26 @@ def _get_device_dirs():
 LABSCRIPT_DEVICES_DIRS = _get_device_dirs()
 
 
-class ClassRegister(object):
-    """A register for looking up classes by module name.  Provides a
-     decorator and a method for looking up classes decorated with it,
-     importing as necessary."""
+class ClassRegister:
+    """A register of classes by the name of the module that defines them.
+
+    Calling an instance on a class, as a decorator, registers the class under
+    its module's name. Indexing the instance by a module name imports the module
+    from labscript_devices if necessary and returns its registered class.
+
+    Parameters
+    ----------
+    instancename : str
+        The name of the instance in this namespace, used in error messages.
+    """
+
     def __init__(self, instancename):
         self.registered_classes = {}
         # The name given to the instance in this namespace, so we can use it in error messages:
         self.instancename = instancename
 
     def __call__(self, cls):
-        """Adds the class to the register so that it can be looked up later
-        by module name"""
+        """Register a class under its module's name, and return it."""
         # Add an attribute to the class so it knows its own name in case
         # it needs to look up other classes in the same module:
         cls.labscript_device_class_name = cls.__module__.split('.')[-1]
@@ -84,16 +92,24 @@ class ClassRegister(object):
                 cls.labscript_device_class_name = os.path.splitext(os.path.basename(__main__.__file__))[0]
             except AttributeError:
                 # Maybe they're running interactively? Or some other funky environment. Either way, we can't proceed.
-                raise RuntimeError('Can\'t figure out what the file or module this class is being defined in. ' +
+                raise RuntimeError("Can't figure out what the file or module this class is being defined in. " +
                                    'If you are testing, please test from a more standard environment, such as ' +
                                    'executing a script from the command line, or if you are using an interactive session, ' +
                                    'writing your code in a separate module and importing it.')
 
-        # Add it to the register:
         self.registered_classes[cls.labscript_device_class_name] = cls
         return cls
 
     def __getitem__(self, name):
+        """Return the class registered for the module labscript_devices.<name>.
+
+        Raises
+        ------
+        ImportError
+            If that module cannot be imported.
+        ValueError
+            If the module registers no class with this register.
+        """
         try:
             # Ensure the module's code has run (this does not re-import it if it is already in sys.modules)
             importlib.import_module('.' + name, 'labscript_devices')
@@ -114,8 +130,8 @@ class ClassRegister(object):
             return self.registered_classes[name]
         except KeyError:
             # No? No such class is defined then, or maybe the user forgot to decorate it.
-            raise ValueError('No class decorated as a %s found in module %s, '%(self.instancename, 'labscript_devices' + '.' + name) +
-                             'Did you forget to decorate the class definition with @%s?'%(self.instancename))
+            raise ValueError(f'No class decorated as a {self.instancename} found in module labscript_devices.{name}, '
+                             f'Did you forget to decorate the class definition with @{self.instancename}?')
 
 
 # Decorating labscript device classes and BLACS worker classes was never used for
@@ -123,7 +139,7 @@ class ClassRegister(object):
 # effects. Do nothing, and emit a warning telling the user this.
 def deprecated_decorator(name):
     def null_decorator(cls):
-        msg = '@%s decorator is unnecessary and can be removed' % name
+        msg = f'@{name} decorator is unnecessary and can be removed'
         warnings.warn(msg, stacklevel=2)
         return cls
 
@@ -141,8 +157,19 @@ runviewer_parser = ClassRegister('runviewer_parser')
 
 
 def import_class_by_fullname(fullname):
-    """Import and return a class defined by its fully qualified name as an absolute
-    import path, i.e. "module.submodule.ClassName"."""
+    """Import and return a class from its fully qualified name.
+
+    Parameters
+    ----------
+    fullname : str
+        The absolute import path of the class, such as
+        ``"module.submodule.ClassName"``.
+
+    Returns
+    -------
+    type
+        The class.
+    """
     split = fullname.split('.')
     module_name = '.'.join(split[:-1])
     class_name = split[-1]
@@ -151,11 +178,25 @@ def import_class_by_fullname(fullname):
 
 
 def deprecated_import_alias(fullname):
-    """A way of allowing a class to be imported from an old location whilst a) not
-    actually importing it until it is instantiated and b) emitting a warning pointing to
-    the new import location. fullname must be a fully qualified class name with an
-    absolute import path. Use by calling in the module where the class used to be:
-    ClassName = deprecated_import_alias("new.path.to.ClassName")"""
+    """Allow a class to be imported from an old location.
+
+    The class is not imported until the returned callable is first called, and
+    a warning then points to the new import location. Use it in the module
+    where the class used to be::
+
+        ClassName = deprecated_import_alias("new.path.to.ClassName")
+
+    Parameters
+    ----------
+    fullname : str
+        The absolute import path of the class at its new location.
+
+    Returns
+    -------
+    callable
+        Calls the class with the arguments it is given and returns the
+        instance.
+    """
     calling_module_name = inspect.getmodule(inspect.stack()[1][0]).__name__
     cls = []
     def wrapper(*args, **kwargs):
@@ -180,8 +221,25 @@ runviewer_parser_registry = {}
 # The script files that registered each device, for use in error messages:
 _register_classes_script_files = {}
 
-# Wrapper functions to get devices out of the class registries.
 def get_BLACS_tab(name):
+    """Return the BLACS tab class of a labscript device.
+
+    Parameters
+    ----------
+    name : str
+        The device class name.
+
+    Returns
+    -------
+    type
+        The class named in a `register_classes` call for the device, or else
+        the one decorated with `BLACS_tab` in labscript_devices/<name>.py.
+
+    Raises
+    ------
+    ImportError, ValueError
+        If neither method finds the class, as for indexing a `ClassRegister`.
+    """
     if not BLACS_tab_registry:
         populate_registry()
     if name in BLACS_tab_registry:
@@ -191,6 +249,24 @@ def get_BLACS_tab(name):
 
 
 def get_runviewer_parser(name):
+    """Return the runviewer parser class of a labscript device.
+
+    Parameters
+    ----------
+    name : str
+        The device class name.
+
+    Returns
+    -------
+    type
+        The class named in a `register_classes` call for the device, or else
+        the one decorated with `runviewer_parser` in labscript_devices/<name>.py.
+
+    Raises
+    ------
+    ImportError, ValueError
+        If neither method finds the class, as for indexing a `ClassRegister`.
+    """
     if not runviewer_parser_registry:
         populate_registry()
     if name in runviewer_parser_registry:
@@ -200,17 +276,27 @@ def get_runviewer_parser(name):
 
 
 def register_classes(labscript_device_name, BLACS_tab=None, runviewer_parser=None):
-    """Register the name of the BLACS tab and/or runviewer parser that belong to a
-    particular labscript device. labscript_device_name should be a string of just the
-    device name, i.e. "DeviceName". BLACS_tab_fullname and runviewer_parser_fullname
-    should be strings containing the fully qualified import paths for the BLACS tab and
-    runviewer parser classes, such as "labscript_devices.DeviceName.DeviceTab" and
-    "labscript_devices.DeviceName.DeviceParser". These need not be in the same module as
-    the device class as in this example, but should be within labscript_devices. This
-    function should be called from a file called "register_classes.py" within a
-    subfolder of labscript_devices. When BLACS or runviewer start up, they will call
-    populate_registry(), which will find and run all such files to populate the class
-    registries prior to looking up the classes they need"""
+    """Register the BLACS tab and runviewer parser classes of a labscript device.
+
+    Call this from a file called ``register_classes.py`` in a subfolder of
+    labscript_devices. `get_BLACS_tab` and `get_runviewer_parser` find and run
+    all such files through `populate_registry` before looking up a class.
+
+    Parameters
+    ----------
+    labscript_device_name : str
+        The device name alone, such as ``"DeviceName"``.
+    BLACS_tab, runviewer_parser : str, optional
+        The fully qualified import paths of the BLACS tab and runviewer parser
+        classes, such as ``"labscript_devices.DeviceName.DeviceTab"``. They
+        need not be in the same module as the device class, but should be
+        within labscript_devices.
+
+    Raises
+    ------
+    ValueError
+        If a device of this name has already been registered.
+    """
     if labscript_device_name in _register_classes_script_files:
         other_script =_register_classes_script_files[labscript_device_name]
         msg = """A device named %s has already been registered by the script %s.
@@ -223,20 +309,17 @@ def register_classes(labscript_device_name, BLACS_tab=None, runviewer_parser=Non
 
 
 def populate_registry():
-    """Walk the labscript_devices folder looking for files called register_classes.py,
-    and run them. These files are expected to make calls to
-    register_classes() to inform us of what BLACS tabs and runviewer classes correspond
-    to their labscript device classes."""
-    # We execute the register_classes modules as a direct submodule of labscript_devices.
+    """Run every ``register_classes.py`` in the device folders.
+
+    These files call `register_classes` to name the BLACS tab and runviewer
+    parser classes of their devices. The folders are those in
+    `LABSCRIPT_DEVICES_DIRS`, searched recursively.
+    """
     for devices_dir in LABSCRIPT_DEVICES_DIRS:
         for folder, _, filenames in os.walk(devices_dir):
             if 'register_classes.py' in filenames:
-                # The module name is the path to the file, relative to the labscript suite
-                # install directory:
-                # Open the file using the import machinery, and run it
+                # Run the file without importing it: importing would need a unique name
+                # for each in sys.modules, and we only need the calls it makes.
                 spec = importlib.machinery.PathFinder.find_spec('register_classes', [folder])
                 mod = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(mod)
-                # fully importing module would require adding to sys.modules
-                # and each import would need to have unique names
-                # but we just need to run the registering code, not actually import the module
