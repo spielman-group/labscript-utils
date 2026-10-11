@@ -55,7 +55,7 @@ def get_default_appconfig_file(
 ):
     try:
         default_path = os.path.join(exp_config.get('default', 'app_saved_configs'), app_name)
-    except (LabConfig.NoOptionError, LabConfig.NoSectionError):
+    except LabConfig.NoOptionError:
         exp_config.set(
             'default',
             'app_saved_configs',
@@ -242,9 +242,6 @@ def _resolve_appconfig_load_path(filename):
     return toml_path
 
 
-def _resolve_appconfig_save_path(filename):
-    return appconfig_path_with_suffix(filename, '.toml')
-
 # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
 def backup_legacy_config(path):
     """Rename a migrated legacy config file to ``.old`` without clobbering backups."""
@@ -280,7 +277,7 @@ def save_appconfig(filename, data):
     The data goes to ``tomli_w`` as it is, so a ``None`` at any depth, which TOML
     cannot represent, raises its ``TypeError``.
     """
-    filename = _resolve_appconfig_save_path(filename)
+    filename = appconfig_path_with_suffix(filename, '.toml')
     filename.parent.mkdir(parents=True, exist_ok=True)
     dump_toml_file(filename, data)
     return str(filename)
@@ -296,7 +293,7 @@ def load_appconfig(filename, return_save_path=False):
     """
     requested_path = Path(filename)
     filename = _resolve_appconfig_load_path(filename)
-    save_path = _resolve_appconfig_save_path(requested_path)
+    save_path = appconfig_path_with_suffix(requested_path, '.toml')
     # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
     if filename.suffix.lower() == '.ini':
         c = configparser.ConfigParser(interpolation=None)

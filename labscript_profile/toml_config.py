@@ -137,8 +137,6 @@ class TomlConfigParser(configparser.ConfigParser):
 
     def read_toml(self, filename):
         data = load_toml_file(filename)
-        if not isinstance(data, dict):
-            raise TypeError("Top-level TOML document must be a mapping of sections")
         for section_name, section in data.items():
             if not isinstance(section, dict):
                 raise TypeError(f"Section {section_name!r} must contain key/value pairs")

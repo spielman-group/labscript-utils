@@ -232,11 +232,6 @@ class ZMQServer(zprocess.ZMQServer):
         return 'hello'
 
 
-# Seconds a bound client waits for a reply when the labconfig sets no
-# timeouts/communication_timeout:
-COMMUNICATION_DEFAULT_TIMEOUT = 60
-
-
 class ZMQClient(zprocess.ZMQClient):
     """A singleton zprocess.ZMQClient configured with settings from labconfig for
     security.  Being a singleton is not enforced - the class can still be
@@ -265,8 +260,7 @@ class ZMQClient(zprocess.ZMQClient):
             else ``default_port``.
         timeout : float, optional
             For a bound client, defaults to the labconfig's
-            ``timeouts/communication_timeout``, else
-            ``COMMUNICATION_DEFAULT_TIMEOUT``.
+            ``timeouts/communication_timeout``, else 60 seconds.
         """
         config = get_config()
         super().__init__(
@@ -285,7 +279,7 @@ class ZMQClient(zprocess.ZMQClient):
                 timeout = labconfig.getfloat(
                     'timeouts',
                     'communication_timeout',
-                    fallback=COMMUNICATION_DEFAULT_TIMEOUT,
+                    fallback=60,
                 )
         self.host = host
         self.port = port
