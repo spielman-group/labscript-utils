@@ -71,7 +71,12 @@ def _relative_luminance(color):
 
 
 def contrast_ratio(color_a, color_b):
-    """Return the WCAG 2.0 contrast ratio of two QColors, from 1 up to 21."""
+    """Return the WCAG 2.0 contrast ratio of two colors, from 1 up to 21.
+
+    Parameters
+    ----------
+    color_a, color_b : QColor
+    """
     luminance_a = _relative_luminance(color_a)
     luminance_b = _relative_luminance(color_b)
     lighter = max(luminance_a, luminance_b)
@@ -80,6 +85,12 @@ def contrast_ratio(color_a, color_b):
 
 
 def best_contrast(reference, candidates):
-    """Return whichever of the ``candidates`` QColors contrasts most with
-    ``reference``, the first of them on a tie."""
+    """Return the candidate color that contrasts most with the reference color.
+
+    Parameters
+    ----------
+    reference : QColor
+    candidates : iterable of QColor
+        At least one. The first of those that tie wins.
+    """
     return max(candidates, key=lambda color: contrast_ratio(reference, color))

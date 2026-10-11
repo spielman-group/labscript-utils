@@ -11,7 +11,7 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-"""File and folder dialogs that return an absolute path, or None if the user cancels.
+"""File and folder dialogs that return absolute paths, or None if the user cancels.
 
 Each takes the dialog's ``parent`` widget, its ``caption``, the ``directory`` (folder
 or file) it starts at and, except ``choose_folder``, a ``name_filter`` such as

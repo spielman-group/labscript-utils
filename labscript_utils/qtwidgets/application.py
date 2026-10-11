@@ -42,12 +42,29 @@ class LabscriptGuiApplication(LabscriptApplication):
 
     @inmain_decorator()
     def error_dialog(self, message):
-        """Warn the user with ``message``, from any thread."""
+        """Warn the user, from any thread.
+
+        Parameters
+        ----------
+        message : str
+            The text of the warning.
+        """
         QtWidgets.QMessageBox.warning(self.ui, self.app_name, message)
 
     @inmain_decorator()
     def question_dialog(self, message):
-        """Ask the user a Yes/No ``message`` from any thread, and return the answer."""
+        """Ask the user a Yes/No question, from any thread.
+
+        Parameters
+        ----------
+        message : str
+            The question.
+
+        Returns
+        -------
+        bool
+            True if the user answers Yes.
+        """
         reply = QtWidgets.QMessageBox.question(
             self.ui, self.app_name, message, _Button.Yes | _Button.No
         )
