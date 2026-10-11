@@ -78,7 +78,8 @@ class ShotQueueWidget(QtWidgets.QWidget):
 
     ``set_row_infos`` fills it. Rows are reported by the identity the caller gave
     each, not by position. ``path_column`` shows the shot file and takes the
-    width the other columns leave, which fit their contents.
+    width the other columns leave, which fit their contents. ``queue_model`` and
+    ``queue_view`` are its item model and tree view.
     """
 
     def __init__(self, parent=None, *, column_titles, path_column):

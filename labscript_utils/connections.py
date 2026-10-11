@@ -37,6 +37,10 @@ class ConnectionTable:
 
     Attributes
     ----------
+    filepath : str
+        The file the table was read from.
+    raw_table : numpy.ndarray
+        The connection table dataset as read, empty if the file has none.
     table : dict
         `Connection` objects keyed by device name.
     toplevel_children : dict

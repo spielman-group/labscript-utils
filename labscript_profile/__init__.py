@@ -70,8 +70,9 @@ def add_userlib_and_pythonlib():
     try:
         labconfig = ensure_labconfig()
     except (OSError, CalledProcessError):
-        # Every interpreter start runs this, through the .pth file: an unreadable
-        # host name must not print a traceback there. The apps still raise it.
+        # Every interpreter start runs this, through the .pth file: a host name that
+        # cannot be read, or a legacy INI that cannot be converted, must not print a
+        # traceback there. The apps still raise it.
         return
     if labconfig is None:
         return

@@ -59,6 +59,8 @@ def get_unit_conversion_class(fullname):
     ------
     KeyError
         If a bare class name is not defined in this package.
+    ImportError, AttributeError
+        If a full name's module cannot be imported, or does not define the class.
     """
     if '.' not in fullname:
         if __all__.__all__ is None:

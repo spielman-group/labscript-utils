@@ -19,7 +19,7 @@ class LockableOutput:
 
     List it before the widget's Qt base class. The widget installs itself as its
     own event filter, so that the menu opens while its target is disabled and a
-    disabled widget passes scroll-wheel events to its parent. It also sets
+    disabled widget passes scroll-wheel events to its parent. A subclass must set
     ``_lock_target``, the widget that locking disables, and ``_output``, its BLACS
     output or None.
     """
