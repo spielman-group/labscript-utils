@@ -18,7 +18,6 @@ from qtutils.qt.QtWidgets import *
 from qtutils.qt.QtCore import pyqtSignal as Signal
 
 
-FILEPATH_COLUMN = 0
 # An identity the caller attaches to a row, and gets back when asked what is
 # selected. Rows are reported by identity rather than by position because the
 # queue behind the widget moves on its own -- a shot finishing removes a row
@@ -28,7 +27,6 @@ ROW_ID_ROLE = Qt.UserRole + 1
 # Whether a rule is drawn under a row, to set it apart from those below it.
 RULE_BELOW_ROLE = Qt.UserRole + 2
 __all__ = [
-    'FILEPATH_COLUMN',
     'ROW_ID_ROLE',
     'RULE_BELOW_ROLE',
     'ShotQueueTreeView',
@@ -87,7 +85,7 @@ class ShotQueueTreeView(QTreeView):
 class ShotQueueWidget(QWidget):
     """Reusable shot queue widget."""
 
-    def __init__(self, parent=None, *, column_titles, path_column=FILEPATH_COLUMN):
+    def __init__(self, parent=None, *, column_titles, path_column):
         QWidget.__init__(self, parent)
         self.column_titles = list(column_titles)
         self.path_column = int(path_column)
@@ -114,8 +112,6 @@ class ShotQueueWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.queue_view)
-
-        self._update_button_states()
 
     def selected_ids(self):
         """The identities of the selected rows, skipping rows given none."""
@@ -206,9 +202,6 @@ class ShotQueueWidget(QWidget):
         tooltip = column_info.get('tooltip', '')
         alignment = column_info.get('alignment', Qt.AlignLeft | Qt.AlignVCenter)
         return self._create_display_item(text, tooltip=tooltip, alignment=alignment)
-
-    def _update_button_states(self):
-        pass
 
     def _select_rows(self, rows):
         rows = list(rows)
