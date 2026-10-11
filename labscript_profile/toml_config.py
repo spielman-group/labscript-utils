@@ -7,11 +7,8 @@ import tomli_w
 def as_config_list(value):
     """Return a labconfig value as a list of stripped strings.
 
-    TOML gives options native types, so a path-list option may arrive either as
-    a comma-separated string, as it always did under INI, or as a real TOML
-    array. Accept both; a single number or boolean raises ``TypeError``.
-
-    Use it for any option that code would otherwise read as a string.
+    The value may be a comma-separated string or a TOML array; a single number or
+    boolean raises ``TypeError``.
     """
     if value is None:
         return []

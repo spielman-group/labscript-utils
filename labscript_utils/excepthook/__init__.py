@@ -37,9 +37,8 @@ _original_showwarning = warnings.showwarning
 
 
 def install_thread_excepthook():
-    """
-    Workaround for sys.excepthook thread bug
-    (https://sourceforge.net/tracker/?func=detail&atid=105470&aid=1230540&group_id=5470).
+    """Route exceptions in threads to ``sys.excepthook``, which threads do not call.
+
     Call once from __main__ before creating any threads.
     """
     run_old = threading.Thread.run

@@ -79,21 +79,9 @@ def get_import_path(import_name):
 
 
 def _get_metadata_version(project_name, import_path):
-    """Gets the package metadata version.
+    """Return the metadata version of ``project_name`` at ``import_path``, or None.
 
-    Args:
-        project_name (str): The package name (e.g. the name used when pip installing
-            the package).
-        import_path (str): The path to the folder containing the installed package.
-
-    Raises:
-        :exc:`BrokenInstall`: Raised if the package installation is corrupted (multiple
-            packages matching the given arguments were found). May occur if 
-            (un)installation for a particular package version only partially completed.
-    
-    Returns:
-        The metadata version for a package with the given project name located at
-        the given import path, or None if there is no such package.
+    Raise BrokenInstall if several installations match.
     """
     
     for finder in sys.meta_path:
@@ -111,15 +99,7 @@ def _get_metadata_version(project_name, import_path):
 
 
 def _get_literal_version(filename):
-    """Tokenize a source file and return any :code:`__version__ = <version>` literal 
-    defined in it.
-
-    Args:
-        filename (str): The path to the file to tokenize.
-
-    Returns:
-        Any version literal found matching the above criteria, or None.
-    """
+    """Return the ``__version__ = '<v>'`` literal in a source file, or None."""
     if not os.path.exists(filename):
         return None
     with open(filename, 'r') as f:
@@ -176,15 +156,11 @@ def package_version(package):
 
 
 def get_version(import_name, project_name=None, import_path=None):
-    """Try very hard to get the version of a package without importing it. 
-    
-    If import_path is not given, first find where it would be imported from, without
-    importing it. Then look for metadata in the same import path with the given project
-    name (note: this is not always the same as the import name, it is the name for
-    example you would ask pip to install). If that is found, return the version info
-    from it. Otherwise look for a :code:`__version__.py` file in the package directory,
-    or a :code:`__version__ = <version>` literal defined in the package source (without
-    executing it).
+    """Return the version of a package without importing it.
+
+    Look, in order, for a setuptools_scm version, installed metadata for
+    ``project_name`` (the name given to pip, which may differ from the import name),
+    a ``__version__.py`` file, and a ``__version__`` literal in the package source.
 
     Args:
         import_name (str): The module name.
@@ -247,17 +223,11 @@ def get_version(import_name, project_name=None, import_path=None):
 
 
 def check_version(module_name, at_least, less_than, version=None, project_name=None):
-    """Checks if a module version is within specified bounds.
-    
-    Checks that the version of the given module is at least and less than the given
-    version strings. This function uses :func:`get_version` to determine version 
-    numbers without importing modules. In order to do this, :code:`project_name` must
-    be provided if it differs from :code:`module_name`. For example, pyserial is 
-    imported as 'serial', but the project name, as passed to a 'pip install' command, 
-    is 'pyserial'. Therefore to check the version of pyserial, pass in
-    :code:`module_name='serial'` and :code:`project_name='pyserial'`. 
-    You can also pass in a version string yourself, in which case no inspection of
-    packages will take place.
+    """Raise VersionException unless ``at_least <= version < less_than``.
+
+    The version comes from :func:`get_version`, or from ``version``. Pass
+    ``project_name`` when it differs from ``module_name``, as for pyserial imported
+    as 'serial'.
 
     Args:
         module_name (str): The name of the module to check.

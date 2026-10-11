@@ -27,12 +27,10 @@ from labscript_utils.qtwidgets.elide_label import elide_label
 class LinkIndicator(QtWidgets.QWidget):
     """A remote application's name, link icon and status, showing whether it answers.
 
-    The name and icon share a row, with the status under them. Once started, it
-    asks the application on a background thread, with a hello or ``command``,
-    showing checking until the first answer. The status is one line, elided to the
-    room it has, with the whole status shown on hover. ``show_state`` may be called
-    from any thread, and takes effect when the GUI thread next processes events,
-    even when called on it.
+    Once started, it asks the application on a background thread, with a hello or
+    ``command``, showing checking until the first answer. ``show_state`` may be
+    called from any thread, and takes effect when the GUI thread next processes
+    events, even when called on it.
 
     It asks through a client of its own, so a caller passes the application's
     address, never a client: zprocess requests from two threads on one client can
@@ -56,12 +54,6 @@ class LinkIndicator(QtWidgets.QWidget):
     status_width : int, optional
         The indicator's fixed width, in pixels. A longer status is elided.
     parent : QWidget, optional
-
-    Examples
-    --------
-    >>> indicator = LinkIndicator('lyse', client.host, client.port)
-    >>> ui.lyse_link_layout.addWidget(indicator)
-    >>> indicator.start()
     """
 
     def __init__(

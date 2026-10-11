@@ -32,13 +32,10 @@ def _escape_braces(text):
 
 
 def unescape_braces(text):
-    """Undo the brace escaping applied when producing a template.
+    """Undo the brace escaping applied when producing a template, to display it.
 
-    Use this only to display a partially formatted template. A value passed on
-    to the per-shot pass must keep its escaping for that pass to undo, so
-    unescaping centrally, in runmanager's ``new_sequence_details`` for instance,
-    breaks per-shot output paths. Kept beside :func:`_escape_braces` so the two
-    cannot drift apart.
+    Do not unescape a value that goes on to the per-shot pass, which needs the
+    escaping.
     """
     return text.replace('{{', '{').replace('}}', '}')
 

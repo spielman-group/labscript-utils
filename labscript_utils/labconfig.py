@@ -216,13 +216,8 @@ APPCONFIG_SUFFIXES = ('.toml', '.ini')
 
 
 def appconfig_path_with_suffix(path, suffix):
-    """Return ``path`` carrying ``suffix``.
-
-    ``Path.with_suffix()`` replaces everything after the last dot, which is only
-    correct when the path already ends in an app config extension. App config
-    paths are routinely built from names that legitimately contain dots, such as
-    an analysis script called ``rb.87.imaging``, where replacing would silently
-    address a different file. Append in that case instead.
+    """Return ``path`` with ``suffix``, appended unless the path already ends in an
+    app config extension, so that ``rb.87.imaging`` is not cut at its last dot.
     """
     path = Path(path)
     if path.suffix.lower() in APPCONFIG_SUFFIXES:

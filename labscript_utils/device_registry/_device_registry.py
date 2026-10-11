@@ -9,40 +9,17 @@ from labscript_utils.labconfig import LabConfig
 from labscript_profile.toml_config import as_config_list
 
 
-"""This file contains the machinery for registering and looking up what BLACS tab and
-runviewer parser classes belong to a particular labscript device. "labscript device"
-here means a device that BLACS needs to communicate with. These devices have
-instructions saved within the 'devices' group of the HDF5 file, and have a tab
-corresponding to them in the BLACS interface. These device classes must have unique
-names, such as "PineBlaster" or "PulseBlaster" etc.
-There are two methods we use to find out which BLACS tab and runviewer parser correspond
-to a device class: the "old" method, and the "new" method. The old method requires that
-the the BLACS tab and runviewer parser be in a file called <DeviceName>.py at the top
-level of labscript_devices folder, and that they have class decorators @BLACS_tab or
-@runviewer_parser to identify them. This method precludes putting code in subfolders or
-splitting it across multiple files.
-The "new" method is more flexible. It allows BLACS tabs and runviewer parsers to be
-defined in any importable file within a subfolder of labscript_devices. Additionally,
-the 'user_devices' configuration setting in labconfig can be used to specify a
-comma-delimited list of names of importable packages containing additional labscript
-devices.
-Classes using the new method can be in files with any name, and do not need class
-decorators. Instead, the classes should be registered by creating a file called
-'register_classes.py', which when imported, makes calls to
-labscript_devices.register_classes() to register which BLACS tab and runviewer parser
-class belong to each device. Tab and parser classes must be passed to register_classes()
-as fully qualified names, i.e. "labscript_devices.submodule.ClassName", not by passing
-in the classes themselves. This ensures imports can be deferred until the classes are
-actually needed. When BLACS and runviewer look up classes with get_BLACS_tab() and
-get_runviewer_parser(), populate_registry() will be called in order to find all files
-called 'register_classes.py' within subfolders (at any depth) of labscript_devices, and
-they will be imported to run their code and hence register their classes.
-The "new" method does not impose any restrictions on code organisation within subfolders
-of labscript_devices, and so is preferable as it allows auxiliary utilities or resource
-files to live in subfolders alongside the device code to which they are relevant, the
-use of subrepositories, the grouping of similar devices within subfolders, and other
-nice things to have.
-The old method may be deprecated in the future.
+"""Registration and lookup of the BLACS tab and runviewer parser classes that belong to
+a labscript device. Device class names must be unique, such as "PulseBlaster".
+
+A file called 'register_classes.py', at any depth within labscript_devices or a package
+named by the 'user_devices' labconfig setting, calls register_classes() with the fully
+qualified names of the device's tab and parser classes, so the imports are deferred
+until the classes are needed. get_BLACS_tab() and get_runviewer_parser() call
+populate_registry() to run every such file.
+
+If a device has no entry, they fall back on a module <DeviceName>.py at the top level of
+labscript_devices, whose classes are decorated with @BLACS_tab or @runviewer_parser.
 """
 
 
@@ -158,10 +135,8 @@ labscript_device = deprecated_decorator('labscript_device')
 BLACS_worker = deprecated_decorator('BLACS_worker')
 
 
-# These decorators can still be used, but their use will be deprecated in the future
-# once all devices in mainline are moved into subfolders with a register_classes.py that
-# will play the same role. For the moment we support both mechanisms of registering
-# which BLACS tab and runviewer parser class belong to a particular device.
+# Registers for the decorator mechanism, which get_BLACS_tab() and
+# get_runviewer_parser() fall back on when register_classes() has no entry.
 BLACS_tab = ClassRegister('BLACS_tab')
 runviewer_parser = ClassRegister('runviewer_parser')
 
