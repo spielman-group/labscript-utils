@@ -265,4 +265,9 @@ class ShotQueueWidget(QtWidgets.QWidget):
                 | QtCore.QItemSelectionModel.SelectionFlag.Rows,
             )
         if rows:
-            self.queue_view.setCurrentIndex(self.queue_model.index(rows[0], self.path_column))
+            # The view's setCurrentIndex reselects by the held keyboard modifiers,
+            # which with none held collapses the selection to this one row.
+            selection_model.setCurrentIndex(
+                self.queue_model.index(rows[0], self.path_column),
+                QtCore.QItemSelectionModel.SelectionFlag.NoUpdate,
+            )
