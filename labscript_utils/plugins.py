@@ -1059,25 +1059,8 @@ class PluginManager(object):
                     module_name in self.default_plugins,
                 )
 
-            try:
-                enabled = self.config.getboolean(self.config_section, module_name)
-            except ValueError:
-                # A flag that is not a boolean, written so or inherited from a config
-                # default of the same name, must not abort startup. Write a real flag
-                # into the section, which shadows any inherited value.
-                self.logger.warning(
-                    "Plugin '%s' has no boolean enable flag in [%s]; using the "
-                    "default enabled state." % (module_name, self.config_section)
-                )
-                self.config.set(
-                    self.config_section,
-                    module_name,
-                    module_name in self.default_plugins,
-                )
-                enabled = module_name in self.default_plugins
-
             # Only load activated plugins.
-            if enabled:
+            if self.config.getboolean(self.config_section, module_name):
                 try:
                     module = importlib.import_module(
                         self.plugin_package + '.' + module_name

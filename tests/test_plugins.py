@@ -441,26 +441,6 @@ def _make_plugin_dirs(tmp_path, names):
     return str(tmp_path)
 
 
-def test_non_boolean_or_inherited_plugin_flag_does_not_stop_discovery(tmp_path):
-    """Neither an inherited config default nor a non-boolean flag stops discovery."""
-    config = make_labconfig(
-        tmp_path,
-        "[default]\nuserlib = '/some/path/userlib'\n\n"
-        "[\"app/plugins\"]\ntheme = 1\n",
-    )
-    plugins_dir = _make_plugin_dirs(tmp_path / 'plugins', ['userlib', 'theme'])
-    manager = PluginManager(
-        'package.plugins', plugins_dir, config, 'app/plugins',
-        default_plugins=(), logger=logging.getLogger('test.plugins.discover.defaults'),
-    )
-
-    modules = manager.discover_modules()
-
-    assert modules == {}
-    assert config.get('app/plugins', 'userlib') is False
-    assert config.get('app/plugins', 'theme') is False
-
-
 def test_discovery_keeps_an_enable_flag_already_in_the_config(tmp_path):
     """A section option shadows the default, so an explicit flag still wins."""
     config = make_labconfig(
