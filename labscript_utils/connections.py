@@ -95,7 +95,6 @@ class ConnectionTable(object):
                 # for each top level child in other, check if children of that object are also children of the child in self.
                 result, child_error = self.toplevel_children[name].compare_to(connection)
                 if not result:
-                    #TODO more info on what doesn't match? Print a diff and return it as part of the message?
                     if self.logger: self.logger.error('Connection table mismatch')
                     if "children" not in error:
                         error["children"] = {}
@@ -205,7 +204,6 @@ class Connection(object):
             if labscript_utils.properties.is_json(value):
                 return labscript_utils.properties.deserialise(value)
             else:
-                # Backward compatibility with older hdf5 files:
                 return ast.literal_eval(ensure_str(value))
         return ensure_str(value)
 
@@ -268,7 +266,6 @@ class Connection(object):
                     error.setdefault("children",{})
                     error["children"][name] = child_error
                 
-        # We made it!
         if error != {}:
             return False, error
         else:

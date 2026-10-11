@@ -95,14 +95,11 @@ class DoubleImportDenier(object):
         exists = hasattr(sys, 'tracebacklimit')
         orig_tracebacklimit = getattr(sys, 'tracebacklimit', None)
         def excepthook(*args, **kwargs):
-            # Raise the error normally
             orig_excepthook(*args, **kwargs)
-            # Restore sys.tracebacklimit
             if exists:
                 sys.tracebacklimit = orig_tracebacklimit
             else:
                 del sys.tracebacklimit
-            # Restore sys.excepthook:
             sys.excepthook = orig_excepthook
         sys.excepthook = excepthook
 
@@ -124,12 +121,9 @@ class DoubleImportDenier(object):
         msg += "Traceback (second time imported, as %s):\n" % name
         msg += "------------\n%s------------" % tb
 
-        # We set sys.tracebacklimit to a small number to not print all the
-        # nonsense from the import machinary in the traceback, it is not
-        # useful to the user in reporting this exception. But we have to jump
-        # through this hoop to make sure sys.tracebacklimit is restored after
-        # our exception is raised, since putting it in a finally: block
-        # doesn't work:
+        # Limit the traceback, hiding import-machinery frames. A finally: block cannot
+        # restore the limit, as it runs before the exception is printed, so a
+        # temporary excepthook does.
         self._restore_tracebacklimit_after_exception()
 
         sys.tracebacklimit = 2

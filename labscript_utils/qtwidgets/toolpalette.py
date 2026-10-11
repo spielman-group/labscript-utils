@@ -230,24 +230,10 @@ class ToolPalette(QtWidgets.QScrollArea):
         return super().event(event)
 
     def resizeEvent(self, event):
-        # overwrite the resize event!
-        # This method can end up undergoing infinite recursion for some window
-        # layouts, see
-        # https://github.com/labscript-suite/labscript-utils/issues/27. It seems
-        # that sometimes self._layout_widgets() increases the number of columns,
-        # which then triggers a resizeEvent, which then calls
-        # self._layout_widgets() which then decreases the number of columns to
-        # its previous value, which triggers a resizeEvent, and so on. That loop
-        # may occur e.g. if increasing/decreasing the number of columns
-        # add/removes a scrollbar, which then changes the number of widgets that
-        # can fit in a row. Keeping track of the recursion depth isn't trivial
-        # because _layout_widgets() doesn't directly call itself; it just causes
-        # more resizing events to be added to the event queue. To work around
-        # that, this method will mark that future calls to this method shouldn't
-        # call _layout_widgets() but will also add an event to the event queue
-        # to reenable calling _layout_widgets() again once all of the resize
-        # events caused by this call to it have been processed.
-        
+        # _layout_widgets() can change the column count, which adds or removes a
+        # scrollbar and triggers another resizeEvent, endlessly (issue 27). Skip it
+        # until an event posted at the queue's end re-enables it.
+
         try:
             #pass resize event on to qwidget
             QtWidgets.QWidget.resizeEvent(self, event)

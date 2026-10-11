@@ -18,11 +18,8 @@ from qtutils.qt.QtWidgets import *
 from qtutils.qt.QtCore import pyqtSignal as Signal
 
 
-# An identity the caller attaches to a row, and gets back when asked what is
-# selected. Rows are reported by identity rather than by position because the
-# queue behind the widget moves on its own -- a shot finishing removes a row
-# while the operator has one selected -- and a position that meant one row when
-# it was drawn means another by the time it is acted on.
+# An identity the caller attaches to a row. Rows are reported by identity, not
+# position: the queue moves on its own, and a position goes stale.
 ROW_ID_ROLE = Qt.UserRole + 1
 # Whether a rule is drawn under a row, to set it apart from those below it.
 RULE_BELOW_ROLE = Qt.UserRole + 2
@@ -41,12 +38,8 @@ class _RuleBelowDelegate(QStyledItemDelegate):
         QStyledItemDelegate.paint(self, painter, option, index)
         if not index.data(RULE_BELOW_ROLE):
             return
-        # From the text colour, dimmed -- not from a frame role like Dark or
-        # Mid. Those are defined relative to Window rather than to the list a
-        # row sits on, and a dark theme puts Dark *below* Base: measured
-        # against a #232323 list, a Dark rule differs by 0.04 in luminance and
-        # cannot be seen at all. Text against Base is the one contrast every
-        # usable theme has to get right, whichever way round it is.
+        # Dimmed text colour, not a frame role such as Dark or Mid: those are relative
+        # to Window, and in a dark theme Dark sits below Base and the rule cannot be seen.
         colour = QColor(option.palette.color(QPalette.ColorRole.Text))
         colour.setAlpha(140)
         painter.save()
@@ -146,12 +139,9 @@ class ShotQueueWidget(QWidget):
         path = os.path.abspath(str(row_info['path']))
         label = row_info.get('label', os.path.basename(path))
         tooltip = row_info.get('tooltip', path)
-        # Anything QStandardItem.setBackground()/setForeground() accept, or
-        # None for the default. What a colour means is the caller's business;
-        # the widget only makes sure it marks the whole row and not one cell of
-        # it. Both, because a background alone leaves the theme's own text
-        # colour on it -- pale text on a pale fill, unreadable, if the two were
-        # chosen for different themes:
+        # Anything setBackground()/setForeground() accept, or None. Both are applied to
+        # every cell, since a background alone leaves the theme's text colour, which
+        # may be unreadable on it.
         background = row_info.get('background')
         foreground = row_info.get('foreground')
         row_id = row_info.get('row_id')

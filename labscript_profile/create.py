@@ -91,11 +91,8 @@ def compile_connection_table():
 
     config = LabConfig()
 
-    # The path to the user's connection_table.py script
     script_path = os.path.expandvars(config['paths']['connection_table_py'])
-    # path to the connection_table.h5 destination
     output_h5_path = os.path.expandvars(config['paths']['connection_table_h5'])
-    # create output directory, if needed
     Path(output_h5_path).parent.mkdir(parents=True, exist_ok=True)
     # The compile reads the run file's globals, so it needs the group, empty here.
     with h5py.File(output_h5_path, 'w') as f:
@@ -116,7 +113,6 @@ def create_profile_cli():
     Parses CLI arguments and calls :func:`~.create_profile`.
     """
 
-    # capture CMD arguments
     parser = argparse.ArgumentParser(prog='labscript-profile-create',
                                      description='Initialises a default labscript profile'
                                      )
@@ -169,7 +165,6 @@ def create_profile(apparatus_name = None, compile_table = False):
     print('Writing labconfig file')
     make_labconfig_file(apparatus_name)
 
-    # rename apparatus directories
     if apparatus_name is not None:
         print('\tRenaming apparatus directories')
         for path in dest.glob('**/example_apparatus/'):

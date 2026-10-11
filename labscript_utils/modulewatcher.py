@@ -66,11 +66,9 @@ class ModuleWatcher(object):
         for name, module in sys.modules.copy().items():
             # Look only at the modules not in the the whitelist:
             if name not in self.whitelist:
-                # Only consider modules which have a non-None __file__ attribute, are
-                # .py (or .pyc) files (no C extensions or builtin modules), that exist
-                # on disk, and that aren't in standard package directories. Add modules
-                # we won't consider to the whitelist so that we don't consider them in
-                # future calls.
+                # Only consider modules with a non-None __file__ that are .py or .pyc
+                # files on disk, outside the package directories. Others are
+                # whitelisted so later calls skip them.
                 if getattr(module, '__file__', None) is None:
                     self.whitelist.add(name)
                     continue
@@ -109,18 +107,13 @@ class ModuleWatcher(object):
             print("\nModuleWatcher: modules unloaded:")
         for name in sorted(sys.modules):
             if name not in self.whitelist:
-                # This unloads a module. This is slightly more general than
-                # reload(module), but has the same caveats regarding existing
-                # references. This also means that any exception in the import will
-                # occur later, once the module is (re)imported, rather than now
-                # where catching the exception would have to be handled differently.
+                # Unload rather than reload: the caveats about existing references are
+                # the same, but an exception in the import surfaces when the module is
+                # next imported, not here.
                 del sys.modules[name]
                 if name in self.modified_times:
                     del self.modified_times[name]
                 if self.debug:
                     print("    " + name)
-        # Replace sys.meta_path with the cached whitelist, effectively removing all
-        # since-added entries from it. Replacement is done in-place in case other
-        # code holds references to sys.meta_path, and to preserve order, since order
-        # is relevant.
+        # Restore sys.meta_path in place, keeping its order, as other code may hold it.
         sys.meta_path[:] = self.meta_whitelist

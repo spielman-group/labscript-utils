@@ -30,9 +30,8 @@ class LessThanFilter(logging.Filter):
 
 
 def setup_logging(program_name, log_level=logging.DEBUG, terminal_level=logging.INFO, maxBytes=1024*1024*50, backupCount=1):
-    # MaxBytes and backupCount args ignored, these are now set in labconfig since they
-    # are settings to the server rather than individual logging handlers. Args are left
-    # in the function signature for backward compatibility.
+    # maxBytes and backupCount are ignored: they are labconfig settings of the zlog
+    # server. They stay in the signature for callers that still pass them.
     ensure_connected_to_zlog()
     logger = logging.getLogger(program_name)
     # Clear any previously added handlers from the logger:
@@ -43,11 +42,8 @@ def setup_logging(program_name, log_level=logging.DEBUG, terminal_level=logging.
     if not os.path.exists(LOG_PATH):
         os.mkdir(LOG_PATH)
 
-    # Add a network logging handler from zprocess. Pass in the name of the program so
-    # that if we are a subprocess, the handler will be configured to use the same
-    # filepath as our parent process. In this way the zlog server won't create multiple
-    # log files with unrelated paths just because the program has a different install
-    # location on different computers that are part of the same process tree.
+    # The name lets a subprocess's handler use its parent's log path, so zlog makes no
+    # unrelated log files for computers of one process tree installed in different places.
     log_path = os.path.join(LOG_PATH, '%s.log' % program_name)
     handler = Handler(log_path, name=program_name)
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')

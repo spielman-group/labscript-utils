@@ -291,14 +291,9 @@ class DragDropTabBar(_BaseDragDropTabBar):
     # common group_id):
     tab_widgets = defaultdict(weakref.WeakSet)
 
-    # Whether or not a drag is in progress. It is important to have this in
-    # addition to the below information so that we can set it to False when a
-    # drag is about to be cancelled, even though we are not going to set the
-    # below variables to None until after some processing. During that
-    # processing, re-entrant event processing can see that there is no drag in
-    # progress even though the below variables are still not None, and know
-    # not to act as if there is a drag in progress (since the drag is in the
-    # process of being cancelled).
+    # Whether a drag is in progress. Set to False as soon as a drag is about to be
+    # cancelled, so re-entrant event processing sees it is over while the variables
+    # below are still being cleared.
     _drag_in_progress = False
 
     # The index and parent TabBar of the dragged tab, or None if no drag is in

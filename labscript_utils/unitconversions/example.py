@@ -16,11 +16,9 @@ class example1(UnitConversion):
     # This must be defined outside of init, and must match the default hardware unit specified within the BLACS tab
     base_unit = 'V'
     
-    # You can pass a dictionary at class instantiation with some parameters to use in your unit converstion.
-    # You can also place a list of "order of magnitude" prefixes (eg, k, m, M, u, p) you also want available
-    # and the UnitConversion class will automatically generate the conversion function based on the functions 
-    # you specify for the "derived units". This list should be stored in the 'magnitudes' key of the parameters
-    # dictionary
+    # The parameters dictionary passed at instantiation is available to the conversions.
+    # List "order of magnitude" prefixes (k, m, M, u, p) under its 'magnitudes' key and
+    # the base class generates the prefixed conversions of each derived unit.
     
     def __init__(self,calibration_parameters = None):            
         self.parameters = calibration_parameters
@@ -42,23 +40,14 @@ class example1(UnitConversion):
         amps = volts * self.parameters['a']
         return amps
     def Gauss_to_base(self,gauss):
-        #here is the calibration code that may use self.parameters
         volts = gauss/self.parameters['b']
         return volts
     def Gauss_from_base(self,volts):
-        #here is the calibration code that may use self.parameters
         gauss = (volts)*self.parameters['b']
         return gauss
         
 class example2(UnitConversion):
-    # This must be defined outside of init, and must match the default hardware unit specified within the BLACS tab
     base_unit = 'MHz'
-    
-    # You can pass a dictionary at class instantiation with some parameters to use in your unit converstion.
-    # You can also place a list of "order of magnitude" prefixes (eg, k, m, M, u, p) you also want available
-    # and the UnitConversion class will automatically generate the conversion function based on the functions 
-    # you specify for the "derived units". This list should be stored in the 'magnitudes' key of the parameters
-    # dictionary
     
     def __init__(self,calibration_parameters = None):            
         self.parameters = calibration_parameters
@@ -71,23 +60,14 @@ class example2(UnitConversion):
         UnitConversion.__init__(self,self.parameters)
 
     def detuned_MHz_to_base(self,d_mhz):
-        #here is the calibration code that may use self.parameters
         mhz = d_mhz - self.parameters['offset']
         return mhz
     def detuned_MHz_from_base(self,mhz):
-        #here is the calibration code that may use self.parameters
         d_mhz = mhz + self.parameters['offset']
         return d_mhz
 
 class example3(UnitConversion):
-    # This must be defined outside of init, and must match the default hardware unit specified within the BLACS tab
     base_unit = 'Vpp'
-    
-    # You can pass a dictionary at class instantiation with some parameters to use in your unit converstion.
-    # You can also place a list of "order of magnitude" prefixes (eg, k, m, M, u, p) you also want available
-    # and the UnitConversion class will automatically generate the conversion function based on the functions 
-    # you specify for the "derived units". This list should be stored in the 'magnitudes' key of the parameters
-    # dictionary
     
     def __init__(self,calibration_parameters = None):            
         self.parameters = calibration_parameters
@@ -101,10 +81,8 @@ class example3(UnitConversion):
         UnitConversion.__init__(self,self.parameters)
 
     def W_to_base(self,watts):
-        #here is the calibration code that may use self.parameters
         vpp = float(watts - self.parameters['int'])/self.parameters['grad']
         return vpp
     def W_from_base(self,vpp):
-        #here is the calibration code that may use self.parameters
         watts = self.parameters['grad']*vpp + self.parameters['int']
         return watts

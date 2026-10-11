@@ -32,10 +32,8 @@ class Settings(object):
         for c in page_classes:
             self.add_settings_interface(c)
             
-    # This function can be called to add a interface
-    # Each one of these will display as a seperate page in the settings window
-    # You can not add a class more than once!
-    # Classes must have unique Class.name attributes! (This might change later...)
+    # Each interface is a separate page of the settings window. Its Class.name must
+    # be unique: adding a name twice returns False.
     def add_settings_interface(self,setting_class):
         if setting_class.name in self.pages:
             return False

@@ -97,11 +97,7 @@ def set_logger(logger):
     l.logger = logger
     warnings.showwarning = logwarning
 
-# Check for tkinter availability. Tkinter is frustratingly not available
-# by default for python 3.x on Debian systems, despite being considered
-# part of the Python standard library. I'll make it a dependency for
-# packaging, but this is an extra check at runtime so that if something
-# goes wrong with that we get an error at import rather than later:
+# Fail at import, not later, if tkinter is missing: some Debian Pythons omit it.
 import tkinter
 sys.excepthook = tkhandler
 install_thread_excepthook()

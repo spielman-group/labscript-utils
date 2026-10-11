@@ -65,22 +65,9 @@ class File(_File):
         if hasattr(self, 'kill_lock'):
             self.kill_lock.release()
 
-    # Overriding __exit__ is crucial. Since h5py.File.__exit__() holds h5py's
-    # library-wide lock "phil", it calls close() whilst holding that lock. Our close()
-    # method does not need the lock (h5py.File.close() does, but it acquires it itself
-    # as needed), but this means they we're holding phil when we call
-    # kill_lock.release(), which, in order to be thread-safe, attempts to aquire
-    # kill_lock._lock, briefly. If another thread holds kill_lock._lock at the time, and
-    # whilst holding it, Python garbage collection runs in that thread, and there are
-    # HDF5 objects waiting to be deallocated, then Python deadlocks. This is beause the
-    # deallocation in h5py is done while holding phil. But phil is held by our close()
-    # method, so deallocation must wait for our close method to return. However our
-    # close method is waiting to acquire kill_lock._lock, which will not be released by
-    # the other thread until garbage collection is complete. Python hangs.
-    #
-    # The solution is just not not hold phil in __exit__. It does not appear to be
-    # necessary. I will report this as an issue in h5py, and will remove this workaround
-    # if it is fixed in a future version.
+    # Not holding h5py's library-wide lock ("phil") in __exit__ avoids a deadlock:
+    # close() would take kill_lock._lock under phil, while a garbage collection in a
+    # thread holding kill_lock._lock waits for phil to deallocate HDF5 objects.
     def __exit__(self, *args):
         self.close()
 

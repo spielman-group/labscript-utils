@@ -338,10 +338,8 @@ class Context(SecureContext):
         # otherwise don't.
         if socket_class is not None:
             kwargs['socket_class'] = socket_class
-        # Only insert our security-related args to the socket if we know it's going to
-        # be a SecureSocket. If caller has explicitly requested a different socket type
-        # (e.g since pyzmq 25, ThreadAuthenticator sets up an internal socket by calling
-        # `Context.socket(..., socket_class=zmq.Socket)), then don't.`
+        # Add the security argument only for a SecureSocket: a caller may ask for another
+        # socket class, as ThreadAuthenticator does for its internal socket.
         if socket_class is None or issubclass(socket_class, SecureSocket):
             config = get_config()
             kwargs['allow_insecure'] = config['allow_insecure']
