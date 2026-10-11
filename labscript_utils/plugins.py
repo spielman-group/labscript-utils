@@ -214,11 +214,9 @@ class callback(object):
     decorator when you want to attach a non-default priority or make the
     callback object explicit in the class body.
     """
-    # Instantiate the decorator:
     def __init__(self, priority=DEFAULT_PRIORITY):
         self.priority = priority
 
-    # Call the decorator
     def __call__(self, func):
         return Callback(func, self.priority)
 
@@ -515,11 +513,6 @@ class MenuContext(object):
 class PluginManager(object):
     """Manage plugin discovery, lifecycle, and callback lookup.
 
-    The manager keeps two internal mappings:
-
-    * ``modules``: imported plugin modules keyed by plugin name
-    * ``plugins``: instantiated plugin objects keyed by plugin name
-
     An application creates one manager per plugin directory and calls
     ``discover_modules()`` and ``instantiate_plugins()``, then either
     ``setup_plugins()`` (settings pages, menus, notifications) or
@@ -635,7 +628,7 @@ class PluginManager(object):
     def setup_plugins(self, data, notifications, menu_builder, menubar):
         """Collect plugin UI and startup contributions.
 
-        This is typically called after the application has created its legacy
+        This is typically called after the application has created its
         menu and notification hosts and before it finishes wiring its settings
         UI and callback registrations. The method returns a tuple of
         ``(settings_pages, settings_callbacks)`` for the application to
@@ -655,10 +648,8 @@ class PluginManager(object):
 
         for module_name, plugin in self.plugins.items():
             try:
-                # Setup settings page.
                 settings_pages.extend(plugin.get_setting_classes())
 
-                # Setup menu.
                 menu_class = plugin.get_menu_class()
                 if menu_class:
                     # Must store a reference or else the methods called when
@@ -667,7 +658,6 @@ class PluginManager(object):
                     menu_builder.create_menu(menubar, menu.get_menu_items())
                     plugin.set_menu_instance(menu)
 
-                # Setup notifications.
                 plugin_notifications = {}
                 for notification_class in plugin.get_notification_classes():
                     notifications.add_notification(notification_class)
@@ -676,10 +666,7 @@ class PluginManager(object):
                     )
                 plugin.set_notification_instances(plugin_notifications)
 
-                # Register callbacks.
                 callbacks = self._get_plugin_event_handlers(plugin)
-                # Save the settings_changed callback in a separate list for
-                # setting up later.
                 if callbacks and 'settings_changed' in callbacks:
                     settings_callbacks.append(callbacks['settings_changed'])
 
