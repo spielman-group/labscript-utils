@@ -1096,8 +1096,11 @@ of duplicates (Ian), but counted as a consumer.
   and blacs `shot_execution.py`.
 - Visible to a user: no.
 - Outcome: labscript-utils d90310a; the application layer's two dialogs use it
-  too. Consumers: owners' edits sent as one combined patch each (runmanager,
-  lyse, runviewer, blacs).
+  too. blacs's five dialogs built as `QFileDialog` objects (`__main__.py`
+  load and save front panel, and three in `plugins/connection_table`) use it
+  as well, 27 sites in all; they lose only the detail view of Qt's own dialog
+  where the native one is not used. Consumers: owners' edits sent as one
+  combined patch each (runmanager, lyse, runviewer, blacs).
 
 ### 7. `unitconversions.test`, a copy of `example1`
 
@@ -1470,9 +1473,6 @@ Decisions beyond the entries:
     `zprocess.start_daemon`, whose `os.fork()` is the reason; that is the zprocess
     session's to fix.
   - blacs's `shot_execution.tempfilename` duplicates the stdlib's `tempfile`.
-  - blacs builds `QFileDialog` objects for the same open, save and folder
-    choices at `__main__.py:455, 600` and `plugins/connection_table`
-    (396, 433, 456): a later round for `file_dialogs`.
   - `docs/source/conf.py` boilerplate is copied in eight repos (step 5).
   - zprocess's zlock and zlog servers share code.
 
