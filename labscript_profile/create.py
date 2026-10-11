@@ -27,8 +27,23 @@ def _replace_backslashes(value):
 
 
 def make_shared_secret(directory):
-    """Create a new zprocess shared secret file in the given directory and return its
-    filepath"""
+    """Create a zprocess shared secret file in a directory.
+
+    Parameters
+    ----------
+    directory : str or Path
+        Directory to create the secret file in.
+
+    Returns
+    -------
+    Path
+        Path of the new secret file, as printed by ``zprocess.makesecret``.
+
+    Raises
+    ------
+    RuntimeError
+        If the output of ``zprocess.makesecret`` has no secret file path.
+    """
     cmd = [sys.executable, '-m', 'zprocess.makesecret']
     output = check_output(cmd, cwd=directory).decode('utf8')
     for line in output.splitlines():
@@ -37,15 +52,19 @@ def make_shared_secret(directory):
     raise RuntimeError("Could not parse output of zprocess.makesecret")
 
 
-def make_labconfig_file(apparatus_name = None):
-    """Create labconfig file from template
-    
+def make_labconfig_file(apparatus_name=None):
+    """Create the labconfig file from the profile's ``labconfig/example.toml``.
+
     Parameters
     ----------
-    apparatus_name: str, optional
-        Overrides the default apparatus name with the provided one if not None
-    """
+    apparatus_name : str, optional
+        Overrides the default apparatus name with the provided one if not None.
 
+    Raises
+    ------
+    FileExistsError
+        If a labconfig file already exists for this machine.
+    """
     source_path = os.path.join(LABSCRIPT_SUITE_PROFILE, 'labconfig', 'example.toml')
     target_path = default_labconfig_path()
     # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
@@ -69,18 +88,19 @@ def make_labconfig_file(apparatus_name = None):
     )
     config['security']['shared_secret'] = str(shared_secret_entry)
     if apparatus_name is not None:
-        print(f'\tSetting apparatus name to \'{apparatus_name}\'')
+        print(f"\tSetting apparatus name to '{apparatus_name}'")
         config['default']['apparatus_name'] = apparatus_name
 
     target_path.parent.mkdir(parents=True, exist_ok=True)
     dump_toml_file(target_path, config)
 
-def compile_connection_table():
-    """Compile the connection table defined in the labconfig file
-    
-    The output is placed in the location defined by the labconfig file.
-    """
 
+def compile_connection_table():
+    """Compile the connection table defined in the labconfig file.
+
+    The output is placed in the location defined by the labconfig file. Nothing
+    is compiled if runmanager cannot be imported.
+    """
     try:
         import runmanager
     except ImportError:
@@ -101,18 +121,18 @@ def compile_connection_table():
     def dummy_callback(success):
         pass
 
-    runmanager.compile_labscript_async(labscript_file = script_path,
-                                       run_file = output_h5_path,
-                                       stream_port = None,
-                                       done_callback = dummy_callback)
+    runmanager.compile_labscript_async(labscript_file=script_path,
+                                       run_file=output_h5_path,
+                                       stream_port=None,
+                                       done_callback=dummy_callback)
     print(f'\tOutput written to {output_h5_path}')
 
+
 def create_profile_cli():
-    """Function that defines the labscript-profile-create command
+    """Run the ``labscript-profile-create`` command.
 
-    Parses CLI arguments and calls :func:`~.create_profile`.
+    Parses command line arguments and calls :func:`~.create_profile`.
     """
-
     parser = argparse.ArgumentParser(prog='labscript-profile-create',
                                      description='Initialises a default labscript profile'
                                      )
@@ -125,24 +145,29 @@ def create_profile_cli():
                         action='store_true',
                         help='Enables compilation of the default example connection table',
                         default=False)
-    
+
     args = parser.parse_args()
 
     create_profile(args.apparatus_name, args.compile)
 
-def create_profile(apparatus_name = None, compile_table = False):
-    """Function that creates a labscript config profile from the default config
+
+def create_profile(apparatus_name=None, compile_table=False):
+    """Create a labscript profile from the default profile.
 
     Parameters
     ----------
-    apparatus_name: str, optional
-        apparatus_name to define in the config.
-        If None, defaults to example_apparatus (set in default config file)
-    compile_table: bool, optional
-        Whether to compile to example connection table defined by the default config file
-        Default is False.
-    """
+    apparatus_name : str, optional
+        Apparatus name to define in the config. If None, the default config file's
+        name, example_apparatus, is kept.
+    compile_table : bool, optional
+        Whether to compile the example connection table defined by the default
+        config file. Default is False.
 
+    Raises
+    ------
+    FileExistsError
+        If the profile directory already contains any item of the default profile.
+    """
     src = Path(DEFAULT_PROFILE_CONTENTS)
     dest = Path(LABSCRIPT_SUITE_PROFILE)
     print(f'Creating labscript profile at {LABSCRIPT_SUITE_PROFILE}')

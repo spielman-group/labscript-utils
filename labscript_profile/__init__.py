@@ -31,6 +31,11 @@ except Exception:
 
 
 def hostname():
+    """Return the host name that names this machine's labconfig file.
+
+    This is the system ``LocalHostName`` on macOS and ``socket.gethostname()``
+    elsewhere.
+    """
     if sys.platform == 'darwin':
         return check_output(['scutil', '--get', 'LocalHostName']).decode('utf8').strip()
     else:
@@ -38,9 +43,17 @@ def hostname():
 
 
 def default_labconfig_path():
+    """Return the path of this machine's TOML labconfig file.
+
+    Returns
+    -------
+    pathlib.Path or None
+        None if the profile directory could not be determined.
+    """
     if LABSCRIPT_SUITE_PROFILE is None:
         return None
     return LABSCRIPT_SUITE_PROFILE / 'labconfig' / f'{hostname()}.toml'
+
 
 # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
 def legacy_labconfig_path():
@@ -51,11 +64,12 @@ def legacy_labconfig_path():
 
 
 def add_userlib_and_pythonlib():
-    """Find the users's labconfig file, read the userlib and pythonlib keys, and add
-    those directories to the Python search path. This function intentionally
-    re-implements finding and reading the config file so as to not import
-    labscript_utils, since we dont' want to import something like labscript_utils every
-    time the interpreter starts up"""
+    """Add the labconfig's userlib and pythonlib directories to the search path.
+
+    This finds and reads the labconfig file itself, rather than through
+    ``labscript_utils``, so that interpreter start-up does not import
+    ``labscript_utils``.
+    """
     labconfig = ensure_labconfig()
     if labconfig is None:
         return
@@ -76,6 +90,11 @@ def ensure_labconfig():
     """Return the TOML labconfig path, converting a legacy INI file if needed.
 
     The legacy conversion path is temporary and slated for removal.
+
+    Returns
+    -------
+    pathlib.Path or None
+        None if the profile directory could not be determined.
     """
     labconfig = default_labconfig_path()
     if labconfig is None:
@@ -99,6 +118,7 @@ def _example_labconfig_data():
     if bundled_example.exists():
         return load_toml_file(bundled_example)
     return {}
+
 
 # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
 def _coerce_legacy_value(value, template_value):
@@ -136,6 +156,7 @@ def _coerce_legacy_value(value, template_value):
         template_item = template_value[0]
         return [_coerce_legacy_value(item, template_item) for item in parsed]
     return value
+
 
 # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
 def _convert_legacy_labconfig(legacy_path, toml_path):
