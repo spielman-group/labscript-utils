@@ -316,10 +316,8 @@ def load_appconfig(filename, return_save_path=False):
             backup_legacy_config(filename)
     else:
         raw = load_toml_file(filename) if filename.exists() else {}
-        # Every table is returned, including one named 'default'. App configs
-        # are plain section/option documents with no DEFAULT inheritance, so
-        # dropping that name here would silently discard a section
-        # save_appconfig() had just written.
+        # App configs have no DEFAULT inheritance, so a table named 'default' is
+        # returned like any other.
         data = {
             section_name: dict(section.items())
             for section_name, section in raw.items()
