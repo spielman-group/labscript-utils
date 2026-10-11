@@ -30,6 +30,10 @@ zprocess_remote = 7341
 [timeouts]
 communication_timeout = 60
 
+[logging]
+maxBytes = 52428800
+backupCount = 1
+
 [programs]
 text_editor = '%%PROGRAMFILES%%\Sublime Text 3\sublime_text.exe'
 text_editor_arguments = '{file}'
@@ -61,3 +65,4 @@ filename_prefix_format = '%%Y-%%m-%%d_{sequence_index:04d}_{script_basename}'
 
 [security]
 shared_secret = '%(labscript_suite)s\labconfig\zpsecret-b810f83f.key'
+allow_insecure = false
