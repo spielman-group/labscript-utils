@@ -1,15 +1,17 @@
 #####################################################################
 #                                                                   #
-# lookup_format.py                                                  #
+# /labscript_utils/lookup_format.py                                 #
 #                                                                   #
-# Copyright 2026, Monash University                                 #
+# Copyright 2026, JQI                                               #
+# Author: Ian Spielman                                              #
 #                                                                   #
-# This file is part of the labscript suite (see                     #
-# http://labscriptsuite.org) and is licensed under the Simplified   #
-# BSD License. See the license.txt file in the root of the project  #
-# for the full license.                                             #
+# This file is part of labscript-utils, in the labscript suite      #
+# (see http://labscriptsuite.org), and is licensed under the        #
+# Simplified BSD License. See the license.txt file in the root of   #
+# the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+
 import ast
 import string
 
@@ -22,7 +24,7 @@ class UnresolvedLookupField(LookupError):
     """Raised when a lookup could not be resolved from the provided context."""
 
     def __init__(self, root_name):
-        LookupError.__init__(self, root_name)
+        super().__init__(root_name)
         self.root_name = root_name
 
 
@@ -36,6 +38,16 @@ def unescape_braces(text):
 
     Do not unescape a value that goes on to the per-shot pass, which needs the
     escaping.
+
+    Parameters
+    ----------
+    text : str
+        Text whose braces ``format_lookup_string`` escaped.
+
+    Returns
+    -------
+    str
+        ``text`` with each doubled brace made single.
     """
     return text.replace('{{', '{').replace('}}', '}')
 
@@ -48,13 +60,34 @@ def format_lookup_string(
 ):
     """Format a template using optional ``strftime`` plus lookup-only fields.
 
-    Args:
-        template (str): Format template.
-        context (dict): Top-level lookup context.
-        dt (datetime, optional): Datetime used for a first ``strftime`` pass.
-        preserve_unresolved_roots (iterable): Root names that may be preserved when a
-            lookup below them is unresolved.
+    Parameters
+    ----------
+    template : str
+        Format template. A field is a root name followed by any number of
+        ``[key]`` lookups.
+    context : dict
+        Top-level lookup context.
+    dt : datetime, optional
+        Datetime used for a first ``strftime`` pass.
+    preserve_unresolved_roots : iterable of str, optional
+        Root names that may be preserved when a lookup below them is unresolved.
 
+    Returns
+    -------
+    str
+        The formatted text.
+
+    Raises
+    ------
+    ValueError
+        If the template's braces are unbalanced.
+    InvalidLookupFormatField
+        If a field is not valid lookup-only syntax.
+    UnresolvedLookupField
+        If a lookup cannot be resolved and its root is not preserved.
+
+    Notes
+    -----
     Preserving unresolved lookups makes the result a template for a further pass,
     so literal text and resolved values are brace-escaped to survive it. Without
     preservation the result is final text and is emitted verbatim.
@@ -68,7 +101,7 @@ def format_lookup_string(
     return formatter.format(template)
 
 
-class _LookupFormatter(object):
+class _LookupFormatter:
     def __init__(
         self,
         context,
@@ -143,15 +176,15 @@ def _parse_lookup_field(field_name):
 
     while index < length:
         if field_name[index] != '[':
-            msg = "Invalid lookup-format field %r" % field_name
+            msg = f"Invalid lookup-format field {field_name!r}"
             raise InvalidLookupFormatField(msg)
         closing_index = field_name.find(']', index + 1)
         if closing_index == -1:
-            msg = "Invalid lookup-format field %r" % field_name
+            msg = f"Invalid lookup-format field {field_name!r}"
             raise InvalidLookupFormatField(msg)
         lookup_text = field_name[index + 1 : closing_index].strip()
         if not lookup_text:
-            msg = "Invalid lookup-format field %r" % field_name
+            msg = f"Invalid lookup-format field {field_name!r}"
             raise InvalidLookupFormatField(msg)
         lookups.append(_parse_lookup_key(lookup_text))
         index = closing_index + 1
@@ -161,13 +194,13 @@ def _parse_lookup_field(field_name):
 
 def _parse_identifier(field_name, index):
     if index >= len(field_name):
-        msg = "Invalid lookup-format field %r" % field_name
+        msg = f"Invalid lookup-format field {field_name!r}"
         raise InvalidLookupFormatField(msg)
 
     start = index
     first = field_name[index]
     if not (first.isalpha() or first == '_'):
-        msg = "Invalid lookup-format field %r" % field_name
+        msg = f"Invalid lookup-format field {field_name!r}"
         raise InvalidLookupFormatField(msg)
     index += 1
 
@@ -186,7 +219,7 @@ def _parse_lookup_key(lookup_text):
         try:
             return ast.literal_eval(lookup_text)
         except (SyntaxError, ValueError) as exc:
-            msg = "Invalid lookup-format key %r" % lookup_text
+            msg = f"Invalid lookup-format key {lookup_text!r}"
             raise InvalidLookupFormatField(msg) from exc
     try:
         return int(lookup_text)
