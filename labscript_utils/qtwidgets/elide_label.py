@@ -4,6 +4,13 @@ from qtutils.qt import QtCore, QtWidgets
 ELLIPSIS = u'\u2026'
 
 
+def _check_elide_mode(elide_mode):
+    if not isinstance(elide_mode, QtCore.Qt.TextElideMode):
+        raise TypeError("Argument must be of type Qt.TextElideMode")
+    if elide_mode == QtCore.Qt.TextElideMode.ElideMiddle:
+        raise NotImplementedError("The hack being used to elidetext does not work for ElideMiddle")
+
+
 class ElideScrollArea(QtWidgets.QScrollArea):
     """A scroll area with no scroll bars, so text beyond its width is scrolled out of sight."""
 
@@ -22,11 +29,7 @@ class ElideScrollArea(QtWidgets.QScrollArea):
         return super().event(event)
 
     def setElideMode(self, elideMode):
-        if not isinstance(elideMode, QtCore.Qt.TextElideMode):
-            raise TypeError("Argument must be of type Qt.TextElideMode")
-        if elideMode == QtCore.Qt.TextElideMode.ElideMiddle:
-            raise NotImplementedError("The hack being used to elidetext does not work for ElideMiddle")
-
+        _check_elide_mode(elideMode)
         self._elide_mode = elideMode
 
     def minimumSizeHint(self):
@@ -134,6 +137,7 @@ def elide_label(label, layout, elide_mode):
     index = layout.indexOf(label)
     if index == -1:
         raise ValueError("Label not found in given layout")
+    _check_elide_mode(elide_mode)
     container = ElidedLabelContainer(label)
     label.setParent(container.scroll_area)
     label.setVisible(False)
