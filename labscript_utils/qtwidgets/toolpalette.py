@@ -24,8 +24,6 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
     def __init__(self,*args,**kwargs):
         QtWidgets.QVBoxLayout.__init__(self,*args,**kwargs)
         self._widget_groups = {}
-        self._width_groups = {}
-        self._all_widths_linked = False
     
     # Creates and appends a new ToolPalette to this group
     # A reference to the new ToolPalette is returned
@@ -83,9 +81,6 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
         push_button.setIcon(QtGui.QIcon(CONTRACT_ICON))
         push_button.setToolTip('Click to hide')
             
-    def show_palette_by_index(self,index):
-        self.show_palette(self.get_name_from_index(index))
-    
     def hide_palette(self,name):    
         if name not in self._widget_groups:
             raise RuntimeError('The tool palette does not have a palette named %s'%name)
@@ -94,15 +89,6 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
         palette.hide()
         push_button.setIcon(QtGui.QIcon(EXPAND_ICON))
         push_button.setToolTip('Click to show')
-    
-    def hide_palette_by_index(self,index):
-        self.hide_palette(self.get_name_from_index(index))
-     
-    # Creates and inserts a new ToolPalette at the specified index.
-    # A reference to the new ToolPalette is returned
-    def insert_new_palette(self,index,name,*args,**kwargs):
-        # insert ...
-        pass
     
     def has_palette(self,name):
         if name in self._widget_groups:
@@ -114,134 +100,8 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
             raise RuntimeError('The tool palette group does not contain a palette named %s'%name)
             
         return self._widget_groups[name][1]
-    
-    def get_palette_by_index(self,index):
-        return self.get_palette(self.get_name_from_index(index))
-    
-    def reorder_palette(self,name,new_index):
-        if name not in self._widget_groups:
-            raise RuntimeError('The tool palette group does not contain a palette named %s'%name)
-            
-        return self.reorder_palette_by_index(self.get_index_from_name(name),new_index)
-    
-    def reorder_palette_by_index(self,old_index,new_index):
-        if old_index < 0 or old_index >= count(self._widget_groups):
-            raise RuntimeError('The specified old_index is out of bounds')
-            
-        if new_index < 0 or new_index >= count(self._widget_groups):
-            raise RuntimeError('The specified new_index is out of bounds')    
-            
-        # TODO: now perform the reorder
-        
-        # TODO: recreate the layout
-        
-    def remove(self,name):
-        if name not in self._widget_groups:
-            raise RuntimeError('The tool palette group does not contain a palette named %s'%name)
-            
-        # TODO: Remove
-        
-    def remove_by_index(self,index):
-       return self.remove(self.get_name_from_index(index))
-    
-    def get_name_from_index(self,index):
-        for name, palette_data in self._widget_groups.items():
-            if palette_data[0] == index:
-                return name
-                
-        raise RuntimeError('The tool palette group does not contain a palette with index %d'%index)
-        
-    def get_index_from_name(self,name):
-        if name not in self._widget_groups:
-            raise RuntimeError('The tool palette group does not contain a palette named %s'%name)
-            
-        return self._widget_groups[name][0]
-    
-    ############################################################################################################################
-    # The code below is related solely to linking the widths of items within several tool palettes that are part of this group #
-    ############################################################################################################################
-    
-    # This property links the widths of all ToolPalettes in the ToolPalette group
-    # It is a convenience property so that you don't have to create a linked_width_group conatining all Tool palettes in the tool palette group
-    # and maintain the linked_width_group after ading new Tool Palettes to the Tool Palette Group
-    @property
-    def widths_linked(self):
-        return self._all_widths_linked
-    
-    @widths_linked.setter
-    def widths_linked(self,value):
-        if self._width_groups and self._all_widths_linked:
-            raise RuntimeError('You cannot link the widths of all tool palettes if you have already created a linked width group')
-    
-        self._all_widths_linked = value
-    
-    # This function links the widths of items in several ToolPalettes.
-    def create_linked_width_group(self,width_group_name,names):
-        if self._all_widths_linked:
-            raise RuntimeError('You cannot create a linked_width_group if you have already linked all widths via the widths_linked_property')
-    
-        if width_group_name in self._width_groups:
-            raise RuntimeError('The tool palette group already has a width group named %s'%width_group_name)
-        
-        # check if anything in names is already in another width group
-        for width_group_name,width_group_data in self._width_groups.items():
-            for name in names:
-                if name in width_group_data[1]:
-                    raise RuntimeError('The tool pallete named %s is already in the linked width group %s'%(name,width_group_name))
-        
-        # create width group
-        self._width_groups[width_group_name] = (self._create_find_max_function(width_group_name),names)
-    
-    # This function adds the toolpallete called 'name' to the linked_width_group 'width_group_name'
-    def add_to_linked_width_group(self,width_group_name,name):
-        if self._all_widths_linked:
-            raise RuntimeError('You cannot add to a linked_width_group if you have already linked all widths via the widths_linked_property')
-            
-        if width_group_name not in self._width_groups:
-            raise RuntimeError('The tool palette group does not have a width group named %s'%width_group_name)
-    
-        for width_group_name,width_group_data in self._width_groups.items():
-            if name in width_group_data[1]:
-                raise RuntimeError('The tool pallete named %s is already in the linked width group %s'%(name,width_group_name))
-        
-        self._width_groups[width_group_name][1].append(name)
-        # recreate the find_max_item_width function
-        self._width_groups[width_group_name] = (self._create_find_max_function(width_group_name),self._width_groups[width_group_name][1])
-    
-    def remove_from_linked_width_group(self,width_group_name,name):
-        pass
-        #TODO:
-    
-    # This function creates and returns a reference to a function which finds the widest item in all Tool palettes in the specified
-    # linked_width_group.
-    def _create_find_max_function(self,width_group_name):
-        def find_max_item_width():
-            largest_item_width = 0
-            for tp_name in self._width_groups[width_group_name][1]:
-                item_width = self._widget_groups[tp_name][1]._find_max_item_width()
-                if item_width > largest_item_width:
-                    largest_item_width = item_width                    
-            return largest_item_width            
-        return find_max_item_width
-        
-    # This function gives the tool palletes a function to call to find out the widest item in their linked_width_group
-    def _find_max_item_width(self,name):
-        if self._all_widths_linked:
-            return lambda: max([palette[1]._find_max_item_width() for palette in self._widget_groups.values()])
-            
-        # Look up to see if the tool palette is in a linked_width_group
-        width_group = None
-        for width_group_name,width_group_list in self._width_groups.items():
-            if name in width_group_list[1]:
-                width_group = width_group_name
-                break
-        
-        if width_group:
-            return self._width_groups[width_group][0]
-        else:
-            return self._widget_groups[name][1]._find_max_item_width
-        
-        
+
+
 class ToolPalette(QtWidgets.QScrollArea):
     def __init__(self,parent,name,*args,**kwargs):
         QtWidgets.QScrollArea.__init__(self,*args,**kwargs)
@@ -290,7 +150,7 @@ class ToolPalette(QtWidgets.QScrollArea):
     
     def _layout_widgets(self,force_relayout = False):
         h_size_hints = [w.sizeHint().height() for w in self._widget_list]
-        max_width = self._parent_group._find_max_item_width(self._name)()
+        max_width = self._find_max_item_width()
         
         # find the width of the gridlayout
         layout_width = self.size().width()
@@ -375,9 +235,6 @@ class ToolPalette(QtWidgets.QScrollArea):
         #print 'minimum size is %s'%str(widget_size)
             
         return widget_size
-        
-    def updateMinimumSize(self):
-        self.setMinimumSize(self.minimumSize())
         
     def sizeHint(self):
         width = QtWidgets.QScrollArea.sizeHint(self).width()
