@@ -50,6 +50,7 @@ def _decode_bytestrings(o):
 
 
 def is_json(value):
+    """Return whether a str or bytes value is a string made by `serialise`."""
     if isinstance(value, bytes):
         return value[:len(JSON_IDENTIFIER)] == JSON_IDENTIFIER.encode('utf8')
     elif isinstance(value, str):
@@ -69,6 +70,26 @@ def _default(o):
 
 
 def serialise(value):
+    """Encode a value as a string of JSON, prefixed to identify it as such.
+
+    Bytestring values, but not dictionary keys, are encoded to base64 with a
+    prefix, and numpy integers, floats and bools become Python ones.
+
+    Parameters
+    ----------
+    value
+        The value to encode, which may be nested in dicts and iterables.
+        Iterables other than dicts, strings and bytes are encoded as lists.
+
+    Returns
+    -------
+    str
+
+    Raises
+    ------
+    TypeError
+        If a dictionary has non-string keys, or a value cannot be encoded.
+    """
     _check_dicts(value)
     value = _encode_bytestrings(value)
     json_string = json.dumps(value, default=_default)
@@ -76,13 +97,28 @@ def serialise(value):
 
 
 def deserialise(value):
+    """Decode a string made by `serialise`, restoring bytestring values.
+
+    Parameters
+    ----------
+    value : str or bytes
+        A string for which `is_json` is true.
+    """
     assert is_json(value)
     return _decode_bytestrings(json.loads(value[len(JSON_IDENTIFIER):]))
 
 
 def set_attributes(group, attributes):
-    """Add attributes to a HDF5 group, serialising them to JSON if they do not map to
-    native HDF5 datatypes"""
+    """Add attributes to an HDF5 group.
+
+    Parameters
+    ----------
+    group : h5py.Group
+        The group to add attributes to.
+    attributes : dict
+        Attribute names and values. Values with no native HDF5 datatype, and
+        None, are serialised with `serialise`.
+    """
     for key, val in attributes.items():
         try:
             # Workaround for h5py not supporting None but not raising a TypeError:
@@ -99,14 +135,15 @@ def set_attributes(group, attributes):
 
 
 def get_attributes(group):
-    """Return attributes of a HDF5 group as a dict, deserialising any that have been
-    encoded as JSON"""
+    """Return the attributes of an HDF5 group as a dict.
+
+    Attributes serialised as JSON by `set_attributes` are deserialised.
+    """
     return {k: deserialise(v) if is_json(v) else v for k, v in group.attrs.items()}
 
 
 def get_attribute(group, name):
-    """Return the attribute of the given name from the given HDF5 group, deserialising
-    it if it has been encoded as JSON"""
+    """Return one attribute of an HDF5 group, deserialising it if it is JSON."""
     value = group.attrs[name]
     if is_json(value):
         return deserialise(value)
@@ -114,6 +151,17 @@ def get_attribute(group, name):
 
 
 def set_device_properties(h5_file, device_name, properties):
+    """Add attributes to a device's group, ``devices/<device_name>``, in a shot file.
+
+    Parameters
+    ----------
+    h5_file : h5py.File
+        The shot file, open for writing.
+    device_name : str
+        The name of the device.
+    properties : dict
+        The attributes to add, as for `set_attributes`.
+    """
     set_attributes(h5_file['devices/' + device_name], properties)
 
 
@@ -124,10 +172,33 @@ _CONNECTION_TABLE_COLUMNS = {
 
 
 def get(h5_file, device_name, location):
+    """Return a device's properties from a shot file.
+
+    Parameters
+    ----------
+    h5_file : h5py.File
+        The shot file.
+    device_name : str
+        The name of the device.
+    location : str
+        One of the names in ``VALID_PROPERTY_LOCATIONS``. ``'device_properties'``
+        reads the attributes of the device's group in ``devices``.
+        ``'connection_table_properties'`` and ``'unit_conversion_parameters'``
+        read the device's row of the connection table.
+
+    Returns
+    -------
+    dict
+
+    Raises
+    ------
+    ValueError
+        If `location` is not valid.
+    """
     if location == 'device_properties':
         return get_attributes(h5_file['devices/' + device_name])
     if location in _CONNECTION_TABLE_COLUMNS:
         dataset = h5_file['connection table']
         row = dataset[dataset['name'] == device_name.encode('utf8')][0]
         return deserialise(row[_CONNECTION_TABLE_COLUMNS[location]])
-    raise ValueError('location must be one of %s'%str(VALID_PROPERTY_LOCATIONS))
+    raise ValueError(f'location must be one of {VALID_PROPERTY_LOCATIONS}')
