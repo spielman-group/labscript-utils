@@ -14,7 +14,12 @@ from .UnitConversionBase import *
 
 
 class _QuadConversion(UnitConversion):
-    """Conversions between volts, amps and gauss per cm for a quadrupole coil"""
+    """Conversions between volts, amps and gauss per cm for a quadrupole coil.
+
+    A subclass provides ``A_to_base``, ``A_from_base`` and ``default_parameters`` for
+    the calibration parameters, which must include ``'Gcm_per_A'``.
+    """
+
     base_unit = 'V'
     derived_units = ['A', 'Gcm']
     default_parameters = {}
@@ -34,20 +39,38 @@ class _QuadConversion(UnitConversion):
 
 
 class quad_driver(_QuadConversion):
+    """Quadrupole coil driver, from volts to amps and gauss per cm.
+
+    Converting amps to volts accepts an iterable, and gives 0 V below 1 mA.
+
+    Parameters
+    ----------
+    calibration_parameters : dict, optional
+        Calibration parameters. Missing keys are filled in place with their defaults.
+
+        - ``'A_per_V'``: amps per volt (default 19.9757).
+        - ``'Gcm_per_A'``: gauss per cm per amp (default 1.88679).
+        - ``'A_offset'``: amps at zero volts (default -0.642724).
+        - ``'A_min'``: lowest current the driver gives, in amps (default -0.09).
+    """
+
     default_parameters = {
         'A_per_V': 19.9757, 'Gcm_per_A': 1.88679, 'A_offset': -0.642724, 'A_min': -0.09,
     }
 
     @vectorise
-    def A_to_base(self,amps):
-        V_min = (self.parameters['A_min'] - self.parameters['A_offset'])/self.parameters['A_per_V']
+    def A_to_base(self, amps):
+        v_min = ((self.parameters['A_min'] - self.parameters['A_offset'])
+                 / self.parameters['A_per_V'])
         if amps < 0.001:
             volts = 0
         elif amps <= self.parameters['A_min']:
-            volts = V_min
+            volts = v_min
         else:
             volts = (amps - self.parameters['A_offset'])/self.parameters['A_per_V']
         return volts
-    def A_from_base(self,volts):
-        amps = max(volts * self.parameters['A_per_V'] + self.parameters['A_offset'], self.parameters['A_min'])
+
+    def A_from_base(self, volts):
+        amps = max(volts * self.parameters['A_per_V'] + self.parameters['A_offset'],
+                   self.parameters['A_min'])
         return amps
