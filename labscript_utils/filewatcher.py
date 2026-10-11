@@ -179,7 +179,7 @@ class FileWatcher:
                     if trigger_callback:
                         self.callback(name, modified_info, 'restored')
                     check_all = True
-                elif name in self.modified_info:
+                else:
                     if trigger_callback:
                         self.callback(name, modified_info, 'modified')
         for name in deleted_files:
