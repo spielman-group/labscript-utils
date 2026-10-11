@@ -21,24 +21,15 @@ def next_available_indexed_filepath(filepath, suffix_format, start=None):
 
     The suffix goes between the filepath's stem and its extension. If filepath
     already ends with a suffix matching ``suffix_format``, that suffix is
-    stripped first.
+    stripped first. Returns the filepath and the index used to build it.
 
     Parameters
     ----------
-    filepath : str or path-like
-        Path whose stem and extension the suffix is placed between.
     suffix_format : str
         Format string with a single ``index`` field, such as ``'_{index:03d}'``.
     start : int, optional
         First index to try. If ``None``, the search begins one past the index of
         an existing suffix on ``filepath``, or at 0 if it has none.
-
-    Returns
-    -------
-    candidate : str
-        The first filepath that does not exist.
-    index : int
-        The index used to build ``candidate``.
     """
     basename, ext = os.path.splitext(filepath)
     suffix_pattern = re.escape(suffix_format)

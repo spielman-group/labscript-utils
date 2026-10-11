@@ -29,7 +29,6 @@ class UnresolvedLookupField(LookupError):
 
 
 def _escape_braces(text):
-    """Escape braces so ``text`` survives a further formatting pass verbatim."""
     return text.replace('{', '{{').replace('}', '}}')
 
 
@@ -38,16 +37,6 @@ def unescape_braces(text):
 
     Do not unescape a value that goes on to the per-shot pass, which needs the
     escaping.
-
-    Parameters
-    ----------
-    text : str
-        Text whose braces ``format_lookup_string`` escaped.
-
-    Returns
-    -------
-    str
-        ``text`` with each doubled brace made single.
     """
     return text.replace('{{', '{').replace('}}', '}')
 
@@ -65,17 +54,8 @@ def format_lookup_string(
     template : str
         Format template. A field is a root name followed by any number of
         ``[key]`` lookups.
-    context : dict
-        Top-level lookup context.
-    dt : datetime, optional
-        Datetime used for a first ``strftime`` pass.
     preserve_unresolved_roots : iterable of str, optional
         Root names that may be preserved when a lookup below them is unresolved.
-
-    Returns
-    -------
-    str
-        The formatted text.
 
     Raises
     ------

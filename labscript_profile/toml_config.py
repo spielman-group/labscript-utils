@@ -21,15 +21,8 @@ import tomli_w
 def as_config_list(value):
     """Return a labconfig value as a list of stripped strings.
 
-    Parameters
-    ----------
-    value : str, iterable or None
-        A comma-separated string, a TOML array, or ``None``.
-
-    Returns
-    -------
-    list of str
-        The non-empty items, stripped; empty for ``None``.
+    ``value`` is a comma-separated string, a TOML array or ``None``. Empty items
+    are dropped, and ``None`` gives an empty list.
 
     Raises
     ------
@@ -171,10 +164,7 @@ class TomlConfigParser(configparser.ConfigParser):
     def read_toml(self, filename):
         """Read the TOML file ``filename`` into the parser, one section per table.
 
-        Returns
-        -------
-        list of str
-            ``[str(filename)]``, as ``read`` returns the files it read.
+        Returns ``[str(filename)]``, as ``read`` returns the files it read.
 
         Raises
         ------
