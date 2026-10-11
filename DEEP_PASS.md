@@ -3006,35 +3006,13 @@ How it was checked:
   - runmanager 139, blacs 68, lyse 44, labscript-devices 41;
   - labscript-optimization 216, labscript-agents 15, runviewer 10, labscript 3;
   - hyde's 17 plugin-related test files.
-  - b54e51a restores `aom.py`'s import to its a273bf1 form; SineAom's results
-    are identical.
+  - b54e51a restored `aom.py`'s star import, so behaviour stayed the same until
+    c72cdc4 fixed SineAom's clamp.
 
-### Findings, none changed
+### Findings
 
-Seen during the pass. Each is a behaviour change, so it is Ian's or the owner's
-to decide.
-
-Likely to be seen by a user:
-1. `ShotQueueWidget._select_rows` calls `setCurrentIndex(rows[0])` after
-   selecting, which collapses an extended selection to its first row.
-   runmanager restores its queue's selection through `select_ids` after every
-   refresh, so a multi-row selection is probably lost each time.
-2. `SineAom` computes `max(c - A, 0)` with the max that numpy's star import
-   supplies. Under numpy 2 that is numpy's `max`, with 0 as an axis, so there is
-   no clamp, and `p_min` is `c - A` (-0.068 with the defaults). Under numpy 1 it
-   is the builtin. Using the builtin everywhere changes numpy-2 results.
-3. `FileWatcher` counts `self` among a bound method's arguments
-   (`filewatcher.py:49`), so a bound callback `cb(self, name, info)` gets three
-   arguments and raises at the first event. BLACS's callback is unaffected.
-4. dragdroptab compares a tab bar with a tab widget (`dragdroptab.py:538`), so
-   the 10-pixel leaving buffer never applies with the default
-   `accept_drops_bar_only=False`.
-5. `h5_lock` acquires `kill_lock` outside its `try`, so the lock is never
-   released if taking the zlock raises.
-6. `setup_logging` calls `sys.stdout.fileno()` before checking for None. With
-   `sys.stdout = None`, a windowless Windows start, it raises AttributeError.
-7. `labscript_profile.hostname()` runs `scutil` on macOS at every interpreter
-   start, through the `.pth`, unguarded.
+Seen during the pass. Ian had the seven a user would see fixed (see the next
+section). The rest are behaviour changes, still his or the owner's to decide.
 
 Latent:
 - `lookup_format._resolve_field` catches only `KeyError`. An out-of-range index
@@ -3064,6 +3042,50 @@ Cosmetic:
 - `tk_exception` shows "occured".
 - Dead stores remain: `imageoutput`'s `raw_data`, and `setup_complete`'s
   `'plugin'` key.
+
+### Docstring trim and bug fixes
+
+Ian's decisions on step 6, carried out on CodeHealth, 9a92102..9281c03.
+- The docstring trim, by Ian's rule:
+  - each docstring keeps its summary line;
+  - a Parameters, Returns or Raises entry stays only where it says what the
+    name, signature and summary do not;
+  - a simple function's docstring is one line;
+  - internal code gets one only when its name does not explain it.
+  - Eight Sonnet workers in detached worktrees made 22 commits. d07c56b
+    restores five facts that other repos rely on.
+  - The code is AST-identical, except in the seven files the fixes changed.
+  - plugins.py's held parts are unchanged.
+  - Docstring lines went from 2800 to 1885; there were 1053 before step 6.
+- The seven bugs, each reproduced failing before its fix and passing after:
+  1. 1b6ebf8: the shot queue keeps a multi-row selection. `_select_rows` moves
+     the current row through the selection model with `NoUpdate`. The view's
+     `setCurrentIndex` had reselected by the keyboard modifiers held, so with
+     none held it collapsed the selection to one row.
+     - It was shown through runmanager's real queue widget, refreshed by
+       Engage, by BLACS taking a shot, and by pause.
+     - A user saw it at every `queueChanged`: each new shot, each shot BLACS
+       took or finished, each finished compile and each pause toggle. Delete and
+       Compile again then acted on one row.
+     - 9281c03 adds a test, which fails on the old code.
+  2. c72cdc4: SineAom clamps its lowest power at 0. aom.py imports only the numpy
+     names it uses, so `max` is the builtin again, as under numpy 1.
+  3. 3f9bc18: a bound FileWatcher callback is passed the arguments it takes,
+     counted by signature.
+  4. bebdbde: dragdroptab's 10-pixel leaving buffer applies to a tab widget that
+     accepts drops anywhere.
+  5. fcd22ab: h5_lock releases the kill lock when taking the zlock fails.
+  6. 90e9e8c: setup_logging runs when `sys.stdout` is None.
+  7. 266b8e6: interpreter start prints no traceback when the host name cannot be
+     read or a legacy INI cannot be converted. The apps still raise it.
+- UpstreamBugFixes, local and unpushed: 9edb6b5..379f8be holds fixes 2 to 7,
+  each cherry-picked with -x and resolved against upstream's code. Each was
+  shown failing at 086a267 and passing after. Fix 1's file is the fork's only.
+- Tests: labscript-utils passes 26. Every consumer's suite passes on its
+  CodeHealth against labscript-utils 1057a19:
+  - runmanager 139, blacs 68, lyse 44, labscript-devices 41;
+  - labscript-optimization 216, labscript-agents 15, runviewer 10, labscript 3;
+  - hyde's 17 plugin-related test files.
 
 ## On merge
 
