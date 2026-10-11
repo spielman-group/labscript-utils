@@ -1655,7 +1655,9 @@ How they were checked:
   symptom.
 - Core lines: guard 10, or 28 with the two aliases it serves. The fix is 7
   renames in blacs and about 25 lines fewer here.
-- Visible to a user: no.
+- Visible to a user: yes, to a lab plugin written for upstream blacs, which
+  defines only `get_callbacks`: it loses its event handlers. Such plugins are
+  deliberately unsupported (Ian, 2026-10-11).
 - Owners: blacs, then labscript-utils.
 - Upstream: no; upstream blacs has only `get_callbacks`.
 
@@ -1676,8 +1678,9 @@ How they were checked:
   item. `setup_complete` then calls `action(data)` once; a failing hook still runs
   only once.
 - Core lines: guard 28, plus a 13-line test.
-- Visible to a user: no, in the suite. A lab's pre-`data` plugin would log an
-  error instead of a warning.
+- Visible to a user: yes, to a lab plugin with upstream's no-argument
+  `plugin_setup_complete()`: it logs an error, and its setup step does not run.
+  Such plugins are deliberately unsupported (Ian, 2026-10-11).
 - Owners: labscript-utils.
 - Upstream: the retry's double run is upstream's bug, and its fix is already
   offered.
@@ -2013,23 +2016,10 @@ Each proposal is one of three:
 
 ### Found while listing: step 3 entries 5 and 6 changed upstream plugin forms
 
-- Upstream blacs `master` calls `plugin.get_callbacks()` on every plugin
-  (`__main__.py:423`, `plugins/__init__.py:69`). So a lab-local BLACS plugin
-  written for upstream defines only `get_callbacks`.
-  - Since d515339 the manager asks only for `get_event_handlers`, so such a
-    plugin loses its event handlers silently.
-  - Entry 5 said "Visible to a user: no", and that was wrong.
-  - The meta repo's `issues/blacs_issues_2026_08_28.md:321-323` requires that
-    such a plugin still works.
-- Upstream also retries `plugin_setup_complete()` with no argument, with a
-  warning (`__main__.py:444-450`). Since 2cf4b3b such a plugin's setup step
-  logs an error and does not run.
-  - Entry 6 said it would "log an error instead of a warning", which understated
-    it.
-- Both are Ian's to decide. The fix would restore a fallback in
-  `PluginManager`: `get_callbacks` when a plugin has no `get_event_handlers`,
-  and a no-argument call when `plugin_setup_complete` takes no argument. Each is
-  a few lines. blacs's renamed plugins are unaffected.
+Upstream blacs asks its plugins for `get_callbacks` and retries a no-argument
+`plugin_setup_complete()`; since d515339 and 2cf4b3b neither works. Ian decided
+that lab plugins written for upstream are unsupported (2026-10-11), and step 3
+entries 5 and 6 now say so.
 
 ### 1. Demo blocks under `if __name__ == '__main__'` that nothing runs
 
@@ -2174,8 +2164,6 @@ Each proposal is one of three:
     `tests/test_plugins_compat.py`, covers only it and module loading.
   - Remove: the callers use `plugins.manager.get_event_handlers`. 3 lines, plus
     the 61-line test file.
-  - If Ian restores the `get_callbacks` fallback (above), the test file is
-    rewritten to cover it instead.
 - blacs `execute_program` (`__main__.py:691-694`) wraps `qapplication.exec()`
   and drops its exit code. Remove: `sys.exit(qapplication.exec())`, 2 lines.
 - Controls: each definition, and `compare_to` above.
@@ -2388,6 +2376,46 @@ Each proposal is one of three:
     `connection_table/__init__.py:432` normalises an already absolute path, and
     runviewer `__main__.py:755` calls `str()` on a str.
 
+### Outcome
+
+Ian approved the round through the coordinator. Every commit is on CodeHealth;
+none is merged or pushed.
+- Removed in labscript-utils:
+  - 1, 0b80481; 2, 194085f; 4, 36b41f7;
+  - 5, cec879a, after which `ToolPalette` finds its own widest item;
+  - 6, 1c09e6e; 7, 3e86ffa; 12, 8ae5a82; 13, b334ca7, `disable` included;
+  - 15, e59d208; 16, 64e7a27; 17, 1f804ce;
+  - 18, 03c6f09: the versions self-check is now `tests/test_versions.py`.
+    shared_drive's was not moved, because the module reads the machine's
+    labconfig at import, so a test would need a faked one.
+  - 9, c9ab56f: `camera_server.py` is deleted. Ian: his labs do not use it, and
+    a user who wants the classes can copy them into their own user devices.
+    labscript-devices removed its legacy `Camera` and `PythonCamera` in
+    e3203a9.
+  - Review fix, 582e2f7: the palette order index and `ToolPalette`'s group and
+    name, unused once the linked widths went.
+- Entry 8 in the owners' repos:
+  - runmanager ee9d787, the `dedent` import;
+  - lyse f4c8e8e, `get_check_state`;
+  - blacs ade39c6: the `get_callbacks` forwarder, `test_plugins_compat.py` and
+    `execute_program`.
+  - runmanager 9f44e2e and runviewer e36aaf9 drop their fixtures' citations of
+    the deleted test. The meta repo's `IDIOMS.md:137` cites it too; that is the
+    coordinator's to fix.
+  - `get_shot_globals` stays.
+- Held: entry 3, the base `MenuContext.render`. It waits for an evaluation of
+  the plugin framework for blacs, which would need a renderer if it adopts
+  `get_menu_contributions`.
+- Kept as proposed: 10, 11, 14, 19 and 20, `memprof`'s `return True` included.
+- Non-blank lines, code then tests: labscript-utils -1073 and +24; blacs -5 and
+  -61; lyse -12 and 0; runmanager -1 and -2. In all, 1091 fewer code lines and
+  39 fewer test lines.
+- Every consumer's suite passes on its CodeHealth against labscript-utils 03c6f09:
+  - runmanager 139, blacs 68, lyse 44, labscript-devices 41;
+  - labscript-optimization 216, labscript-agents 15, runviewer 10, labscript 3;
+  - hyde's 17 plugin-related test files.
+  - After 582e2f7, labscript-utils passes 25 and blacs 68.
+
 ### Totals
 
 21 entries.
@@ -2411,7 +2439,6 @@ Each proposal is one of three:
   - blacs: `get_callbacks` and `execute_program`.
   - hyde: entry 3's docstrings.
   - If the forwarders went: runmanager, blacs and labscript-utils.
-- Also for Ian: the step 3 finding above, a fallback for upstream's plugin forms.
 
 ### Seen for later steps
 
@@ -2423,6 +2450,17 @@ Each proposal is one of three:
   Ctrl-C timer. That is for blacs.
 - Stale text in this file: the step 2 and 3 notes say the seven base-render
   tests and the aliases "go at step 4". Both have already gone.
+- `versions.get_version` looks for a directory named after the module, so an
+  installed single-file module (`subprocess`, `six`) comes back `NotFound`, and
+  `check_version` would call it missing. The old self-check asserted
+  otherwise and would have failed, on `master` too.
+- `pyqtgraph` is in labscript-utils' dependencies, but no labscript-utils code
+  imports it now. labscript-devices' `TriggerableCamera` imports it and declares
+  only labscript-utils, so the dependency stays until that is settled.
+- Unused imports that predate this step: `QtGui` in `elide_label.py` and
+  `labscript_utils` in `settings.py`. Step 6.
+- `ToolPalette.hide()` on a shown palette crashes Qt under the offscreen platform,
+  at cc24b5d as well. Not seen on screen.
 
 ## On merge
 
@@ -2431,8 +2469,9 @@ merges CodeHealth into Development updates them in the meta repo:
 
 - `issues/server_interfaces_2026_09_25.md:112-113` lists `LinkIndicator`'s
   `interval=2` argument, now an attribute.
-- `issues/blacs_issues_2026_08_28.md`, slice 11 (lines 294-306, 320), plans to
-  silence plugin deprecation warnings that are gone.
+- `issues/blacs_issues_2026_08_28.md`, slice 11 (lines 294-306, 320-323), plans to
+  silence plugin deprecation warnings that are gone, and requires upstream-style
+  plugins to keep working, which Ian dropped.
 - `issues/seen_while_mapping.md:40` names the duplicated `_is_accepted_path`,
   now removed.
 - `CODEX.md:961-964` lists "icons" among `MenuContext`'s features.
