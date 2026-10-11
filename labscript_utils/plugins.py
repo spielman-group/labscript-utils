@@ -1,13 +1,14 @@
 #####################################################################
 #                                                                   #
-# plugins.py                                                        #
+# /labscript_utils/plugins.py                                       #
 #                                                                   #
-# Copyright 2013, Monash University                                 #
+# Copyright 2026, JQI                                               #
+# Author: Ian Spielman                                              #
 #                                                                   #
-# This file is part of the labscript suite (see                     #
-# http://labscriptsuite.org) and is licensed under the Simplified   #
-# BSD License. See the license.txt file in the root of the project  #
-# for the full license.                                             #
+# This file is part of labscript-utils, in the labscript suite      #
+# (see http://labscriptsuite.org), and is licensed under the        #
+# Simplified BSD License. See the license.txt file in the root of   #
+# the project for the full license.                                 #
 #                                                                   #
 #####################################################################
 
@@ -182,7 +183,7 @@ __all__ = [
 ]
 
 
-class Callback(object):
+class Callback:
     """Wrap a callable with priority metadata and method-style binding.
 
     ``priority`` is used when ``PluginManager.get_event_handlers()`` gathers all
@@ -191,6 +192,13 @@ class Callback(object):
     The descriptor protocol is implemented so that a ``Callback`` stored as a
     class attribute binds like an instance method when accessed from a plugin
     instance. This keeps decorated methods usable without extra wrapper code.
+
+    Parameters
+    ----------
+    func : callable
+        The function to call.
+    priority : int, optional
+        Sort key for event handlers; defaults to ``DEFAULT_PRIORITY``.
     """
     def __init__(self, func, priority=DEFAULT_PRIORITY):
         self.priority = priority
@@ -207,13 +215,19 @@ class Callback(object):
         return self.func(*args, **kwargs)
 
 
-class callback(object):
+class callback:
     """Decorator that turns a function into a :class:`Callback`.
 
     The decorator is optional. A plain method can still be returned from
     ``get_event_handlers()`` if it already behaves like a callback. Use the
     decorator when you want to attach a non-default priority or make the
     callback object explicit in the class body.
+
+    Parameters
+    ----------
+    priority : int, optional
+        Priority given to the resulting :class:`Callback`; defaults to
+        ``DEFAULT_PRIORITY``.
     """
     def __init__(self, priority=DEFAULT_PRIORITY):
         self.priority = priority
@@ -222,7 +236,7 @@ class callback(object):
         return Callback(func, self.priority)
 
 
-class BasePlugin(object):
+class BasePlugin:
     """Reference implementation of the plugin interface.
 
     Subclass this when you want a concrete starting point, but it is not
@@ -233,15 +247,19 @@ class BasePlugin(object):
     ``get_notification_classes``, ``get_menu_class``, ``set_menu_instance``,
     ``set_notification_instances``, ``get_save_data`` and ``close``.
 
-    ``initial_settings`` contains the saved configuration for the plugin.
     """
     def __init__(self, initial_settings):
         """Store the plugin's saved settings.
 
-        Applications pass the dictionary returned by the previous
-        ``get_save_data()`` call, or an empty dictionary for a first run.
         Subclasses commonly keep this dictionary and use it during
         ``plugin_setup_complete()`` to restore UI state or background state.
+
+        Parameters
+        ----------
+        initial_settings : dict
+            The saved configuration for the plugin. Applications pass the
+            dictionary returned by the previous ``get_save_data()`` call, or an
+            empty dictionary for a first run.
         """
         self.initial_settings = initial_settings
 
@@ -293,7 +311,7 @@ class BasePlugin(object):
         return {}
 
 
-class MenuBuilder(object):
+class MenuBuilder:
     """Build menus from the nested dictionary format used by plugins.
 
     Each menu description is a dictionary. Supported keys are:
@@ -311,15 +329,25 @@ class MenuBuilder(object):
     def __init__(self, icon_factory):
         """Create a menu builder.
 
-        Args:
-            icon_factory (callable): Function called as
-                ``icon_factory(icon_name)`` before adding an icon-bearing menu
-                action. Applications using Qt typically pass ``QIcon``.
+        Parameters
+        ----------
+        icon_factory : callable
+            Function called as ``icon_factory(icon_name)`` before adding an
+            icon-bearing menu action. Applications using Qt typically pass
+            ``QIcon``.
         """
         self.icon_factory = icon_factory
 
     def create_menu(self, parent, menu_parameters):
-        """Recursively build menus and actions from a nested menu dictionary."""
+        """Recursively build menus and actions from a nested menu dictionary.
+
+        Parameters
+        ----------
+        parent
+            Menu or menu bar the new items are added to.
+        menu_parameters : dict
+            The menu description.
+        """
         if 'name' in menu_parameters:
             if 'menu_items' in menu_parameters:
                 child = parent.addMenu(menu_parameters['name'])
@@ -511,7 +539,7 @@ class MenuContext(object):
                     action.setEnabled(enabled)
 
 
-class PluginManager(object):
+class PluginManager:
     """Manage plugin discovery, lifecycle, and callback lookup.
 
     An application creates one manager per plugin directory and calls
@@ -532,18 +560,22 @@ class PluginManager(object):
     ):
         """Create a plugin manager.
 
-        Args:
-            plugin_package (str): Import package containing plugin subpackages,
-                for example ``'myapp.plugins'``.
-            plugins_dir (str): Filesystem path scanned for plugin directories.
-            config: Config object with ``has_section()``, ``add_section()``,
-                ``has_option()``, ``set()``, and ``getboolean()`` methods.
-            config_section (str): Section containing plugin enable/disable
-                options.
-            default_plugins (iterable): Plugin names enabled by default when
-                first discovered.
-            logger (logging.Logger, optional): Logger used for plugin import,
-                setup, callback, and shutdown errors.
+        Parameters
+        ----------
+        plugin_package : str
+            Import package containing plugin subpackages, for example
+            ``'myapp.plugins'``.
+        plugins_dir : str
+            Filesystem path scanned for plugin directories.
+        config
+            Config object with ``has_section()``, ``add_section()``,
+            ``has_option()``, ``set()``, and ``getboolean()`` methods.
+        config_section : str
+            Section containing plugin enable/disable options.
+        default_plugins : iterable of str, optional
+            Plugin names enabled by default when first discovered.
+        logger : logging.Logger, optional
+            Logger used for plugin import, setup, callback, and shutdown errors.
         """
         self.plugin_package = plugin_package
         self.plugins_dir = plugins_dir
@@ -562,6 +594,11 @@ class PluginManager(object):
         A plugin directory with no enable flag gets one, true if its name is in
         ``default_plugins``. Only enabled plugins are imported; an import
         failure is logged and the plugin skipped.
+
+        Returns
+        -------
+        dict
+            Imported plugin modules by plugin name.
 
         Raises
         ------
@@ -593,7 +630,7 @@ class PluginManager(object):
                     )
                 except Exception:
                     self.logger.exception(
-                        "Could not import plugin '%s'. Skipping." % module_name
+                        f"Could not import plugin '{module_name}'. Skipping."
                     )
                 else:
                     modules[module_name] = module
@@ -604,9 +641,18 @@ class PluginManager(object):
     def instantiate_plugins(self, plugin_settings=None):
         """Create ``Plugin`` instances for each imported module.
 
-        ``plugin_settings`` should map plugin names to the saved configuration
-        dictionary for that plugin. Missing entries fall back to an empty
-        dictionary. Instantiation failures are logged and skipped.
+        Instantiation failures are logged and skipped.
+
+        Parameters
+        ----------
+        plugin_settings : dict, optional
+            Maps plugin names to the saved configuration dictionary for that
+            plugin. Missing entries fall back to an empty dictionary.
+
+        Returns
+        -------
+        dict
+            ``Plugin`` instances by plugin name.
         """
         if plugin_settings is None:
             plugin_settings = {}
@@ -620,7 +666,7 @@ class PluginManager(object):
                 )
             except Exception:
                 self.logger.exception(
-                    "Could not instantiate plugin '%s'. Skipping" % module_name
+                    f"Could not instantiate plugin '{module_name}'. Skipping"
                 )
 
         self.plugins = plugins
@@ -631,9 +677,7 @@ class PluginManager(object):
 
         This is typically called after the application has created its
         menu and notification hosts and before it finishes wiring its settings
-        UI and callback registrations. The method returns a tuple of
-        ``(settings_pages, settings_callbacks)`` for the application to
-        consume.
+        UI and callback registrations.
 
         For each plugin it collects the classes from ``get_setting_classes()``;
         instantiates the class ``get_menu_class()`` returns with ``data``,
@@ -643,6 +687,24 @@ class PluginManager(object):
         of class to instance to ``set_notification_instances()``; and keeps the
         ``settings_changed`` handler from ``get_event_handlers()``. A plugin
         that raises is logged and the rest are still set up.
+
+        Parameters
+        ----------
+        data
+            Application data passed to each plugin's menu class.
+        notifications
+            Notification manager with ``add_notification()`` and
+            ``get_instance()``.
+        menu_builder : MenuBuilder
+            Builds each plugin's menu.
+        menubar
+            Parent the plugin menus are created under.
+
+        Returns
+        -------
+        tuple
+            ``(settings_pages, settings_callbacks)`` for the application to
+            consume.
         """
         settings_pages = []
         settings_callbacks = []
@@ -673,7 +735,7 @@ class PluginManager(object):
 
             except Exception:
                 self.logger.exception(
-                    "Plugin '%s' error. Plugin may not be functional." % module_name
+                    f"Plugin '{module_name}' error. Plugin may not be functional."
                 )
 
         return settings_pages, settings_callbacks
@@ -684,6 +746,13 @@ class PluginManager(object):
         A context is any object with ``add(plugin_name, contribution, data)``.
         UI contributions go to the context named by their ``context`` key, and
         menu contributions to the context registered as ``'menus'``.
+
+        Parameters
+        ----------
+        name : str
+            Name plugins use to refer to the context.
+        context
+            The object receiving contributions.
         """
         self.contexts[name] = context
 
@@ -696,8 +765,8 @@ class PluginManager(object):
             return list(hook() or ())
         except Exception:
             self.logger.exception(
-                "Error getting %s contributions from plugin '%s'. Skipping."
-                % (label, module_name)
+                f"Error getting {label} contributions from plugin '{module_name}'. "
+                "Skipping."
             )
             return []
 
@@ -706,6 +775,11 @@ class PluginManager(object):
 
         A contribution for an unregistered context, or whose context raises in
         ``add()``, is logged and skipped.
+
+        Parameters
+        ----------
+        data
+            Application data passed to each context's ``add()``.
         """
         for module_name, plugin in self.plugins.items():
             ui_contributions = self._get_contributions(
@@ -721,8 +795,8 @@ class PluginManager(object):
                     )
                 except Exception:
                     self.logger.exception(
-                        "Error adding UI contribution from plugin '%s'. "
-                        "Skipping." % module_name
+                        f"Error adding UI contribution from plugin '{module_name}'. "
+                        "Skipping."
                     )
 
             menu_contributions = self._get_contributions(
@@ -736,12 +810,22 @@ class PluginManager(object):
                     self.contexts['menus'].add(module_name, contribution, data)
                 except Exception:
                     self.logger.exception(
-                        "Error adding menu contribution from plugin '%s'. "
-                        "Skipping." % module_name
+                        f"Error adding menu contribution from plugin '{module_name}'. "
+                        "Skipping."
                     )
 
     def collect_services(self, base_services=None):
         """Merge app-owned and plugin-owned services into one registry.
+
+        Parameters
+        ----------
+        base_services : dict, optional
+            Services the application already owns.
+
+        Returns
+        -------
+        dict
+            The merged registry, also kept as ``services``.
 
         Raises
         ------
@@ -759,8 +843,7 @@ class PluginManager(object):
                 plugin_services = dict(plugin.get_services())
             except Exception:
                 self.logger.exception(
-                    "Error getting services from plugin '%s'. Skipping."
-                    % module_name
+                    f"Error getting services from plugin '{module_name}'. Skipping."
                 )
                 continue
 
@@ -785,6 +868,11 @@ class PluginManager(object):
         name order, each action called with ``data``. A failing action is
         logged and the rest still run; a plugin whose records are malformed is
         skipped whole.
+
+        Parameters
+        ----------
+        data
+            Application data passed to each action.
         """
         setup_activities = []
 
@@ -817,8 +905,8 @@ class PluginManager(object):
                 ])
             except Exception:
                 self.logger.exception(
-                    "Error getting setup activities from plugin '%s'. "
-                    "Skipping." % module_name
+                    f"Error getting setup activities from plugin '{module_name}'. "
+                    "Skipping."
                 )
 
         setup_activities.sort(
@@ -833,9 +921,8 @@ class PluginManager(object):
                 action(data)
             except Exception:
                 self.logger.exception(
-                    "Error in setup activity '%s' for plugin '%s'. "
-                    "Plugin may not be functional."
-                    % (activity_name, module_name)
+                    f"Error in setup activity '{activity_name!s}' for plugin "
+                    f"'{module_name}'. Plugin may not be functional."
                 )
 
     def _get_plugin_event_handlers(self, plugin):
@@ -844,7 +931,18 @@ class PluginManager(object):
         return hook() if hook is not None else None
 
     def get_event_handlers(self, name):
-        """Return all event handlers registered for ``name``, sorted by priority."""
+        """Return all event handlers registered for ``name``, sorted by priority.
+
+        Parameters
+        ----------
+        name : str
+            Event name.
+
+        Returns
+        -------
+        list
+            The handlers, lowest ``priority`` first.
+        """
         callbacks = []
 
         for plugin in self.plugins.values():
@@ -853,7 +951,7 @@ class PluginManager(object):
                 if plugin_callbacks and name in plugin_callbacks:
                     callbacks.append(plugin_callbacks[name])
             except Exception:
-                self.logger.exception('Error getting callbacks from %s.' % str(plugin))
+                self.logger.exception(f'Error getting callbacks from {plugin!s}.')
 
         callbacks.sort(
             key=lambda callback: getattr(callback, 'priority', DEFAULT_PRIORITY)
@@ -867,6 +965,5 @@ class PluginManager(object):
                 plugin.close()
             except Exception as e:
                 self.logger.error(
-                    'Could not close plugin %s. Error was: %s'
-                    % (module_name, str(e))
+                    f'Could not close plugin {module_name}. Error was: {e!s}'
                 )
