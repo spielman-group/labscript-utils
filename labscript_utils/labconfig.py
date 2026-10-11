@@ -169,7 +169,7 @@ class LabConfig(TomlConfigParser):
 
     Raises
     ------
-    Exception
+    ValueError
         If a required section or option is missing, or the labconfig sets both
         ``experiment_name`` and ``apparatus_name``.
     RuntimeError
@@ -234,7 +234,7 @@ class LabConfig(TomlConfigParser):
                 msg = """You have defined both experiment_name and apparatus_name in
                     your labconfig. Please omit the deprecate experiment_name
                     keyword."""
-                raise Exception(dedent(msg))
+                raise ValueError(dedent(msg))
             self.set("default", "apparatus_name", experiment_name)
 
         try:
@@ -246,7 +246,7 @@ class LabConfig(TomlConfigParser):
             msg = f"""The experiment configuration file located at {config_path} does
                 not have the required keys. Make sure the config file contains the
                 following structure:\n{self.file_format}"""
-            raise Exception(dedent(msg))
+            raise ValueError(dedent(msg))
 
     def _read_path(self, path):
         """Read a TOML labconfig, or temporarily fall back to legacy INI."""
