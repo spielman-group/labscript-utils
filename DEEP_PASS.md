@@ -1886,6 +1886,41 @@ How they were checked:
 - Upstream: yes, on labscript-utils and blacs `master`, and latent. The fix also
   goes to UpstreamBugFixes.
 
+### Outcome
+
+Ian approved the coordinator's recommendation. Every commit below is on
+CodeHealth unless named otherwise, and none is merged or pushed.
+- Fixed at the cause:
+  - 1: labscript-utils b3c738c, and UpstreamBugFixes e08fbe6. Every wrapper
+    went: blacs 2f238e0, runviewer 0ec3be3, runmanager 74ba647, lyse 010cd03,
+    labscript-optimization e22dd23 and labscript-agents e07f88d.
+  - 2: runmanager 74457a7.
+  - 5: blacs dee664a renamed its seven hooks, then labscript-utils d515339
+    dropped the aliases and the ladder.
+  - 6: labscript-utils 2cf4b3b. 7: ed279d6, so a malformed flag stops start-up.
+  - 10: runmanager a8fcadb, blacs 514982e and lyse 010cd03.
+  - 13: labscript-utils 85ce0b9. runmanager's docstring was left.
+  - 14: runmanager 20ee516, and its UpstreamBugFixes 96ff041.
+  - 15: labscript-utils dba97b0, and UpstreamBugFixes 086a267.
+- Kept: 3, 8, 9, 11 and 12, as proposed, and 4.
+  - 4: runmanager declined it on Ian's point, so the escaping stays. Every shot of
+    a sequence carries the date the sequence started, which the two passes give
+    by construction. runmanager 2e19640 says so where the date is formatted.
+  - 8: the comment is fixed in 081aac5, and the guard stays. zprocess catches
+    `BaseException` in 51adae8, also on its Production and UpstreamBugFixes, and
+    its UpstreamBugFixes holds 6c31b8f's fix and 162afe7's. Two lines here can go
+    once the zprocess floor passes a release holding them, as with entry 12.
+- The shared-secret check (635aea9) stays; load_appconfig's comment is two lines,
+  in a17e2b5.
+- Every consumer's suite passes on its CodeHealth against labscript-utils d515339
+  and zprocess 51adae8: runmanager 139, blacs 69, lyse 44, labscript-devices 43,
+  labscript-agents 15, runviewer 10, labscript 3, labscript-optimization 216, and
+  hyde's 17 plugin-related test files.
+- Non-blank lines, code then tests: labscript-utils -74 and -46; runmanager -28
+  and -8; lyse -4 and -12; blacs -1 and -10; runviewer, labscript-optimization
+  and labscript-agents 0, and -8, -3 and -3. In all, 107 fewer code lines and 90
+  fewer test lines.
+
 ### Decisions for Ian beyond the entries
 
 - **`get_config`'s shared-secret check (635aea9, on UpstreamBugFixes).** It
@@ -1947,3 +1982,10 @@ merges CodeHealth into Development updates them in the meta repo:
 - `CODEX.md:961-964` lists "icons" among `MenuContext`'s features.
 - `labscript_project.md:97` says `qtwidgets/__init__.py` lazily re-exports the
   shot queue widget.
+- `CODEX.md:958` and `985`, `issues/plugin_refactor_prd.md:83` and
+  `issues/seen_while_mapping.md:14` and `21` name `get_callbacks`, now gone. So
+  do labscript-library's `capabilities.md:76` and its inventory.
+
+labscript-utils' `PluginManager` asks only for `get_event_handlers` (d515339).
+blacs's CodeHealth, which renames its hooks to it (dee664a), merges with it:
+alone, every BLACS plugin's event handlers are silently dropped.
