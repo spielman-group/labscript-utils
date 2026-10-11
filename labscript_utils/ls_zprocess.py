@@ -10,35 +10,35 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-import sys
+"""Wrappers around zprocess objects, configured from the labconfig.
+
+``ProcessTree``, ``ZMQServer``, ``ZMQClient`` and ``Context`` take their security
+settings, and the zlock server's host and port, from LabConfig, so multiprocessing
+done with them is configured by it. To configure such an object by hand,
+instantiate the zprocess class directly. ``Lock``, ``Event``, ``Handler``,
+``RemoteProcessClient`` and the ``zmq_get*`` and ``zmq_push*`` functions use the
+shared ``ProcessTree`` and ``ZMQClient`` instances.
+"""
 import os
 import pickle
 import subprocess
+import sys
 import traceback
 from socket import gethostbyname
-from packaging.version import Version
+
 import zmq
+from packaging.version import Version
 
 import zprocess
 import zprocess.process_tree
-from zprocess.security import SecureContext, SecureSocket
-from labscript_utils.labconfig import LabConfig
-from labscript_utils import dedent
-import zprocess.zlog
-import zprocess.zlock
 import zprocess.remote
+import zprocess.zlock
+import zprocess.zlog
 from zprocess import KillLock
+from zprocess.security import SecureContext, SecureSocket
 
-
-"""This module is a number of wrappers around zprocess objects that configures them with
-the settings in LabConfig with regard to security, and the host and port of the zlock
-server. Multiprocessing done with these wrappers will automatically be configured
-according to LabConfig. Manual configuration can be done by instantiating the objects
-directly from zprocess instead.
-
-To use zprocess with LabConfig configuration, use the convenience functions defined at
-the bottom of this module.
-"""
+from labscript_utils import dedent
+from labscript_utils.labconfig import LabConfig
 
 kill_lock = KillLock()
 
@@ -70,9 +70,27 @@ allow_insecure = True
 
 in your configuration, but this is not advised."""
 
+
 def get_config():
-    """Get relevant options from LabConfig, substituting defaults where appropriate and
-    return as a dict"""
+    """Return the zprocess settings from LabConfig, with defaults filled in.
+
+    The result is cached, so LabConfig is read once per process.
+
+    Returns
+    -------
+    dict
+        The keys ``zlock_host``, ``zlock_port``, ``zlog_host``, ``zlog_port``,
+        ``zprocess_remote_port``, ``shared_secret`` (the text of the file named by
+        ``shared_secret_file``, or None), ``shared_secret_file``,
+        ``allow_insecure``, ``logging_maxBytes`` and ``logging_backupCount``.
+
+    Raises
+    ------
+    RuntimeError
+        If the labconfig names no zlock server.
+    ValueError
+        If it configures neither a shared secret nor ``allow_insecure``.
+    """
     global _cached_config
     # Cache the config so it is not loaded multiple times per process:
     if _cached_config is not None:
@@ -117,15 +135,17 @@ def get_config():
 
 
 class ProcessTree(zprocess.ProcessTree):
-    """A singleton zprocess.ProcessTree configured with settings from labconfig for
-    security, zlock and zlog. Being a singleton is not enforced - the class can still be
-    instantiated as normal - but calling the .instance() classmethod will give the
-    singleton."""
+    """A ``zprocess.ProcessTree`` configured from LabConfig for security, zlock, zlog.
+
+    Call ``instance()`` to get the singleton. The class can still be instantiated
+    directly.
+    """
 
     _instance = None
 
     @classmethod
     def instance(cls):
+        """Return this process's ProcessTree, creating the singleton on first use."""
         # If we are already a child process, return the ProcessTree associated with the
         # connection to our parent. This may not even be an instance of this subclass,
         # but it will be if this subclass was used when calling connect_to_parent().
@@ -156,7 +176,12 @@ class ProcessTree(zprocess.ProcessTree):
 
 
 class ZMQServer(zprocess.ZMQServer):
-    """A ZMQServer configured with security settings from labconfig"""
+    """A ``zprocess.ZMQServer`` configured with security settings from LabConfig.
+
+    It takes the arguments of ``zprocess.ZMQServer`` except ``shared_secret`` and
+    ``allow_insecure``, which come from LabConfig; passing either raises
+    ``ValueError``.
+    """
 
     def __init__(
         self,
@@ -167,21 +192,19 @@ class ZMQServer(zprocess.ZMQServer):
         timeout_interval=None,
         **kwargs
     ):
-        msg = """keyword argument {} not allowed - it will be set according to
-            LabConfig. To make a custom ZMQServer, use zprocess.ZMQServer instead of
-            labscript_utils.ls_zprocess.ZMQServer"""
-
-        # Error if these args are provided, since we provide them:
         for kwarg in ['shared_secret', 'allow_insecure']:
             if kwarg in kwargs:
-                raise ValueError(dedent(msg.format(kwarg)))
+                msg = f"""keyword argument {kwarg} not allowed - it will be set
+                    according to LabConfig. To make a custom ZMQServer, use
+                    zprocess.ZMQServer instead of
+                    labscript_utils.ls_zprocess.ZMQServer"""
+                raise ValueError(dedent(msg))
 
         config = get_config()
         shared_secret = config['shared_secret']
         allow_insecure = config['allow_insecure']
 
-        zprocess.ZMQServer.__init__(
-            self,
+        super().__init__(
             port=port,
             dtype=dtype,
             pull_only=pull_only,
@@ -230,10 +253,10 @@ class ZMQServer(zprocess.ZMQServer):
 
 
 class ZMQClient(zprocess.ZMQClient):
-    """A singleton zprocess.ZMQClient configured with settings from labconfig for
-    security.  Being a singleton is not enforced - the class can still be
-    instantiated as normal - but calling the .instance() classmethod will give the
-    singleton.
+    """A ``zprocess.ZMQClient`` configured with security settings from LabConfig.
+
+    Call ``instance()`` to get the singleton. The class can still be instantiated
+    directly.
 
     A subclass binds to one server by setting ``server``, its name in the
     labconfig, and ``default_port``, and then sends it requests with
@@ -284,10 +307,10 @@ class ZMQClient(zprocess.ZMQClient):
 
     @classmethod
     def instance(cls):
-        # Return previously initialised singleton. Only this class's own is looked
-        # at, so a subclass never returns its base class's:
+        """Return this class's singleton, creating it on first use."""
+        # Only this class's own is looked at, so a subclass never returns its base
+        # class's:
         if cls.__dict__.get('_instance') is None:
-            # Create singleton:
             cls._instance = cls()
         return cls._instance
 
@@ -305,13 +328,16 @@ class ZMQClient(zprocess.ZMQClient):
         if timeout is None:
             timeout = self.timeout
         return self.get(self.port, self.host, data=['hello', (), {}], timeout=timeout)
-        
+
 
 class Context(SecureContext):
-    """Subclass of zprocess.security.SecureContext configured with settings from
-    labconfig, substitutable for a zmq.Context. Can be instantiated to get a unique
-    context, or call the .instance() classmethod to possibly get an already-existing
-    one. Only use the latter if you do not indent to terminate the context."""
+    """A ``zprocess.security.SecureContext`` configured from LabConfig.
+
+    It can replace a ``zmq.Context``. Instantiate it for a context of its own, or
+    call ``instance()`` for a shared one, which only suits code that does not
+    terminate its context.
+    """
+
     def __init__(self, io_threads=1, shared_secret=None):
         config = get_config()
         # Allow shared_secret only if it matches what we expect. This is because
@@ -320,76 +346,95 @@ class Context(SecureContext):
         if shared_secret is not None and shared_secret != config['shared_secret']:
             msg = "shared_secret must be None or match labconfig"
             raise ValueError(msg)
-        SecureContext.__init__( 
-            self, io_threads=io_threads, shared_secret=config['shared_secret']
-        )
+        super().__init__(io_threads=io_threads, shared_secret=config['shared_secret'])
 
     @classmethod
     def instance(cls):
+        """Return the shared context, creating it on first use."""
         config = get_config()
-        return super(Context, cls).instance(shared_secret=config['shared_secret'])
+        return super().instance(shared_secret=config['shared_secret'])
 
     def socket(self, socket_type, socket_class=None, **kwargs):
+        """Return a socket, secured by LabConfig's settings if it is a SecureSocket."""
         # socket_class kwarg introduced in pyzmq 25. Pass it through if it was given,
         # otherwise don't.
         if socket_class is not None:
             kwargs['socket_class'] = socket_class
-        # Add the security argument only for a SecureSocket: a caller may ask for another
-        # socket class, as ThreadAuthenticator does for its internal socket.
+        # Add the security argument only for a SecureSocket: a caller may ask for
+        # another socket class, as ThreadAuthenticator does for its internal socket.
         if socket_class is None or issubclass(socket_class, SecureSocket):
             config = get_config()
             kwargs['allow_insecure'] = config['allow_insecure']
-        return SecureContext.socket(self, socket_type=socket_type, **kwargs)
+        return super().socket(socket_type=socket_type, **kwargs)
 
 
 def Lock(*args, **kwargs):
+    """Return a zlock lock; see ``zprocess.ProcessTree.lock``.
+
+    A ``read_only`` argument is dropped unless ``connect_to_zlock_server`` has found
+    that the zlock server supports read-write locks.
+    """
     if 'read_only' in kwargs and not _zlock_server_supports_readwrite:
-        # Ignore read_only argument if the server does not support it:
         del kwargs['read_only']
     return ProcessTree.instance().lock(*args, **kwargs)
 
 
 def Event(*args, **kwargs):
+    """Return an event on the shared ProcessTree; see ``zprocess.ProcessTree.event``."""
     return ProcessTree.instance().event(*args, **kwargs)
 
 
 def Handler(*args, **kwargs):
+    """Return a zlog logging handler; see ``zprocess.ProcessTree.logging_handler``."""
     return ProcessTree.instance().logging_handler(*args, **kwargs)
 
 
 def zmq_get(*args, **kwargs):
+    """Call ``get`` of the shared ZMQClient; see ``zprocess.ZMQClient``."""
     return ZMQClient.instance().get(*args, **kwargs)
 
 
 def zmq_get_multipart(*args, **kwargs):
+    """Call ``get_multipart`` of the shared ZMQClient; see ``zprocess.ZMQClient``."""
     return ZMQClient.instance().get_multipart(*args, **kwargs)
 
 
 def zmq_get_string(*args, **kwargs):
+    """Call ``get_string`` of the shared ZMQClient; see ``zprocess.ZMQClient``."""
     return ZMQClient.instance().get_string(*args, **kwargs)
 
 
 def zmq_get_raw(*args, **kwargs):
+    """Call ``get_raw`` of the shared ZMQClient; see ``zprocess.ZMQClient``."""
     return ZMQClient.instance().get_raw(*args, **kwargs)
 
 
 def zmq_push(*args, **kwargs):
+    """Call ``push`` of the shared ZMQClient; see ``zprocess.ZMQClient``."""
     return ZMQClient.instance().push(*args, **kwargs)
 
 
 def zmq_push_multipart(*args, **kwargs):
+    """Call ``push_multipart`` of the shared ZMQClient; see ``zprocess.ZMQClient``."""
     return ZMQClient.instance().push_multipart(*args, **kwargs)
 
 
 def zmq_push_string(*args, **kwargs):
+    """Call ``push_string`` of the shared ZMQClient; see ``zprocess.ZMQClient``."""
     return ZMQClient.instance().push_string(*args, **kwargs)
 
 
 def zmq_push_raw(*args, **kwargs):
+    """Call ``push_raw`` of the shared ZMQClient; see ``zprocess.ZMQClient``."""
     return ZMQClient.instance().push_raw(*args, **kwargs)
 
 
 def RemoteProcessClient(host, port=None):
+    """Return a ``zprocess.remote.RemoteProcessClient`` for ``host``.
+
+    It has the security settings from LabConfig. ``port`` defaults to the labconfig's
+    ``ports/zprocess_remote``.
+    """
     if port is None:
         config = get_config()
         port = config['zprocess_remote_port']
@@ -463,21 +508,23 @@ def _ping_starting_locally(client, module):
 ZLOCK_DEFAULT_TIMEOUT = 45
 _zlock_server_supports_readwrite = False
 
+
 def connect_to_zlock_server():
-    # Ensure we are connected to a zlock server, and start one if one is supposed
-    # to be running on localhost but is not.
+    """Ping the zlock server, starting one first if it should run on this computer.
+
+    Also records whether the server supports read-write locks, which ``Lock`` needs,
+    and sets the default lock timeout to ``ZLOCK_DEFAULT_TIMEOUT`` seconds.
+    """
     client = ProcessTree.instance().zlock_client
     _ping_starting_locally(client, 'zlock')
 
-    # Check if the zlock server supports read-write locks:
     global _zlock_server_supports_readwrite
     if hasattr(client, 'get_protocol_version'):
         version = client.get_protocol_version()
         if Version(version) >= Version('1.1.0'):
             _zlock_server_supports_readwrite = True
 
-    # The user can call these functions to change the timeouts later if they
-    # are not to their liking:
+    # Callers can change the default later with the client's set_default_timeout:
     client.set_default_timeout(ZLOCK_DEFAULT_TIMEOUT)
 
 
@@ -485,8 +532,10 @@ _connected_to_zlog = False
 
 
 def ensure_connected_to_zlog():
-    """Ensure we are connected to a zlog server. If one is not running and we are the
-    top-level process, start a zlog server configured according to LabConfig."""
+    """Ping the zlog server, starting one first if it should run on this computer.
+
+    It does nothing once a ping has succeeded.
+    """
     global _connected_to_zlog
     if _connected_to_zlog:
         return
