@@ -185,11 +185,11 @@ class TabAnimation(QtCore.QAbstractAnimation):
         """Return the left edge toward which tab i animates."""
         return self.parent().tabRect(i).left()
 
-    def tab_inserted(self, index):
+    def tabInserted(self, index):
         self.positions.insert(index, self.parent().tabRect(index).left())
         self.ensure_running()
 
-    def tab_removed(self, index):
+    def tabRemoved(self, index):
         del self.positions[index]
         self.ensure_running()
 
@@ -490,7 +490,7 @@ class DragDropTabBar(_BaseDragDropTabBar):
             return move_target
         return index
 
-    def widget_at(self, pos):
+    def widgetAt(self, pos):
         """Return the tab bar under pos, or the limbo if there is none.
 
         Only tab widgets in this bar's group are considered. With
@@ -579,7 +579,7 @@ class DragDropTabBar(_BaseDragDropTabBar):
             return
         event.accept()
         if self.group_id is not None:
-            widget = self.widget_at(event.pos())
+            widget = self.widgetAt(event.pos())
             self.set_tab_parent(widget, pos=event.pos())
             other_local_pos = widget.mapFromGlobal(self.mapToGlobal(event.pos()))
             self.dragged_tab_index = widget.update_tab_index(self.dragged_tab_index,
@@ -599,7 +599,7 @@ class DragDropTabBar(_BaseDragDropTabBar):
             return
         event.accept()
         self.drag_in_progress = False
-        widget = self.widget_at(event.pos())
+        widget = self.widgetAt(event.pos())
         self.releaseMouse()
         # If the tab and the mouse are both in limbo, put the tab back at its
         # last known place.
@@ -631,11 +631,11 @@ class DragDropTabBar(_BaseDragDropTabBar):
 
     def tabInserted(self, index):
         super().tabInserted(index)
-        self.animation.tab_inserted(index)
+        self.animation.tabInserted(index)
 
     def tabRemoved(self, index):
         super().tabRemoved(index)
-        self.animation.tab_removed(index)
+        self.animation.tabRemoved(index)
 
     def tabLayoutChange(self):
         super().tabLayoutChange()

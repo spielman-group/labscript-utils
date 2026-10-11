@@ -46,8 +46,8 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
         self.sectionResized.connect(self.update_widget_positions)
         self.geometriesChanged.connect(self.update_widget_positions)
         self.sectionCountChanged.connect(self.update_widget_positions)
-        self.model.columnsInserted.connect(self.on_columns_inserted)
-        self.model.columnsRemoved.connect(self.on_columns_removed)
+        self.model.columnsInserted.connect(self.on_columnsInserted)
+        self.model.columnsRemoved.connect(self.on_columnsRemoved)
         self.setSectionsMovable(True)
         self.vertical_padding = 0
         self.position_update_required = False
@@ -212,7 +212,7 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
             self.unsetCursor()
         return False
 
-    def on_columns_inserted(self, parent, logical_first, logical_last):
+    def on_columnsInserted(self, parent, logical_first, logical_last):
         n_inserted = logical_last - logical_first + 1
         widgets_with_offset = {}
         for logical_index, widget in self.widgets.items():
@@ -223,7 +223,7 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
         self.widgets = widgets_with_offset
         self.update_widget_positions()
 
-    def on_columns_removed(self, parent, logical_first, logical_last):
+    def on_columnsRemoved(self, parent, logical_first, logical_last):
         n_removed = logical_last - logical_first + 1
         widgets_with_offset = {}
         for logical_index, widget in self.widgets.items():
