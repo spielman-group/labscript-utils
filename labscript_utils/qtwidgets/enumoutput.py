@@ -95,10 +95,8 @@ class EnumOutput(LockableOutput, QtWidgets.QWidget):
     @selected_option.setter
     def selected_option(self,option):
         if option != self.selected_option:
-            #item = self._combobox.model().findItems(option)
             model_index = self._combobox.findText(option)
             if model_index != -1:
-                #model_index = self._combobox.model().indexFromItem(item[0]).row()
                 self._combobox.setCurrentIndex(model_index)
 
     @property

@@ -31,7 +31,6 @@ class BrowseButton(QtWidgets.QPushButton):
         self.last_opened_folder = ""
         
     def browse(self):
-        # supported_images = "Image files (*.png *.bmp *.gif *.jpg *.jpeg *.pbm *.pgm *.ppm *.xbm *.xpm)"
         supported_images = "Image files ("
         
         for format in QtGui.QImageReader.supportedImageFormats():
@@ -115,7 +114,6 @@ class ImageOutput(LockableOutput, QtWidgets.QWidget):
         self._view = ImageView(self._scene)
         self._view.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop)        
         self._view.setStyleSheet("border: 0px")
-        # self._view.setStyleSheet("background-color:#000000; border: 0px;")
         self._view.setMinimumSize(self.image_size)
         self._view.setMaximumSize(self.image_size)
         self._layout.addWidget(self._view)
@@ -156,7 +154,6 @@ class ImageOutput(LockableOutput, QtWidgets.QWidget):
         decoded_image = base64.b64decode(value)
         pixmap = QtGui.QPixmap()
         pixmap.loadFromData(decoded_image, flags=QtCore.Qt.ImageConversionFlag.AvoidDither | QtCore.Qt.ImageConversionFlag.ThresholdAlphaDither | QtCore.Qt.ImageConversionFlag.ThresholdDither)
-        # print decoded_image
         if pixmap.size() != self.image_size:
             QtWidgets.QMessageBox.warning(self, "Failed to load image", 'The image size was incorrect. It must be %dx%d pixels.'%(self.image_size.width(), self.image_size.height()), QtWidgets.QMessageBox.StandardButton.Ok, QtWidgets.QMessageBox.StandardButton.Ok)
             return

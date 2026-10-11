@@ -42,7 +42,6 @@ class DDSOutput(QtWidgets.QWidget):
         # widgets do not grow to take up all available horizontal space:
         self._outer_layout = QtWidgets.QHBoxLayout(self)
         self._outer_layout.setContentsMargins(0, 0, 0, 0)
-        # self._layout.setHorizontalSpacing(3)
         self._frame = QtWidgets.QFrame(self)
         self._outer_layout.addStretch()
         self._outer_layout.addWidget(self._frame)
@@ -80,9 +79,7 @@ class DDSOutput(QtWidgets.QWidget):
         v_layout.addWidget(self._widgets['phase'])
         
         self._layout.addWidget(self._label,0,0)
-        #self._layout.addItem(QSpacerItem(0,0,QtWidgets.QSizePolicy.Policy.MinimumExpanding,QtWidgets.QSizePolicy.Policy.Minimum),0,1)
         self._layout.addWidget(v_widget,1,0)            
-        #self._layout.addItem(QSpacerItem(0,0,QtWidgets.QSizePolicy.Policy.MinimumExpanding,QtWidgets.QSizePolicy.Policy.Minimum),1,1)
         self._layout.addItem(QtWidgets.QSpacerItem(0,0,QtWidgets.QSizePolicy.Policy.Minimum,QtWidgets.QSizePolicy.Policy.MinimumExpanding),2,0)
         
         

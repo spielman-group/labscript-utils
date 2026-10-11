@@ -101,23 +101,13 @@ class Settings(object):
             hlayout.addWidget(button_box)
             layout.addWidget(widget)
             
-            #sorted(a.items(),key=lambda x: x[1])
             set_page = None
-            #self.temp_pages = []
             for name, c in sorted(self.pages.items()):
                 page,icon = c.create_dialog(self.notebook)
                 
                 # save page
                 self.instantiated_pages[c.__class__] = page
                 
-                # Create label
-                #if isinstance(icon,gtk.Image):
-                    # use their icon
-                #    pass
-                #else:
-                    # use default icon
-                #    pass
-                    
                 self.notebook.addTab(page,c.name)
                 
                 if goto_page and isinstance(c,goto_page):

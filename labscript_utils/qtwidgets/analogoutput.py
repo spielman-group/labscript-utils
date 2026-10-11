@@ -127,9 +127,6 @@ class AnalogOutput(LockableOutput, QtWidgets.QWidget):
             
             self._label.setSizePolicy(QtWidgets.QSizePolicy.Policy.MinimumExpanding,QtWidgets.QSizePolicy.Policy.Minimum)
             
-            #self._layout.addWidget(self._label)            
-            #self._layout.addItem(QtWidgets.QSpacerItem(0,0,QtWidgets.QSizePolicy.Policy.MinimumExpanding,QtWidgets.QSizePolicy.Policy.Minimum),0,1)
-            
             h_widget = QtWidgets.QWidget()            
             h_layout = QtWidgets.QHBoxLayout(h_widget)
             h_layout.setContentsMargins(0,0,0,0)
@@ -138,7 +135,6 @@ class AnalogOutput(LockableOutput, QtWidgets.QWidget):
             
             self._layout.addWidget(self._label,0,0)
             self._layout.addWidget(h_widget,1,0)            
-            #self._layout.addItem(QtWidgets.QSpacerItem(0,0,QtWidgets.QSizePolicy.Policy.MinimumExpanding,QtWidgets.QSizePolicy.Policy.Minimum),1,1)
             self._layout.addItem(QtWidgets.QSpacerItem(0,0,QtWidgets.QSizePolicy.Policy.Minimum,QtWidgets.QSizePolicy.Policy.MinimumExpanding),2,0)
         
         # Install the event filter that will allow us to catch right click mouse release events so we can popup a menu even when the button is disabled

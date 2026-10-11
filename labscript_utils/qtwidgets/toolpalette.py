@@ -108,14 +108,10 @@ class ToolPalette(QtWidgets.QScrollArea):
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.MinimumExpanding,QtWidgets.QSizePolicy.Policy.Minimum)
         self.setFrameStyle(QtWidgets.QFrame.Shape.NoFrame)
         # create the grid layout
-        #self.setWidget(QWidget(self))
-        #self.widget().setSizePolicy(QSizePolicy.Policy.Preferred,QSizePolicy.Policy.Preferred)
         self._layout = QtWidgets.QGridLayout(self) 
         self._layout.setContentsMargins(3,0,3,3)
         self._layout.setHorizontalSpacing(3)
         self._layout.setVerticalSpacing(3)
-        #self._layout.setMaximumSize(QSize(524287,524287))
-        #self._layout.setSizeConstraint(QLayout.SizeConstraint.SetMinAndMaxSize)
         self._widget_list = []
         
         # need to keep track of these internally because the GridLayout returns the number of 
@@ -129,7 +125,6 @@ class ToolPalette(QtWidgets.QScrollArea):
         
     def addWidget(self,widget,force_relayout=True):
         # Append to end of tool pallete
-        #widget.clicked.connect(embed)
         self._widget_list.append(widget)
         self._layout_widgets(force_relayout)
         
@@ -152,7 +147,6 @@ class ToolPalette(QtWidgets.QScrollArea):
         
         # find the width of the gridlayout
         layout_width = self.size().width()
-        #layout_width = self._layout.sizeHint().width()
         layout_spacing = self._layout.horizontalSpacing()
         
         # How many widgets can fit in a row?
@@ -160,20 +154,12 @@ class ToolPalette(QtWidgets.QScrollArea):
         # so need to take into account the borders around the grid layout? What are they?)
         num_widgets_per_row = (layout_width-layout_spacing*3)//(max_width+layout_spacing)
 
-        # print 'number_of_widgets: %d'%len(self._widget_list)
-        # print 'layout_width: %d'%layout_width
-        # print 'layout_spacing: %d'%layout_spacing
-        # print 'max_width: %d'%max_width
-        # print '(layout_width-layout_spacing*3)/(max_width+layout_spacing): %.3f'%((layout_width-layout_spacing*3)/(max_width+layout_spacing))
-        # print 'num_widgets_per_row: %d'%num_widgets_per_row 
-        
         if num_widgets_per_row < 1:
             num_widgets_per_row = 1
         elif num_widgets_per_row > len(self._widget_list):
             num_widgets_per_row = len(self._widget_list)
             
         if num_widgets_per_row != self._column_count or force_relayout:            
-            #print 'changing number of columns'
             # remove all widgets
             for widget in self._widget_list:
                 self._layout.removeWidget(widget)
@@ -196,11 +182,6 @@ class ToolPalette(QtWidgets.QScrollArea):
             self._column_count = num_widgets_per_row
             self._row_count = row
             
-            # print (max(h_size_hints)+self._layout.verticalSpacing())*self._row_count+self._layout.verticalSpacing()*2
-            # print max(h_size_hints)
-            # print self._layout.verticalSpacing()
-            # print self._row_count
-            
             total_height = max(h_size_hints) * self._row_count
             total_height += self._layout.verticalSpacing() * (self._row_count - 1)
             total_height += self._layout.contentsMargins().top()
@@ -219,18 +200,11 @@ class ToolPalette(QtWidgets.QScrollArea):
         
         # now get the smallest minimum size width of all child widgets:
         widths = [w.minimumSizeHint().width() for w in self._widget_list]
-        #heights = [w.minimumSize().height() for w in self._widget_list]
-        #print 'number of widgets %d'%len(self._widget_list)
         if len(widths) > 0:
             max_width = max(widths)
-            #print 'max_width: %d'%max_width
-            #print 'widget width: %d'%widget_size.width()
             if max_width > widget_size.width():
                 widget_size = QtCore.QSize(max_width,widget_size.height())
-                #print 'modifying minimum size width'
         
-        #print 'minimum size is %s'%str(widget_size)
-            
         return widget_size
         
     def sizeHint(self):

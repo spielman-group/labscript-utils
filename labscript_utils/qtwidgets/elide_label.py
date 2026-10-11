@@ -70,7 +70,6 @@ class ElidedLabelContainer(QtWidgets.QWidget):
         self.setElideMode(QtCore.Qt.TextElideMode.ElideNone)
         self.setSizePolicy(label.sizePolicy())
         self.scroll_area.horizontalScrollBar().rangeChanged.connect(self.update_elide_widget)
-        # self.scroll_area.horizontalScrollBar().valueChanged.connect(self.update_elide_widget)
         self.update_elide_widget()
 
     def event(self, event):
@@ -94,11 +93,6 @@ class ElidedLabelContainer(QtWidgets.QWidget):
         elif self._elideMode == QtCore.Qt.TextElideMode.ElideRight:
             self.layout.addWidget(self.scroll_area)
             self.layout.addWidget(self.ellipsis_label)
-
-    # def resizeEvent(self, event):
-    #     result = QWidget.resizeEvent(self, event)
-    #     self.update_elide_widget()
-    #     return result
 
     def update_elide_widget(self):
         label_width = self.label.minimumSizeHint().width()
