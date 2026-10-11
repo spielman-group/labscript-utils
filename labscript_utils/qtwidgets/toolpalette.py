@@ -21,35 +21,17 @@ _ENABLE_LAYOUT_EVENT_TYPE = QtCore.QEvent.Type.User
 
 
 class ToolPaletteGroup(QtWidgets.QVBoxLayout):
-    """A vertical layout of named ToolPalettes.
-
-    Each palette sits under a header button that hides or shows it. Arguments
-    are those of QVBoxLayout.
-    """
+    """A vertical layout of named ToolPalettes, each under a header button that hides or shows it."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._widget_groups = {}
 
     def append_new_palette(self, name, *args, **kwargs):
-        """Create a ToolPalette, add it to the group and return it.
+        """Create a ToolPalette called name, add it to the group and return it.
 
-        Parameters
-        ----------
-        name : str
-            The text of the palette's header button, and the name by which the
-            group finds the palette.
-        *args, **kwargs
-            Passed to ToolPalette, and so to QScrollArea.
-
-        Returns
-        -------
-        ToolPalette
-
-        Raises
-        ------
-        RuntimeError
-            If the group already has a palette called name.
+        Other arguments go to ToolPalette. Raises RuntimeError if the group
+        already has a palette called name.
         """
         if name in self._widget_groups:
             raise RuntimeError(f'The tool palette group already has a palette named {name}')
@@ -92,13 +74,7 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
             self.hide_palette(name)
 
     def show_palette(self, name):
-        """Show the palette called name.
-
-        Raises
-        ------
-        RuntimeError
-            If the group has no palette called name.
-        """
+        """Show the palette called name; raises RuntimeError if there is none."""
         if name not in self._widget_groups:
             raise RuntimeError(f'The tool palette does not have a palette named {name}')
         palette, push_button = self._widget_groups[name]
@@ -107,13 +83,7 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
         push_button.setToolTip('Click to hide')
 
     def hide_palette(self, name):
-        """Hide the palette called name.
-
-        Raises
-        ------
-        RuntimeError
-            If the group has no palette called name.
-        """
+        """Hide the palette called name; raises RuntimeError if there is none."""
         if name not in self._widget_groups:
             raise RuntimeError(f'The tool palette does not have a palette named {name}')
 
@@ -129,13 +99,7 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
         return False
 
     def get_palette(self, name):
-        """Return the palette called name.
-
-        Raises
-        ------
-        RuntimeError
-            If the group has no palette called name.
-        """
+        """Return the palette called name; raises RuntimeError if there is none."""
         if name not in self._widget_groups:
             raise RuntimeError(f'The tool palette group does not contain a palette named {name}')
 
@@ -143,11 +107,9 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
 
 
 class ToolPalette(QtWidgets.QScrollArea):
-    """A scroll area that lays its widgets out in a grid, with as many columns
-    as fit its width.
+    """A scroll area that lays its widgets out in a grid with as many columns as fit its width.
 
-    Made by ToolPaletteGroup.append_new_palette. parent and name are not used;
-    other arguments are those of QScrollArea.
+    Made by ToolPaletteGroup.append_new_palette; parent and name are not used.
     """
 
     def __init__(self, parent, name, *args, **kwargs):
@@ -171,11 +133,8 @@ class ToolPalette(QtWidgets.QScrollArea):
     def addWidget(self, widget, force_relayout=True):
         """Append widget to the end of the palette.
 
-        Parameters
-        ----------
-        widget : QWidget
-        force_relayout : bool, optional
-            If False, the grid is rebuilt only if the number of columns changes.
+        If force_relayout is False, the grid is rebuilt only if the number of
+        columns changes.
         """
         self._widget_list.append(widget)
         self._layout_widgets(force_relayout)
