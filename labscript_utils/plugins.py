@@ -11,14 +11,13 @@
 #                                                                   #
 #####################################################################
 
-"""Plugin discovery, instantiation, and callback plumbing for labscript apps.
+"""Plugin discovery, instantiation, and hook routing for labscript apps.
 
-This module is the small framework layer that labscript-suite applications use
-to discover plugins, instantiate them, collect app-neutral contributions, and
-ask them for callbacks at runtime. The application owns the actual settings
-storage, notification manager, menu objects, UI containers, and event firing.
-``PluginManager`` only calls plugin hooks and routes contributions to contexts
-the application registered explicitly.
+``PluginManager`` finds plugin packages, instantiates their ``Plugin`` class and
+calls the hooks a plugin defines. The application owns settings storage, the
+notification manager, menu objects, UI containers, and event firing; the manager
+only calls hooks and routes contributions to the contexts the application
+registered.
 
 The usual package layout is::
 
@@ -28,31 +27,15 @@ The usual package layout is::
             example/
                 __init__.py  # defines class Plugin
 
-The module name becomes the plugin name. ``PluginManager`` looks for a module
-attribute named ``Plugin`` and passes the saved per-plugin settings dictionary
-to ``Plugin(initial_settings)``. Existing plugins do not have to inherit
-``BasePlugin``; they only need to provide the methods the manager calls.
-
-Configuration behavior is intentionally conservative:
-
-* Missing plugin entries are added to the config when discovered.
-* Names listed in ``default_plugins`` are written as enabled by default.
-* Only enabled modules are imported.
-* Import or instantiation failures are logged and skipped so one broken plugin
-  does not stop the application from starting.
-* An enable flag that is not a boolean stops start-up with an error.
-
-``Callback`` and ``callback`` wrap event handlers with priority metadata.
-Lower priority numbers run first. ``Callback`` behaves like a descriptor, so
-decorated methods still bind to plugin instances normally when accessed through
-an instance.
+The module name becomes the plugin name, and ``Plugin(initial_settings)``
+receives its saved settings dictionary. A plugin need not inherit ``BasePlugin``;
+it only defines the hooks the manager calls, each named in ``PluginManager``.
 
 Two menu paths are supported, intentionally with different contracts:
 
-* ``MenuBuilder`` is the legacy nested-dictionary renderer used by existing
-  BLACS-style plugins. It consumes dictionaries with ``name``, ``menu_items``,
-  ``icon``, ``action``, and ``separator`` keys and renders them immediately
-  into application menu objects.
+* ``MenuBuilder`` renders the nested menu description a plugin returns from
+  ``get_menu_class()``, immediately, from ``PluginManager.setup_plugins()``.
+  BLACS uses it.
 * ``MenuContext`` is the shared contribution path for future applications. It
   collects actions with explicit ``location``, ``path``, ``group``, ``order``,
   ``name``, and ``action`` metadata, then renders all plugins together after
@@ -63,284 +46,6 @@ tab, MDI subwindow, dock widget, dialog, fixed frame, or plugin-owned modal
 container. Plugins declare a named ``context`` and applications register
 objects that implement ``add(plugin_name, contribution, data)``. That is the
 full shared UI contract.
-
-Minimal application integration example
----------------------------------------
-
-The application owns plugin settings storage, concrete UI objects, and context
-implementations. A compact integration with legacy settings/notifications plus
-new contribution routing looks like this::
-
-    from labscript_utils.plugins import MenuBuilder, MenuContext, PluginManager
-
-
-    class App(object):
-        def __init__(self, config, logger):
-            self.config = config
-            self.logger = logger
-            self.plugin_manager = PluginManager(
-                plugin_package='myapp.plugins',
-                plugins_dir='/path/to/myapp/plugins',
-                config=self.config,
-                config_section='myapp/plugins',
-                default_plugins=('example',),
-                logger=self.logger,
-            )
-
-            self.plugin_manager.discover_modules()
-
-            plugin_settings = self.load_plugin_settings()
-            self.plugin_manager.instantiate_plugins(plugin_settings)
-
-            menu_builder = MenuBuilder(icon_factory=self.icon_factory)
-            settings_pages, settings_callbacks = self.plugin_manager.setup_plugins(
-                data=self.app_data,
-                notifications=self.notification_manager,
-                menu_builder=menu_builder,
-                menubar=self.menubar,
-            )
-
-            menus = MenuContext(logger=self.logger)
-            menus.register_location('file', self.file_menu)
-            menus.register_location('window', self.window_menu)
-
-            self.plugin_manager.register_context('menus', menus)
-            self.plugin_manager.register_context('mdi', MDIContext(self.mdi_area))
-            self.plugin_manager.register_context(
-                'dialogs',
-                DialogContext(parent=self.main_window),
-            )
-            self.plugin_manager.setup_contexts(self.app_data)
-            menus.render()
-
-            self.settings_widget = self.build_settings_ui(settings_pages)
-            for callback in settings_callbacks:
-                self.register_settings_callback(callback)
-
-            self.plugin_manager.setup_complete(self.app_data)
-
-        def load_plugin_settings(self):
-            # App-owned storage. Return a mapping from plugin name to dict.
-            return {
-                'example': {'enabled': True},
-            }
-
-        def build_settings_ui(self, settings_pages):
-            # App-owned settings UI. Each item in settings_pages is a plugin
-            # contributed settings page class.
-            return settings_pages
-
-        def register_settings_callback(self, callback):
-            # App-owned settings wiring.
-            self.settings_changed_callbacks.append(callback)
-
-        def fire_event(self, name):
-            # App-owned event firing. PluginManager only returns callbacks.
-            for callback in self.plugin_manager.get_event_handlers(name):
-                callback()
-
-        def close_plugins(self):
-            self.plugin_manager.close_plugins()
-
-
-Minimal plugin package example
-------------------------------
-
-This example shows the shared plugin surface. The plugin contributes a legacy
-menu, a contribution-based menu action, a settings page, a notification, an MDI
-window request, callbacks, ``setup_complete()`` handling, save data, and
-shutdown cleanup. Methods can return empty lists or dictionaries when a feature
-is not used::
-
-    from labscript_utils.plugins import BasePlugin, callback
-
-
-    class SettingsPage(object):
-        pass
-
-
-    class Notification(object):
-        pass
-
-
-    class DataBrowser(object):
-        def __init__(self, parent, services):
-            self.parent = parent
-            self.services = services
-
-
-    class Menu(object):
-        def __init__(self, data):
-            self.data = data
-
-        def get_menu_items(self):
-            return {
-                'name': 'Example',
-                'menu_items': [
-                    {'name': 'Legacy Open', 'action': self.open_action},
-                    {'separator': True},
-                    {
-                        'name': 'Legacy Settings',
-                        'icon': 'gear',
-                        'action': self.settings_action,
-                    },
-                ],
-            }
-
-        def open_action(self):
-            pass
-
-        def settings_action(self):
-            pass
-
-
-    class Plugin(BasePlugin):
-        def __init__(self, initial_settings):
-            super(Plugin, self).__init__(initial_settings)
-            self.saved_state = initial_settings
-            self.app_data = None
-
-        def get_menu_class(self):
-            return Menu
-
-        def get_menu_contributions(self):
-            return [
-                {
-                    'location': 'file',
-                    'path': ('Examples',),
-                    'group': 'open',
-                    'order': 20,
-                    'name': 'Open Data Browser',
-                    'shortcut': 'Ctrl+D',
-                    'action': self.open_data_browser,
-                },
-            ]
-
-        def get_ui_contributions(self):
-            return [
-                {
-                    'context': 'mdi',
-                    'key': 'data_browser',
-                    'title': 'Data Browser',
-                    'factory': DataBrowser,
-                },
-            ]
-
-        def get_notification_classes(self):
-            return [Notification]
-
-        def get_setting_classes(self):
-            return [SettingsPage]
-
-        def set_menu_instance(self, menu):
-            self.menu = menu
-
-        def set_notification_instances(self, notifications):
-            self.notifications = notifications
-
-        def get_event_handlers(self):
-            return {
-                'settings_changed': self.on_settings_changed,
-                'shot_complete': self.on_shot_complete,
-            }
-
-        def plugin_setup_complete(self, data):
-            self.app_data = data
-
-        def get_save_data(self):
-            return {'saved_state': self.saved_state}
-
-        def close(self):
-            pass
-
-        def open_data_browser(self):
-            pass
-
-        @callback(priority=5)
-        def on_settings_changed(self):
-            pass
-
-        @callback(priority=20)
-        def on_shot_complete(self):
-            pass
-
-
-Feature excerpts and expected UI
---------------------------------
-
-BasePlugin subclass with saved ``initial_settings`` and ``get_save_data()``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The constructor receives the per-plugin saved settings dictionary. Store it if
-you need to restore state later. ``get_save_data()`` should return the
-serializable data you want written back for the next application start::
-
-    class Plugin(BasePlugin):
-        def __init__(self, initial_settings):
-            super(Plugin, self).__init__(initial_settings)
-            self.initial_settings = initial_settings
-
-        def get_save_data(self):
-            return {
-                'window_geometry': self.window_geometry,
-                'last_path': self.last_path,
-            }
-
-Settings page contribution skeleton
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-``get_setting_classes()`` returns the page classes the application should add
-to its settings UI. The application owns the widget construction and storage::
-
-    class Plugin(BasePlugin):
-        def get_setting_classes(self):
-            return [SettingsPage]
-
-    class SettingsPage(object):
-        pass
-
-Expected UI result: the application shows one settings page for each returned
-class, using the app's own settings shell and persistence rules.
-
-Legacy menu skeleton with MenuBuilder
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-``get_menu_class()`` returns a class whose instance exposes
-``get_menu_items()``. The nested dictionaries are translated into the app's
-menu objects by ``MenuBuilder``. It expects menus and actions to support
-``addMenu()``, ``addAction()``, and ``addSeparator()``::
-
-    class Plugin(BasePlugin):
-        def get_menu_class(self):
-            return Menu
-
-    class Menu(object):
-        def __init__(self, data):
-            self.data = data
-
-        def get_menu_items(self):
-            return {
-                'name': 'Example',
-                'menu_items': [
-                    {'name': 'Open', 'action': self.open_action},
-                    {'separator': True},
-                    {
-                        'name': 'Settings',
-                        'icon': 'gear',
-                        'action': self.settings_action,
-                    },
-                ],
-            }
-
-        def open_action(self):
-            pass
-
-        def settings_action(self):
-            pass
-
-Expected UI result: the app user sees a top-level menu labeled ``Example``,
-with an ``Open`` action, a separator, and a ``Settings`` action showing the
-icon that the app's ``icon_factory`` returns for ``gear``.
 
 Contribution menu skeleton with MenuContext
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -444,180 +149,15 @@ Expected UI result: the application renders the actions in its registered
 ``application`` groups, and applies shortcuts without the shared framework
 knowing what a project is.
 
-App-neutral UI homing with contexts
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The application side of the contribution path::
 
-``get_ui_contributions()`` returns dictionaries with a required ``context``.
-The rest of the dictionary is application-defined. This is enough to support
-known containers, deferred containers, and plugin-provided containers without
-adding type-specific methods such as ``create_tabs()`` or
-``create_mdi_windows()`` to ``PluginManager``::
+            menus = MenuContext(logger=self.logger)
+            menus.register_location('file', self.file_menu)
+            menus.register_location('window', self.window_menu)
 
-    class KnownContainerContext(object):
-        def __init__(self, tab_widget):
-            self.tab_widget = tab_widget
-
-        def add(self, plugin_name, contribution, data):
-            widget = contribution['factory'](
-                self.tab_widget,
-                data['settings'][contribution['key']],
-            )
-            self.tab_widget.addTab(widget, contribution['title'])
-
-
-    class DeferredMDIContext(object):
-        def __init__(self, mdi_area):
-            self.mdi_area = mdi_area
-            self.openers = {}
-
-        def add(self, plugin_name, contribution, data):
-            key = contribution['key']
-
-            def open_window():
-                widget = contribution['factory'](parent=self.mdi_area, data=data)
-                self.mdi_area.addSubWindow(widget)
-                widget.show()
-                return widget
-
-            self.openers[key] = open_window
-
-
-    class DialogContext(object):
-        def __init__(self, parent):
-            self.parent = parent
-            self.dialogs = {}
-
-        def add(self, plugin_name, contribution, data):
-            self.dialogs[contribution['key']] = contribution['factory'](
-                parent=self.parent,
-                services=data['services'],
-            )
-
-
-    class Plugin(BasePlugin):
-        def get_ui_contributions(self):
-            return [
-                {
-                    'context': 'tabs',
-                    'key': 'overview',
-                    'title': 'Overview',
-                    'factory': OverviewWidget,
-                },
-                {
-                    'context': 'mdi',
-                    'key': 'data_browser',
-                    'title': 'Data Browser',
-                    'factory': DataBrowser,
-                },
-                {
-                    'context': 'dialogs',
-                    'key': 'open_project',
-                    'title': 'Open Project',
-                    'factory': OpenProjectDialog,
-                },
-            ]
-
-Expected UI result: each application-owned context decides how to instantiate,
-store, parent, restore, defer, activate, or display its contribution. Unknown
-contexts are logged and skipped by ``PluginManager.setup_contexts()``.
-
-Notification contribution skeleton
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-``get_notification_classes()`` returns notification classes. The application
-owns the notification manager and decides how the resulting widgets are shown::
-
-    class Plugin(BasePlugin):
-        def get_notification_classes(self):
-            return [Notification]
-
-    class Notification(object):
-        pass
-
-Expected UI result: the application creates whatever notification widgets or
-panels it normally uses for those classes and inserts them into its own
-notification area.
-
-Callbacks with priorities
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-``@callback(priority=...)`` wraps a method in ``Callback`` metadata. Lower
-numbers run first when the application asks ``PluginManager.get_event_handlers()``::
-
-    class SlowPlugin(BasePlugin):
-        def get_event_handlers(self):
-            return {
-                'shot_complete': self.on_slow,
-            }
-
-        @callback(priority=20)
-        def on_slow(self):
-            pass
-
-    class FastPlugin(BasePlugin):
-        def get_event_handlers(self):
-            return {
-                'shot_complete': self.on_fast,
-            }
-
-        @callback(priority=5)
-        def on_fast(self):
-            pass
-
-Expected runtime order: when the application fires ``shot_complete`` and calls
-``plugin_manager.get_event_handlers('shot_complete')``, the priority 5 callback
-runs before the priority 20 callback, even if the plugins were discovered in a
-different order.
-
-``setup_complete()`` for app data
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-``setup_complete()`` is called after the application has finished startup.
-Use it to access app-owned state that was not available during construction,
-such as the main window, settings object, registered services, or concrete
-context objects. Existing plugins can keep overriding
-``plugin_setup_complete()``::
-
-    class Plugin(BasePlugin):
-        def plugin_setup_complete(self, data):
-            self.app = data['app']
-            self.settings = data['settings']
-            self.services = data['services']
-
-The ``data`` dictionary is app-defined.
-
-Plugins that need ordered startup work can return setup activity records from
-``get_setup_activities()``. Each record has ``name``, ``priority``, and
-``action`` keys; lower priority values run first::
-
-    class Plugin(BasePlugin):
-        def get_setup_activities(self):
-            return [
-                {
-                    'name': 'bind_services',
-                    'priority': DEFAULT_SETUP_PRIORITY,
-                    'action': self.bind_services,
-                },
-                {
-                    'name': 'start_worker',
-                    'priority': DEFAULT_SETUP_PRIORITY + 10,
-                    'action': self.start_worker,
-                },
-            ]
-
-Shutdown cleanup with ``close()``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-``close()`` is the plugin shutdown hook. Use it to stop timers, threads,
-listeners, or any other plugin-owned resources::
-
-    class Plugin(BasePlugin):
-        def close(self):
-            self.worker.stop()
-            self.worker.wait()
-
-Expected behavior: the application calls each plugin's ``close()`` method
-during shutdown so the plugin can release resources before exit.
+            self.plugin_manager.register_context('menus', menus)
+            self.plugin_manager.setup_contexts(self.app_data)
+            menus.render()
 """
 
 import importlib
@@ -711,8 +251,8 @@ class BasePlugin(object):
 
         This is the shared event hook. Return a mapping such as
         ``{'shot_complete': self.on_shot_complete}``. Event names are
-        application-defined strings; this shared layer only collects,
-        normalizes, and orders handlers. Values may be plain callables or
+        application-defined strings; this shared layer only collects and
+        orders handlers. Values may be plain callables or
         :class:`Callback` instances created with the :class:`callback`
         decorator. The manager sorts handlers for a given event by their
         ``priority`` attribute.
@@ -748,7 +288,7 @@ class BasePlugin(object):
 
         Return a mapping of service names to concrete objects. Applications can
         aggregate these mappings into a shared service registry before calling
-        ``plugin_setup_complete()``, making plugin-to-plugin dependencies
+        ``setup_complete()``, making plugin-to-plugin dependencies
         order-independent.
         """
         return {}
@@ -764,6 +304,10 @@ class MenuBuilder(object):
     * ``icon``: icon name passed to ``icon_factory`` for actions
     * ``action``: callable connected to the action's ``triggered`` signal
     * ``separator``: a truthy sentinel that inserts a separator
+
+    The ``parent`` given to ``create_menu()`` must provide ``addMenu()``,
+    ``addAction()`` and ``addSeparator()``, and an action must have a
+    ``triggered`` signal.
     """
     def __init__(self, icon_factory):
         """Create a menu builder.
@@ -976,9 +520,12 @@ class PluginManager(object):
     * ``modules``: imported plugin modules keyed by plugin name
     * ``plugins``: instantiated plugin objects keyed by plugin name
 
-    An application normally creates one manager per plugin directory and uses
-    it to discover modules, instantiate plugin objects, build UI pieces, and
-    close plugins on shutdown.
+    An application creates one manager per plugin directory and calls
+    ``discover_modules()`` and ``instantiate_plugins()``, then either
+    ``setup_plugins()`` (settings pages, menus, notifications) or
+    ``collect_services()``, ``register_context()`` and ``setup_contexts()``,
+    then ``setup_complete()``. It asks ``get_event_handlers()`` for handlers
+    when it fires an event, and calls ``close_plugins()`` at shutdown.
     """
     def __init__(
         self,
@@ -1016,7 +563,17 @@ class PluginManager(object):
         self.contexts = {}
 
     def discover_modules(self):
-        """Scan the plugin directory, update config defaults, and import enabled modules."""
+        """Scan the plugin directory, update config defaults, and import enabled modules.
+
+        A plugin directory with no enable flag gets one, true if its name is in
+        ``default_plugins``. Only enabled plugins are imported; an import
+        failure is logged and the plugin skipped.
+
+        Raises
+        ------
+        ValueError
+            If an enable flag in the config is not a boolean.
+        """
         if not self.config.has_section(self.config_section):
             self.config.add_section(self.config_section)
 
@@ -1083,6 +640,15 @@ class PluginManager(object):
         UI and callback registrations. The method returns a tuple of
         ``(settings_pages, settings_callbacks)`` for the application to
         consume.
+
+        For each plugin it collects the classes from ``get_setting_classes()``;
+        instantiates the class ``get_menu_class()`` returns with ``data``,
+        passes its ``get_menu_items()`` to ``menu_builder`` under ``menubar``,
+        and hands the instance to ``set_menu_instance()``; adds each class from
+        ``get_notification_classes()`` to ``notifications`` and passes the
+        instances to ``set_notification_instances()``; and keeps the
+        ``settings_changed`` handler from ``get_event_handlers()``. A plugin
+        that raises is logged and the rest are still set up.
         """
         settings_pages = []
         settings_callbacks = []
@@ -1125,7 +691,12 @@ class PluginManager(object):
         return settings_pages, settings_callbacks
 
     def register_context(self, name, context):
-        """Register an application-owned plugin contribution context."""
+        """Register an application-owned plugin contribution context.
+
+        A context is any object with ``add(plugin_name, contribution, data)``.
+        UI contributions go to the context named by their ``context`` key, and
+        menu contributions to the context registered as ``'menus'``.
+        """
         self.contexts[name] = context
 
     def _get_contributions(self, hook, module_name, label):
@@ -1143,7 +714,11 @@ class PluginManager(object):
             return []
 
     def setup_contexts(self, data):
-        """Route plugin-declared UI and menu contributions to app contexts."""
+        """Route plugin-declared UI and menu contributions to app contexts.
+
+        A contribution for an unregistered context, or whose context raises in
+        ``add()``, is logged and skipped.
+        """
         for module_name, plugin in self.plugins.items():
             ui_contributions = self._get_contributions(
                 getattr(plugin, 'get_ui_contributions', None),
@@ -1213,7 +788,16 @@ class PluginManager(object):
         return services
 
     def setup_complete(self, data):
-        """Run plugin setup activities after application startup."""
+        """Run plugin setup activities after application startup.
+
+        ``get_setup_activities()`` returns records with ``name``, ``priority``
+        and ``action``; a plugin without it contributes
+        ``plugin_setup_complete`` as one activity at ``DEFAULT_SETUP_PRIORITY``.
+        Activities from all plugins run lowest priority first, ties in plugin
+        name order, each action called with ``data``. A failing action is
+        logged and the rest still run; a plugin whose records are malformed is
+        skipped whole.
+        """
         setup_activities = []
 
         for module_name, plugin in self.plugins.items():
