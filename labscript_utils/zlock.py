@@ -19,7 +19,9 @@
 If --daemon is specified, the zlock server will be started in the background.
 """
 from socket import gethostbyname
+
 from labscript_utils.ls_zprocess import get_config, run_server
+
 
 def main():
     config = get_config()
@@ -27,7 +29,7 @@ def main():
     if gethostbyname(config['zlock_host']) != gethostbyname('localhost'):
         msg = (
             "Zlock not configured to run on this host according to labconfig: "
-            + "zlock_host=%s" % config['zlock_host']
+            f"zlock_host={config['zlock_host']}"
         )
         raise ValueError(msg)
 

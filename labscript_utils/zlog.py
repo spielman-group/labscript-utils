@@ -10,8 +10,7 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-"""
-Script to run a zlog server configured according to LabConfig. Run with:
+"""Script to run a zlog server configured according to LabConfig. Run with:
 
 .. code-block:: bash
 
