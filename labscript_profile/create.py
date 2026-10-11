@@ -29,11 +29,6 @@ def _replace_backslashes(value):
 def make_shared_secret(directory):
     """Create a zprocess shared secret file in a directory.
 
-    Parameters
-    ----------
-    directory : str or Path
-        Directory to create the secret file in.
-
     Returns
     -------
     Path
@@ -54,11 +49,6 @@ def make_shared_secret(directory):
 
 def make_labconfig_file(apparatus_name=None):
     """Create the labconfig file from the profile's ``labconfig/example.toml``.
-
-    Parameters
-    ----------
-    apparatus_name : str, optional
-        Overrides the default apparatus name with the provided one if not None.
 
     Raises
     ------
@@ -129,10 +119,7 @@ def compile_connection_table():
 
 
 def create_profile_cli():
-    """Run the ``labscript-profile-create`` command.
-
-    Parses command line arguments and calls :func:`~.create_profile`.
-    """
+    """Run the ``labscript-profile-create`` command."""
     parser = argparse.ArgumentParser(prog='labscript-profile-create',
                                      description='Initialises a default labscript profile'
                                      )
@@ -159,9 +146,6 @@ def create_profile(apparatus_name=None, compile_table=False):
     apparatus_name : str, optional
         Apparatus name to define in the config. If None, the default config file's
         name, example_apparatus, is kept.
-    compile_table : bool, optional
-        Whether to compile the example connection table defined by the default
-        config file. Default is False.
 
     Raises
     ------

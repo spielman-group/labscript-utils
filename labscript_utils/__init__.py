@@ -34,20 +34,7 @@ labscript_utils_dir = os.path.dirname(os.path.realpath(__file__))
 
 
 def import_or_reload(modulename):
-    """Import a module, rerunning its code if it is already loaded.
-
-    Otherwise this behaves as ``import modulename`` would.
-
-    Parameters
-    ----------
-    modulename : str
-        Name of the module to import.
-
-    Returns
-    -------
-    module
-        The imported or reloaded module.
-    """
+    """Import a module, rerunning its code if it is already loaded."""
     if modulename in sys.modules.keys():
         importlib.reload(sys.modules[modulename])
         return sys.modules[modulename]
@@ -62,16 +49,6 @@ def dedent(s):
     (spaces only) from subsequent lines, and trailing spaces from all lines, and
     replaces single newlines prior to lines with the common indentation with
     spaces. Lines with additional indentation are kept verbatim.
-
-    Parameters
-    ----------
-    s : str
-        The string to unwrap.
-
-    Returns
-    -------
-    str
-        The unwrapped string.
     """
     lines = [line.rstrip(' ') for line in s.splitlines()]
     indentation = float('inf')
@@ -103,19 +80,7 @@ def dedent(s):
 
 
 def ensure_str(s):
-    """Return ``s`` as a ``str``, decoding it if it is ``bytes``.
-
-    HDF5 strings are often ``bytes``.
-
-    Parameters
-    ----------
-    s : bytes or object
-        The value to convert; anything other than ``bytes`` is passed to ``str``.
-
-    Returns
-    -------
-    str
-    """
+    """Return ``s`` as a ``str``, decoding it if it is ``bytes``."""
     return s.decode() if isinstance(s, bytes) else str(s)
 
 
