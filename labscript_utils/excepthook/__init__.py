@@ -89,7 +89,7 @@ def tkhandler(exceptclass, exception, exec_info, reraise=True):
 
 def logwarning(message, category, filename, lineno, file=None, line=None):
     logmessage = warnings.formatwarning(message, category, filename, lineno, line)
-    l.logger.warn(logmessage)
+    l.logger.warning(logmessage)
     _original_showwarning(message, category, filename, lineno, file, line)
 
 
