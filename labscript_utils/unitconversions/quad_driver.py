@@ -37,7 +37,7 @@ class _QuadConversion(UnitConversion):
 class quad_driver(_QuadConversion):
     """Quadrupole coil driver, from volts to amps and gauss per cm.
 
-    Converting amps to volts accepts an iterable, and gives 0 V below 1 mA.
+    Converting between amps and volts accepts an iterable. Amps below 1 mA give 0 V.
 
     Parameters
     ----------
@@ -66,6 +66,7 @@ class quad_driver(_QuadConversion):
             volts = (amps - self.parameters['A_offset'])/self.parameters['A_per_V']
         return volts
 
+    @vectorise
     def A_from_base(self, volts):
         amps = max(volts * self.parameters['A_per_V'] + self.parameters['A_offset'],
                    self.parameters['A_min'])
