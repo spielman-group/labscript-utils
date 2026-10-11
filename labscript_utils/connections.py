@@ -200,7 +200,7 @@ class Connection(object):
         elif name in ['unit conversion params', 'properties']:
             # deserialise a dict that is stored as a string. In older
             # labscript these were repr() of the dict, in newer they are
-            # stored as JSON."""
+            # stored as JSON.
             if labscript_utils.properties.is_json(value):
                 return labscript_utils.properties.deserialise(value)
             else:

@@ -15,14 +15,9 @@ from .toml_config import (
     load_toml_file,
 )
 
-# The contents of this file are imported every time the Python interpreter starts up,
-# owing to our custom .pth file that runs the below two functions. This ensures that
-# user code, the location of which is configured under pythonlib and userlib in their
-# labconfig file, is importable no matter whether they are running code from within a
-# labscript suite application or not.
-#
-# Since this code runs every startup, code in this module should be side-effect free,
-# relatively lean, and fairly bomb-proof.
+# Imported at every interpreter start by labscript-suite.pth, which calls
+# add_userlib_and_pythonlib(), so user code on pythonlib and userlib is importable
+# anywhere. Keep this module lean, side-effect free and bomb-proof.
 
 
 # This construction instead of simply Path.home() ensures we get the users home

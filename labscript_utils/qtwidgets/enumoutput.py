@@ -61,7 +61,7 @@ class EnumOutput(LockableOutput, QtWidgets.QWidget):
         # Install the event filter that will allow us to catch right click mouse release events so we can popup a menu even when the button is disabled
         self.installEventFilter(self)
         
-        # The Analog Out object that is in charge of this button
+        # The Enum Out object that is in charge of this button
         self._output = None
     
     # Setting and getting methods for the object in charge of this button
@@ -72,7 +72,7 @@ class EnumOutput(LockableOutput, QtWidgets.QWidget):
                 self._output.remove_widget(self)
             if EO is not None and notify_new_EO:
                 EO.add_widget(self)
-        # Store a reference to the digital out object
+        # Store a reference to the Enum Out object
         self._output = EO
         
     def get_EO(self):

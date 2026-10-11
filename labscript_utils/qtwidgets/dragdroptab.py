@@ -489,9 +489,8 @@ class DragDropTabBar(_BaseDragDropTabBar):
         if move_target is not None:
             self.moveTab(index, move_target)
 
-            # Workaround for bug in PyQt4 - the tabWdiget does not update its
-            # child StackedWidget's current widget when it gets a tabMoved
-            # signal durint a mouseMove event:
+            # The tab widget may not update its stacked widget on tabMoved during a
+            # mouseMove event.
             if self.currentIndex() == move_target:
                 stack = self.parent().findChild(QtWidgets.QStackedWidget, 'qt_tabwidget_stackedwidget')
                 stack.setCurrentWidget(self.parent().widget(move_target))

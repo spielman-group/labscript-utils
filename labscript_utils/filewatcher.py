@@ -133,7 +133,6 @@ class FileWatcher(object):
             if os.path.splitext(name)[-1].lower() in self.hashable_types:
                 with open(name, 'rb') as f:
                     return hashlib.md5(f.read()).hexdigest()
-            # Otherwise use last modified time for modified_info
             elif os.path.isdir(name):
                 # Modified info of a directory is a hash of its entries:
                 entries = os.listdir(os.fsencode(name))

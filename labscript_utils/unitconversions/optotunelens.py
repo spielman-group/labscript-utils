@@ -18,11 +18,9 @@ class OptotuneLens(UnitConversion):
     derived_units = ['distance','I']
     
     def __init__(self, calibration_parameters=None):
-        # These parameters are loaded from a globals.h5 type file automatically
         self.parameters = calibration_parameters
         
-        # I[A] = slope * V[V] + shift
-        # Saturates at saturation Volts
+        # I[A] = current_cal * V[V], limited to 0..I_Max
         self.parameters.setdefault('current_cal', 0.05) # A/V
         self.parameters.setdefault('I_Max', 0.3)
         
@@ -32,12 +30,8 @@ class OptotuneLens(UnitConversion):
         self.parameters.setdefault('c', 0)
         
         UnitConversion.__init__(self,self.parameters)
-        # We should probably also store some hardware limits here, and use them accordingly 
-        # (or maybe load them from a globals file, or specify them in the connection table?)
 
     def distance_to_base(self,percentage):
-        #here is the calibration code that may use self.parameters
-        
         # The inverse function is I = 1/(b*c)(-c*W((a*b/c)*exp((b/c)*P+a))+b/P+ba)
         # Where W is the product log (Lambert W) function
         

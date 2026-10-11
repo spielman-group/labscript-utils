@@ -167,12 +167,9 @@ class ZMQServer(zprocess.ZMQServer):
         timeout_interval=None,
         **kwargs
     ):
-        # There are ways to process args and exclude the keyword arguments we disallow
-        # without having to include the whole function signature above, but they are
-        # Python 3 only, so we avoid them for now.
         msg = """keyword argument {} not allowed - it will be set according to
-            LabConfig. To make a custom ZMQServer, use zprocess.ZMQserver instead of
-            labscript_utils.zprocess.ZMQServer"""
+            LabConfig. To make a custom ZMQServer, use zprocess.ZMQServer instead of
+            labscript_utils.ls_zprocess.ZMQServer"""
 
         # Error if these args are provided, since we provide them:
         for kwarg in ['shared_secret', 'allow_insecure']:
@@ -330,7 +327,6 @@ class Context(SecureContext):
     @classmethod
     def instance(cls):
         config = get_config()
-        # Super required to call unbound class method of parent class:
         return super(Context, cls).instance(shared_secret=config['shared_secret'])
 
     def socket(self, socket_type, socket_class=None, **kwargs):

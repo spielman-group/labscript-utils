@@ -18,7 +18,6 @@ class BidirectionalCoilDriver(UnitConversion):
     derived_units = ['A']
     
     def __init__(self, calibration_parameters=None):
-        # These parameters are loaded from a globals.h5 type file automatically
         if calibration_parameters is None:
             calibration_parameters = {}
         self.parameters = calibration_parameters
@@ -30,11 +29,8 @@ class BidirectionalCoilDriver(UnitConversion):
         self.parameters.setdefault('saturation', 10) # V
         
         UnitConversion.__init__(self,self.parameters)
-        # We should probably also store some hardware limits here, and use them accordingly 
-        # (or maybe load them from a globals file, or specify them in the connection table?)
 
     def A_to_base(self,amps):
-        #here is the calibration code that may use self.parameters
         volts = (amps - self.parameters['shift']) / self.parameters['slope']
         return volts
         

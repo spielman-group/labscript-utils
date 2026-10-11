@@ -135,7 +135,7 @@ def create_profile(apparatus_name = None, compile_table = False):
 
     Parameters
     ----------
-    appratus_name: str, optional
+    apparatus_name: str, optional
         apparatus_name to define in the config.
         If None, defaults to example_apparatus (set in default config file)
     compile_table: bool, optional

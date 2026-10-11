@@ -143,7 +143,7 @@ class AnalogOutput(LockableOutput, QtWidgets.QWidget):
         # The Analog Out object that is in charge of this button
         self._output = None
     
-    # Setting and getting methods for the Digitl Out object in charge of this button
+    # Setting and getting methods for the Analog Out object in charge of this button
     def set_AO(self,AO,notify_old_AO=True,notify_new_AO=True):
         # If we are setting a new AO, remove this widget from the old one (if it isn't None) and add it to the new one (if it isn't None)
         if AO != self._output:
@@ -151,7 +151,7 @@ class AnalogOutput(LockableOutput, QtWidgets.QWidget):
                 self._output.remove_widget(self,False)
             if AO is not None and notify_new_AO:
                 AO.add_widget(self)
-        # Store a reference to the digital out object
+        # Store a reference to the Analog Out object
         self._output = AO
         
     def get_AO(self):

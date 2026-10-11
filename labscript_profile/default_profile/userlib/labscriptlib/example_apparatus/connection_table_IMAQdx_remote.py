@@ -18,7 +18,7 @@ Trigger(
 )
 
 # On the host specified below, start the RemoteBLACS server by running the following:
-# $ python - m labscript_utils.remote
+# $ python -m labscript_utils.remote
 RemoteBLACS(name='test_remote', host='localhost')
 
 # We then initiate an IMAQdxCamera using this RemoteBLACS instance
