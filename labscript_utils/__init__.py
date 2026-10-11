@@ -21,7 +21,7 @@ __version__ = package_version(__package__)
 
 from labscript_profile import LABSCRIPT_SUITE_PROFILE
 
-if not os.path.exists(LABSCRIPT_SUITE_PROFILE):
+if LABSCRIPT_SUITE_PROFILE is not None and not os.path.exists(LABSCRIPT_SUITE_PROFILE):
     from labscript_profile.create import create_profile
     create_profile()
     # This would normally run at interpreter startup but didn't since the profile didn't
