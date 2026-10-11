@@ -1,3 +1,17 @@
+#####################################################################
+#                                                                   #
+# /labscript_profile/toml_config.py                                 #
+#                                                                   #
+# Copyright 2026, JQI                                               #
+# Author: Ian Spielman                                              #
+#                                                                   #
+# This file is part of labscript-utils, in the labscript suite      #
+# (see http://labscriptsuite.org), and is licensed under the        #
+# Simplified BSD License. See the license.txt file in the root of   #
+# the project for the full license.                                 #
+#                                                                   #
+#####################################################################
+
 import configparser
 import tomllib
 
@@ -7,8 +21,20 @@ import tomli_w
 def as_config_list(value):
     """Return a labconfig value as a list of stripped strings.
 
-    The value may be a comma-separated string or a TOML array; a single number or
-    boolean raises ``TypeError``.
+    Parameters
+    ----------
+    value : str, iterable or None
+        A comma-separated string, a TOML array, or ``None``.
+
+    Returns
+    -------
+    list of str
+        The non-empty items, stripped; empty for ``None``.
+
+    Raises
+    ------
+    TypeError
+        If ``value`` is a single number or boolean.
     """
     if value is None:
         return []
@@ -18,11 +44,16 @@ def as_config_list(value):
 
 
 def load_toml_file(filename):
+    """Return the contents of the TOML file ``filename`` as a dict."""
     with open(filename, 'rb') as f:
         return tomllib.load(f)
 
 
 def dump_toml_file(filename, data):
+    """Write the dict ``data`` to ``filename`` as TOML.
+
+    The file is left intact if ``data`` cannot be serialised.
+    """
     # Serialise before opening, so data TOML cannot hold leaves the file intact.
     text = tomli_w.dumps(data)
     with open(filename, 'wb') as f:
@@ -39,7 +70,11 @@ class TomlBasicInterpolation(configparser.BasicInterpolation):
 
 
 class TomlConfigParser(configparser.ConfigParser):
-    """ConfigParser variant that preserves native TOML values."""
+    """ConfigParser that keeps native TOML values and lowercases section names.
+
+    The default section is ``default``. Values are stored as given, so a TOML
+    array or number stays one, and ``getboolean`` accepts a real ``bool``.
+    """
 
     def __init__(self, *args, **kwargs):
         kwargs.setdefault('default_section', 'default')
@@ -52,6 +87,7 @@ class TomlConfigParser(configparser.ConfigParser):
         return str(section).lower()
 
     def _normalize_loaded_sections(self):
+        """Lowercase section names after a read, folding ``default`` into the defaults."""
         renamed_sections = {}
         migrated_defaults = {}
         for name, section_data in self._sections.items():
@@ -133,6 +169,18 @@ class TomlConfigParser(configparser.ConfigParser):
         return read_ok
 
     def read_toml(self, filename):
+        """Read the TOML file ``filename`` into the parser, one section per table.
+
+        Returns
+        -------
+        list of str
+            ``[str(filename)]``, as ``read`` returns the files it read.
+
+        Raises
+        ------
+        TypeError
+            If a top-level entry of the file is not a table.
+        """
         data = load_toml_file(filename)
         for section_name, section in data.items():
             if not isinstance(section, dict):
