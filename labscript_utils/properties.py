@@ -1,7 +1,10 @@
+import ast
 import json
 from base64 import b64encode, b64decode
 from collections.abc import Iterable, Mapping
 import numpy as np
+
+from labscript_utils import ensure_str
 
 
 JSON_IDENTIFIER = 'Content-Type: application/json '
@@ -164,5 +167,9 @@ def get(h5_file, device_name, location):
     if location in _CONNECTION_TABLE_COLUMNS:
         dataset = h5_file['connection table']
         row = dataset[dataset['name'] == device_name.encode('utf8')][0]
-        return deserialise(row[_CONNECTION_TABLE_COLUMNS[location]])
+        value = row[_CONNECTION_TABLE_COLUMNS[location]]
+        if is_json(value):
+            return deserialise(value)
+        # Older labscript stored these columns as repr() of the dict.
+        return ast.literal_eval(ensure_str(value))
     raise ValueError(f'location must be one of {VALID_PROPERTY_LOCATIONS}')
