@@ -25,7 +25,7 @@ except ImportError as e:
                 desktop-app install blacs lyse runmanager runviewer"""
         raise ImportError(dedent(msg))
     raise
-    
+
 Qt = QtCore.Qt
 
 # Importing this module creates no QApplication; only constructing Splash, or
@@ -34,8 +34,23 @@ Qt = QtCore.Qt
 
 
 def configure_qapplication(qapplication):
-    """Apply labscript-wide QApplication configuration."""
-    qapplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
+    """Apply labscript-wide QApplication configuration.
+
+    On macOS this also sets the window icon from the application's
+    ``_labscript_icon_path`` property, and, once per application, the Fusion style
+    with the application's own palette.
+
+    Parameters
+    ----------
+    qapplication : QApplication
+        The application to configure.
+
+    Returns
+    -------
+    QApplication
+        ``qapplication``.
+    """
+    qapplication.setAttribute(Qt.ApplicationAttribute.AA_DontShowIconsInMenus, False)
     if sys.platform == 'darwin':
         icon_path = qapplication.property('_labscript_icon_path')
         if icon_path:
@@ -50,7 +65,23 @@ def configure_qapplication(qapplication):
             qapplication.setProperty('_labscript_qapplication_configured', True)
     return qapplication
 
+
 def get_qapplication(application_name=None, icon_path=None):
+    """Return the QApplication, creating it if there is none, and configure it.
+
+    Parameters
+    ----------
+    application_name : str, optional
+        Name to give a QApplication created here, as its first argument. Ignored
+        if a QApplication already exists.
+    icon_path : str, optional
+        Path of the image to use as the application's window icon on macOS.
+
+    Returns
+    -------
+    QApplication
+        The application, as returned by :func:`configure_qapplication`.
+    """
     qapplication = QtWidgets.QApplication.instance()
 
     if qapplication is None:
@@ -67,6 +98,23 @@ def get_qapplication(application_name=None, icon_path=None):
 
 
 class Splash(QtWidgets.QFrame):
+    """A splash screen showing an icon over a line of text.
+
+    Constructing it creates and configures the QApplication if there is none.
+
+    Parameters
+    ----------
+    icon_path : str
+        Path of the image to show.
+    application_name : str, optional
+        Passed to :func:`get_qapplication`.
+
+    Raises
+    ------
+    ValueError
+        If the image at ``icon_path`` cannot be loaded.
+    """
+
     w = 250
     h = 230
     imwidth = 150
@@ -83,15 +131,20 @@ class Splash(QtWidgets.QFrame):
         self.icon = QtGui.QPixmap()
         self.icon.load(icon_path)
         if self.icon.isNull():
-            raise ValueError("Invalid image file: {}.\n".format(icon_path))
+            raise ValueError(f"Invalid image file: {icon_path}.\n")
         self.icon = self.icon.scaled(
-            self.imwidth, self.imheight, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+            self.imwidth,
+            self.imheight,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
         )
         self.text = 'Loading'
         self.setWindowFlags(Qt.WindowType.SplashScreen)
         self.setWindowOpacity(self.alpha)
         self.label = QtWidgets.QLabel(self.text)
-        self.setStyleSheet(f"color: {self.FG}; background-color: {self.BG}; font-size: 10pt")
+        self.setStyleSheet(
+            f"color: {self.FG}; background-color: {self.BG}; font-size: 10pt"
+        )
         # Frame not necessary on macos, and looks ugly.
         if sys.platform != 'darwin':
             self.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
@@ -114,6 +167,10 @@ class Splash(QtWidgets.QFrame):
         return super().paintEvent(event)
 
     def update_text(self, text):
+        """Show ``text`` under the icon.
+
+        Returns once the text has been painted, unless the window is not exposed.
+        """
         self.text = text
         self.label.setText(text)
         self._paint_pending = True
@@ -122,5 +179,7 @@ class Splash(QtWidgets.QFrame):
         # wait would last until the application was brought to the front.
         window = self.windowHandle()
         while self._paint_pending and window is not None and window.isExposed():
-            QtCore.QCoreApplication.processEvents(QtCore.QEventLoop.ProcessEventsFlag.AllEvents)
+            QtCore.QCoreApplication.processEvents(
+                QtCore.QEventLoop.ProcessEventsFlag.AllEvents
+            )
             QtCore.QCoreApplication.sendPostedEvents()
