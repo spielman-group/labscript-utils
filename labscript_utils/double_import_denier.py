@@ -16,7 +16,6 @@ import traceback
 import re
 import importlib.util
 
-
 DEBUG = False
 # Tensorflow contains true double imports. This is arguably a bug in tensorflow,
 # (reported here: https://github.com/tensorflow/tensorflow/issues/35369), but let's work
@@ -24,10 +23,10 @@ DEBUG = False
 WHITELIST = ['tensorflow', 'tensorflow_core']
 
 
-class DoubleImportDenier(object):
-    """A module finder that tracks what's been imported and disallows multiple
-    imports of the same module under different names, raising an exception
-    upon detecting that this has occured"""
+class DoubleImportDenier:
+    """A module finder that tracks what has been imported and raises an exception
+    if the same file is imported under a different name."""
+
     def __init__(self):
         self.enabled = False
         self.names_by_filepath = {}
@@ -56,14 +55,16 @@ class DoubleImportDenier(object):
         try:
             spec = importlib.util.find_spec(fullname, path)
         except Exception as e:
-            if DEBUG: print('Exception in importlib.util.find_spec ' + str(e))
+            if DEBUG:
+                print('Exception in importlib.util.find_spec ' + str(e))
             return
         finally:
             self.stack.remove(dict_key)
 
         if spec is not None and spec.origin is not None and spec.origin != "built-in":
             path = os.path.realpath(spec.origin)
-            if DEBUG: print('loading', fullname, 'from', path)
+            if DEBUG:
+                print('loading', fullname, 'from', path)
             tb = traceback.format_stack()
             other_name = self.names_by_filepath.get(path, None)
             if fullname.split('.', 1)[0] not in WHITELIST:
@@ -75,9 +76,8 @@ class DoubleImportDenier(object):
         return spec
 
     def _format_tb(self, tb):
-        """Take a formatted traceback as returned by traceback.format_stack()
-        and remove lines that are solely about us and the Python machinery,
-        leaving only lines pertaining to the user's code"""
+        """Join a ``traceback.format_stack()`` list into a string, leaving out its
+        last frame and the frames of the Python import machinery."""
         frames = [frame for frame in tb[:-1]
                   if 'importlib._bootstrap' not in frame
                   and 'imp.load_module' not in frame
@@ -94,6 +94,7 @@ class DoubleImportDenier(object):
         orig_excepthook = sys.excepthook
         exists = hasattr(sys, 'tracebacklimit')
         orig_tracebacklimit = getattr(sys, 'tracebacklimit', None)
+
         def excepthook(*args, **kwargs):
             orig_excepthook(*args, **kwargs)
             if exists:
@@ -115,11 +116,11 @@ class DoubleImportDenier(object):
 
         tb = self._format_tb(tb)
         other_tb = self._format_tb(other_tb)
-        msg += "\n\nPath imported: %s\n\n" % path
-        msg += "Traceback (first time imported, as %s):\n" % other_name
-        msg += "------------\n%s------------\n\n" % other_tb
-        msg += "Traceback (second time imported, as %s):\n" % name
-        msg += "------------\n%s------------" % tb
+        msg += f"\n\nPath imported: {path}\n\n"
+        msg += f"Traceback (first time imported, as {other_name}):\n"
+        msg += f"------------\n{other_tb}------------\n\n"
+        msg += f"Traceback (second time imported, as {name}):\n"
+        msg += f"------------\n{tb}------------"
 
         # Limit the traceback, hiding import-machinery frames. A finally: block cannot
         # restore the limit, as it runs before the exception is printed, so a
@@ -132,7 +133,17 @@ class DoubleImportDenier(object):
 
 _denier = None
 
+
 def enable():
+    """Install the double import denier in ``sys.meta_path``.
+
+    Does nothing if ``--allow-double-imports`` is in ``sys.argv``.
+
+    Raises
+    ------
+    RuntimeError
+        If the denier is already enabled.
+    """
     if '--allow-double-imports' in sys.argv:
         # Calls to enable the double import denier are ignored if this command
         # line argument is present.
@@ -142,7 +153,7 @@ def enable():
         _denier = DoubleImportDenier()
     if _denier.enabled:
         raise RuntimeError('already enabled')
-    # This is here because it actually happened:
+    # Compare by class name, so an instance of another copy of the class is caught too.
     for importer in sys.meta_path:
         if importer.__class__.__name__ == DoubleImportDenier.__name__:
             msg = 'Two DoubleImportDenier instances in sys.meta_path!'
