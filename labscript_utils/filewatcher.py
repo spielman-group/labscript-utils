@@ -17,35 +17,45 @@ import os
 import hashlib
 
 
-class FileWatcher(object):
+class FileWatcher:
+    """Detect modification, deletion, creation, or restoration of specific files
+    (and all files in specific folders).
+
+    Files are polled in a background thread until `stop` is called.
+
+    Parameters
+    ----------
+    callback : callable
+        Called whenever a file event is detected. It is called with
+        ``(name, info, event)`` if `inspect.getfullargspec` lists more than
+        two arguments for it (counting ``self`` of a bound method), otherwise
+        with ``(name, info)``. `event` is one of ``'modified'``, ``'deleted'``,
+        ``'created'``, ``'restored'`` or ``'original'``. The 'original' event,
+        with `name` ``'all'``, reports a state change that results in the
+        original file info at instantiation.
+    files : iterable of str, optional
+        Specific files to watch.
+    folders : iterable of str, optional
+        Specific folders to watch. If a file is created or deleted in any
+        watched folder, it is added to or removed from the `files` attribute.
+    clean_modified_info : dict, optional
+        File info to detect modification and restoration with respect to. If
+        None, or for files not present in it, the initial modified info is
+        based on the first polling of files.
+    hashable_types : iterable of str, optional
+        File extensions, with the leading dot, for which the MD5 checksum is used to detect
+        modification and restoration. Files of any other type are watched
+        using their modified time, and restoration cannot be detected for
+        them.
+    interval : float, optional
+        Polling interval in seconds. Default 1.
+    **kwargs
+        `modified_times` is accepted as a synonym for `clean_modified_info`,
+        which takes precedence.
+    """
+
     def __init__(self, callback, files=None, folders=None, clean_modified_info=None,
                  hashable_types=None, interval=1, **kwargs):
-        """
-        Detect modification, deletion, creation, or restoration of specific files
-        (and all files in specific folders).
-
-        Args:
-            callback (function): elicited whenever file events are detected, requires at least
-                (name, info) arguments. Event specific callback requires 
-                (name, info, event) arguments, where event is on of:
-                'modified', 'deleted' (or None), 'created', 'restored', 'original'
-                The 'original' event corresponds to a state change that results in 
-                the original file info at instantiation.
-            files (list, optional): List of specific files to watch.
-                A single file can be specified as a string (default None).
-            folders (list, optional): List of specific folders to watch.
-                A single folder can be specified as a string (default None).
-                If a file is created/deleted in/from any watched folder, it is added/
-                removed to/from the FileWatcher.files attribute.
-            clean_modified_info (dict, optional): File info to detect modification/restoration with respect
-                to. If None (default), or for files not present in clean_modified_info, the
-                initial modified info will be based on the first polling of files.
-            hashable_types (iterable, optional): File extensions for which MD5 checksum will be used to
-                detect modification/restoration with (default None). Files of any 
-                other type will be watched using their modified time. 
-                Restoration cannot be detected for types not in hashable_types.
-            interval (float, optional): Polling interval in seconds (default 1).
-        """
         if len(getfullargspec(callback)[0]) > 2:
             # For backwards compatability, allow callback to have only two args
             self.callback = callback
@@ -80,11 +90,10 @@ class FileWatcher(object):
 
         self.modified_info = self.clean_modified_info.copy()
 
-        self.main = threading.Thread(target=self.mainloop)
-        self.main.daemon = True
+        self.main = threading.Thread(target=self.mainloop, daemon=True)
         self.running = True
         self.interval = interval
-        self._stopping = Queue() 
+        self._stopping = Queue()
         self.main.start()
 
     def mainloop(self):
@@ -104,8 +113,17 @@ class FileWatcher(object):
                 self.check(trigger_callback=not stopping)
 
     def update_files(self, folders=None, trigger_callback=True, recursive=True):
-        """Refresh the watchlist of files (FileWatcher.files) by checking the folders kwarg
-        or Filewatcher.folders if this is not specified.
+        """Add the files in folders to the watchlist, `files`.
+
+        Parameters
+        ----------
+        folders : iterable of str, optional
+            Folders to scan. Default is the `folders` attribute.
+        trigger_callback : bool, optional
+            Whether to call the callback with a 'created' event for each file
+            added. Default True.
+        recursive : bool, optional
+            Whether to scan subfolders too. Default True.
         """
         if folders is None:
             folders = self.folders
@@ -144,6 +162,7 @@ class FileWatcher(object):
             return None
 
     def check(self, trigger_callback=True):
+        """Poll the watched files once, calling the callback for each event."""
         check_all = False
         deleted_files = set()
         for name in self.files:
@@ -178,6 +197,16 @@ class FileWatcher(object):
             self.callback('all', '', 'original')
 
     def stop(self):
+        """Stop polling.
+
+        A final poll without callbacks is made, so that `get_modified_info`
+        reflects the files as of this call.
+
+        Raises
+        ------
+        RuntimeError
+            If the watcher has already been stopped.
+        """
         with self.lock:
             if not self.running:
                 raise RuntimeError("Not running")
@@ -187,18 +216,34 @@ class FileWatcher(object):
         self.main = None
 
     def add_file(self, path):
+        """Add a single file to the watchlist. See `add_files`."""
         self.add_files((path,))
 
     def get_clean_modified_info(self):
+        """Return a copy of the modified info that files are compared against.
+
+        Returns
+        -------
+        dict
+            File name to its modified time or checksum, as of instantiation or
+            when the file was added.
+        """
         with self.lock:
             return self.clean_modified_info.copy()
 
     def get_modified_info(self):
+        """Return a copy of the modified info as of the latest poll.
+
+        Returns
+        -------
+        dict
+            File name to its modified time or checksum.
+        """
         with self.lock:
             return self.modified_info.copy()
 
     def get_modified_times(self):
-        # Backward compat for BLACS from before file hashes were introduced
+        """Synonym for `get_modified_info`."""
         return self.get_modified_info()
 
     def _set_clean_modified_info(self, new_files, clean_modified_info):
@@ -216,6 +261,17 @@ class FileWatcher(object):
                 self.clean_modified_info[name] = self._modified_info_of_file(name)
 
     def add_files(self, files, clean_modified_info=None):
+        """Add files to the watchlist.
+
+        Parameters
+        ----------
+        files : iterable of str
+            Files to watch.
+        clean_modified_info : dict, optional
+            Modified info to detect modification and restoration of these
+            files with respect to. Files not in it are compared against their
+            info when added.
+        """
         if clean_modified_info is None:
             clean_modified_info = {}
         with self.lock:
@@ -223,6 +279,15 @@ class FileWatcher(object):
             self._set_clean_modified_info(files, clean_modified_info)
 
     def add_folders(self, folders, clean_modified_info=None):
+        """Add folders to the watchlist, along with the files they contain.
+
+        Parameters
+        ----------
+        folders : iterable of str
+            Folders to watch.
+        clean_modified_info : dict, optional
+            As for `add_files`, for the files found in the folders.
+        """
         if clean_modified_info is None:
             clean_modified_info = {}
         with self.lock:

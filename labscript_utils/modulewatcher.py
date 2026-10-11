@@ -31,14 +31,26 @@ PKGDIRS += site.getsitepackages()
 PKGDIRS = set(PKGDIRS)
 
 
-class ModuleWatcher(object):
-    """A watcher that reloads modules that have been modified on disk
-    
-    Only reloads modules imported after instantiation. Does not reload C extensions.
+class ModuleWatcher:
+    """Unload modules that have been modified on disk, so that they are
+    reloaded at their next import.
 
-    Args:
-        debug (bool, optional): When :code:`True`, prints debugging information
-            when reloading modules.
+    Only modules imported after instantiation are watched, and only ``.py``
+    modules outside the standard library and installed packages. When one of
+    them is modified, all of the watched modules are unloaded. C extensions are
+    not reloaded. A background thread checks once a second.
+
+    Parameters
+    ----------
+    debug : bool, optional
+        When True, print the whitelist and the unloaded modules each time
+        modules are unloaded. Default False.
+
+    Attributes
+    ----------
+    lock : threading.Lock
+        Held while modules are checked and unloaded. Hold it to stop modules
+        being unloaded while they are in use.
     """
     def __init__(self, debug=False):
         self.debug = debug
@@ -49,8 +61,7 @@ class ModuleWatcher(object):
         self.whitelist = set(sys.modules)
         self.meta_whitelist = list(sys.meta_path)
         self.modified_times = {}
-        self.main = threading.Thread(target=self.mainloop)
-        self.main.daemon = True
+        self.main = threading.Thread(target=self.mainloop, daemon=True)
         self.main.start()
 
     def mainloop(self):
@@ -62,9 +73,7 @@ class ModuleWatcher(object):
 
     def check(self):
         unload_required = False
-        # Look through currently loaded modules:
         for name, module in sys.modules.copy().items():
-            # Look only at the modules not in the the whitelist:
             if name not in self.whitelist:
                 # Only consider modules with a non-None __file__ that are .py or .pyc
                 # files on disk, outside the package directories. Others are
@@ -79,10 +88,8 @@ class ModuleWatcher(object):
                     self.whitelist.add(name)
                     continue
                 if any(module_file.startswith(s + os.path.sep) for s in PKGDIRS):
-                    # Whitelist modules in package install directories:
                     self.whitelist.add(name)
                     continue
-                # Check and store the modified time of the .py file:
                 modified_time = os.path.getmtime(module_file)
                 previous_modified_time = self.modified_times.setdefault(
                     name, modified_time
@@ -93,8 +100,8 @@ class ModuleWatcher(object):
                     # whitelist:
                     unload_required = True
                     message = (
-                        '%s modified: all non-whitelisted modules ' % module_file
-                        + 'will be reloaded next run.\n'
+                        f'{module_file} modified: all non-whitelisted modules '
+                        'will be reloaded next run.\n'
                     )
                     sys.stderr.write(message)
         return unload_required
