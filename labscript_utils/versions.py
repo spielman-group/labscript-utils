@@ -13,15 +13,11 @@
 import sys
 import os
 from pathlib import Path
-import importlib
+import importlib.metadata as importlib_metadata
+import importlib.util
 import tokenize
 import ast
 import packaging.version
-
-try:
-    import importlib.metadata as importlib_metadata
-except ImportError:
-    import importlib_metadata
 
 
 class NotFound:
