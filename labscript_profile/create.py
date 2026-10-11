@@ -97,9 +97,9 @@ def compile_connection_table():
     output_h5_path = os.path.expandvars(config['paths']['connection_table_h5'])
     # create output directory, if needed
     Path(output_h5_path).parent.mkdir(parents=True, exist_ok=True)
-    # Create a fresh HDF5 target for the compile output.
-    with h5py.File(output_h5_path, 'w'):
-        pass
+    # The compile reads the run file's globals, so it needs the group, empty here.
+    with h5py.File(output_h5_path, 'w') as f:
+        f.create_group('globals')
 
     def dummy_callback(success):
         pass
