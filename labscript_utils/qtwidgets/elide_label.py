@@ -5,8 +5,7 @@ ELLIPSIS = u'\u2026'
 
 
 class ElideScrollArea(QtWidgets.QScrollArea):
-    """A scroll area for a label to elide, with its scroll bars hidden so that
-    the text beyond the visible width is scrolled out of sight."""
+    """A scroll area with no scroll bars, so text beyond its width is scrolled out of sight."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -53,20 +52,10 @@ class ElideScrollArea(QtWidgets.QScrollArea):
 class ElidedLabelContainer(QtWidgets.QWidget):
     """A widget that elides the text of a QLabel.
 
-    The label sits in a scroll area that shows only the part of its text that
-    fits, and a second label next to it shows the ellipsis. Use this directly
-    for a label created in code; elide_label wraps one that is already in a
-    layout.
-
-    Parameters
-    ----------
-    label : QLabel
-        A label with a single line of text, which may be rich text.
-
-    Raises
-    ------
-    ValueError
-        If label has word wrap enabled.
+    Use this for a label created in code, before adding it to any layout or
+    container widget; elide_label wraps one that is already in a layout. The
+    label must be a single line of text, which may be rich text; ValueError is
+    raised if it has word wrap enabled.
     """
 
     def __init__(self, label):
@@ -95,13 +84,7 @@ class ElidedLabelContainer(QtWidgets.QWidget):
         return self._elide_mode
 
     def setElideMode(self, elideMode):
-        """Set the side on which the text is elided.
-
-        Parameters
-        ----------
-        elideMode : Qt.TextElideMode
-            ElideLeft, ElideRight or ElideNone. ElideMiddle is not supported.
-        """
+        """Set the side on which the text is elided: ElideLeft, ElideRight or ElideNone."""
         self.scroll_area.setElideMode(elideMode)
         self._elide_mode = elideMode
 
@@ -139,28 +122,12 @@ class ElidedLabelContainer(QtWidgets.QWidget):
 
 
 def elide_label(label, layout, elide_mode):
-    """Elide the text of a QLabel that is already in a layout.
+    """Elide the text of a QLabel that is already in a QBoxLayout or QSplitter.
 
     The label is wrapped in an ElidedLabelContainer, which takes its place in
-    the layout. For a label created in code, wrap it in ElidedLabelContainer
-    before adding it to any layout or container widget.
-
-    Parameters
-    ----------
-    label : QLabel
-        A label with a single line of text, which may be rich text.
-    layout : QBoxLayout or QSplitter
-        The layout that holds label.
-    elide_mode : Qt.TextElideMode
-        ElideLeft, ElideRight or ElideNone. ElideMiddle is not supported.
-
-    Raises
-    ------
-    NotImplementedError
-        If layout is not a QBoxLayout or QSplitter, or elide_mode is
-        ElideMiddle.
-    ValueError
-        If label is not in layout, or has word wrap enabled.
+    the layout. Raises NotImplementedError for any other layout or for
+    ElideMiddle, and ValueError if label is not in layout or has word wrap
+    enabled.
     """
     if not (isinstance(layout, QtWidgets.QBoxLayout) or isinstance(layout, QtWidgets.QSplitter)):
         raise NotImplementedError("Only labels that are in QBoxLayouts or QSplitters supported")

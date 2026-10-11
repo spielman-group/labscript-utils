@@ -4,18 +4,9 @@ from qtutils.qt import QtCore, QtGui, QtWidgets
 class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
     """A QHeaderView that can hold a widget in any of its sections.
 
-    Put a widget in a section with ``setWidget(logical_index, widget)`` and
-    remove it with ``setWidget(logical_index, None)``. The section's text is
-    indented to make room for the widget. Decorations, checkboxes and anything
-    other than text in a section that holds a widget are unsupported, and may
-    draw garbled.
-
-    Parameters
-    ----------
-    model : QStandardItemModel
-        The model whose horizontal header this is. It is also kept as
-        ``self.model``.
-    parent : QWidget, optional
+    The section's text is indented to make room for the widget. Decorations,
+    checkboxes and anything other than text in a section that holds a widget
+    are unsupported, and may draw garbled.
     """
 
     # Indents the text of sections that hold widgets.
@@ -55,8 +46,7 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
         self.update_indents()
 
     def setStyleSheet(self, custom_style):
-        """Set style rules to append to the stylesheet this class generates for
-        the sections."""
+        """Append these style rules to the stylesheet generated for the sections."""
         self.custom_style = custom_style
         self.update_indents()
 
@@ -86,12 +76,7 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
     def setWidget(self, logical_index, widget=None):
         """Put a widget in a section, or with widget=None remove its widget.
 
-        Parameters
-        ----------
-        logical_index : int
-        widget : QWidget, optional
-            The widget to show in the section; the header becomes its parent.
-            None removes the section's current widget.
+        The header becomes the widget's parent.
         """
         header_item = self.model.horizontalHeaderItem(logical_index)
         if header_item is None:
