@@ -180,7 +180,8 @@ def get_version(import_name, project_name=None, import_path=None):
             import_path = get_import_path(import_name)
         except ImportError:
             return NotFound
-    if not os.path.exists(os.path.join(import_path, import_name)):
+    pkg = os.path.join(import_path, import_name)
+    if not (os.path.exists(pkg) or os.path.exists(pkg + '.py')):
         return NotFound
     import setuptools_scm
 
@@ -200,7 +201,6 @@ def get_version(import_name, project_name=None, import_path=None):
     if version is not None:
         return version
     # check if it has a __version__ literal defined in its main module.
-    pkg = os.path.join(import_path, import_name)
     if os.path.isdir(pkg):
         module_file = os.path.join(pkg, '__init__.py')
     else:
