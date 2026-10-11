@@ -18,7 +18,6 @@ import labscript_utils.excepthook
 import numpy as np
 import copy
 import ast
-from labscript_utils.dict_diff import dict_diff
 import sys
 from zprocess import raise_exception_in_thread
 from labscript_utils import ensure_str
@@ -81,48 +80,6 @@ class ConnectionTable(object):
             else:
                 raise
 
-    def assert_superset(self, other):
-        # let's check that we're a superset of the connection table in "other"
-        if not isinstance(other, ConnectionTable):
-            msg = "Loaded file is not a valid connection table"
-            raise TypeError(msg)
-        
-        missing = []    # things I don't know exist
-        incompat = []   # things that are different from what I expect
-        
-        for name, other_connection in other.table.items():
-            # does it exist?
-            try:
-                connection = self.table[name]
-            except KeyError:
-                missing.append('  ' + name)
-            else:
-                # is it the same?   
-                if connection != other_connection:
-                    diff = connection.diff(other_connection)
-                    msg = '  ' + name + ':\n'
-                    for key, (ours, theirs) in diff.items():
-                        if isinstance(ours, dict) and isinstance(theirs, dict):
-                            msg += '    {}:\n'.format(key)
-                            subdiff = dict_diff(ours, theirs)
-                            for key, (ours, theirs) in subdiff.items():
-                                msg += '      {}: {} != {}'.format(key, ours, theirs)
-                        else:
-                            msg += '    {}: {} != {}'.format(key, ours, theirs)
-                    incompat.append(msg)
-        
-        # construct a human-readable explanation
-        errmsg = ""
-        if len(missing) > 0:
-            errmsg += '\nDevices that do not exist in the connection table:\n  '+'\n'.join(missing)
-        if len(incompat) > 0:
-            errmsg += '\nDevices with incompatible settings:\n'+'\n'.join(incompat)
-        
-        # if there is no error message, then everything must be good!
-        if errmsg:
-            msg = "Cannot execute script as connection tables do not match." + errmsg
-            raise Exception(msg)
-        
     def compare_to(self, other):
         if not isinstance(other, ConnectionTable):
             return False, {"error": "The connection table passed in is not a valid connection table"}
@@ -277,9 +234,6 @@ class Connection(object):
         # Return a copy so calling code can't modify our instance attribute
         return copy.deepcopy(self._properties)
         
-    def diff(self, other):
-        return dict_diff(self._rowdict, other._rowdict)
-
     def compare_to(self, other_connection):
         if not isinstance(other_connection,Connection):
             return False,{"error":"Internal Error. Connection Table object is corrupted."}
