@@ -32,8 +32,6 @@ __all__ = [
 
 
 class _RuleBelowDelegate(QtWidgets.QStyledItemDelegate):
-    """Draws a rule under any row whose items ask for one."""
-
     def paint(self, painter, option, index):
         super().paint(painter, option, index)
         if not index.data(RULE_BELOW_ROLE):
@@ -54,13 +52,7 @@ class _RuleBelowDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class ShotQueueTreeView(QtWidgets.QTreeView):
-    """A tree view of the queue's rows, which asks for their deletion.
-
-    Attributes
-    ----------
-    deleteRequested : Signal()
-        Emitted when Delete or Backspace is pressed.
-    """
+    """The queue's tree view; emits deleteRequested on Delete or Backspace."""
 
     deleteRequested = Signal()
 
@@ -85,21 +77,8 @@ class ShotQueueWidget(QtWidgets.QWidget):
     """A queue of shot files, shown as rows of a tree view.
 
     ``set_row_infos`` fills it. Rows are reported by the identity the caller gave
-    each, not by position.
-
-    Parameters
-    ----------
-    parent : QWidget, optional
-    column_titles : sequence of str
-        The title of each column.
-    path_column : int
-        The column that shows the shot file. It takes the width the others leave,
-        which fit their contents.
-
-    Attributes
-    ----------
-    queue_model : QStandardItemModel
-    queue_view : ShotQueueTreeView
+    each, not by position. ``path_column`` shows the shot file and takes the
+    width the other columns leave, which fit their contents.
     """
 
     def __init__(self, parent=None, *, column_titles, path_column):
@@ -146,10 +125,7 @@ class ShotQueueWidget(QtWidgets.QWidget):
         return sorted(index.row() for index in self.queue_view.selectionModel().selectedRows())
 
     def select_ids(self, row_ids):
-        """Select the rows carrying these identities, ignoring any no row carries.
-
-        The new selection replaces the old one.
-        """
+        """Select only the rows carrying these identities, ignoring unknown ones."""
         wanted = set(row_ids)
         rows = []
         for row in range(self.queue_model.rowCount()):
@@ -164,10 +140,9 @@ class ShotQueueWidget(QtWidgets.QWidget):
         Parameters
         ----------
         row_infos : iterable of dict
-            One dict per row, in order. Only ``path`` is required.
+            One dict per row, in order. Only ``path`` is required; it is made
+            absolute. Optional keys:
 
-            path
-                The shot file's path, made absolute.
             label
                 The text shown in the path column. The file's name by default.
             tooltip
@@ -181,12 +156,11 @@ class ShotQueueWidget(QtWidgets.QWidget):
             background, foreground
                 A brush or colour, as ``QStandardItem.setBackground`` and
                 ``setForeground`` take, applied to every cell of the row.
-            strikeout
-                Whether to strike the row through. Default False.
+            strikeout, rule_below
+                Whether to strike the row through, or draw a rule under it.
+                Default False.
             selectable
                 Whether the row can be selected. Default True.
-            rule_below
-                Whether to draw a rule under the row. Default False.
         """
         self.queue_model.removeRows(0, self.queue_model.rowCount())
         if not row_infos:
