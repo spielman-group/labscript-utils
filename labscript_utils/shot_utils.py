@@ -18,14 +18,6 @@ import numpy as np
 def get_shot_globals(filepath):
     """Return the evaluated globals of a shot, for use by labscript or lyse.
 
-    Reading them through here applies, in one place, the conversions that plain
-    attribute access would not.
-
-    Parameters
-    ----------
-    filepath : str or pathlib.Path
-        The shot file.
-
     Returns
     -------
     dict

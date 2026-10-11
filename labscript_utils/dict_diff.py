@@ -17,12 +17,8 @@ import numpy as np
 def dict_diff(dict1, dict2):
     """Return the difference between two dictionaries.
 
-    Parameters
-    ----------
-    dict1, dict2 : dict
-        The dictionaries to compare. Values that are iterable in either are
-        compared with `numpy.array_equal`, so arrays and lists compare by
-        shape and elements.
+    Values that are iterable in either are compared with `numpy.array_equal`, so
+    arrays and lists compare by shape and elements.
 
     Returns
     -------

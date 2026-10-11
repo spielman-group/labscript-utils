@@ -73,17 +73,8 @@ def serialise(value):
     """Encode a value as a string of JSON, prefixed to identify it as such.
 
     Bytestring values, but not dictionary keys, are encoded to base64 with a
-    prefix, and numpy integers, floats and bools become Python ones.
-
-    Parameters
-    ----------
-    value
-        The value to encode, which may be nested in dicts and iterables.
-        Iterables other than dicts, strings and bytes are encoded as lists.
-
-    Returns
-    -------
-    str
+    prefix, numpy integers, floats and bools become Python ones, and iterables
+    other than dicts, strings and bytes become lists.
 
     Raises
     ------
@@ -97,13 +88,7 @@ def serialise(value):
 
 
 def deserialise(value):
-    """Decode a string made by `serialise`, restoring bytestring values.
-
-    Parameters
-    ----------
-    value : str or bytes
-        A string for which `is_json` is true.
-    """
+    """Decode a string made by `serialise`, restoring bytestring values."""
     assert is_json(value)
     return _decode_bytestrings(json.loads(value[len(JSON_IDENTIFIER):]))
 
@@ -111,13 +96,7 @@ def deserialise(value):
 def set_attributes(group, attributes):
     """Add attributes to an HDF5 group.
 
-    Parameters
-    ----------
-    group : h5py.Group
-        The group to add attributes to.
-    attributes : dict
-        Attribute names and values. Values with no native HDF5 datatype, and
-        None, are serialised with `serialise`.
+    Values with no native HDF5 datatype, and None, are serialised with `serialise`.
     """
     for key, val in attributes.items():
         try:
@@ -153,14 +132,7 @@ def get_attribute(group, name):
 def set_device_properties(h5_file, device_name, properties):
     """Add attributes to a device's group, ``devices/<device_name>``, in a shot file.
 
-    Parameters
-    ----------
-    h5_file : h5py.File
-        The shot file, open for writing.
-    device_name : str
-        The name of the device.
-    properties : dict
-        The attributes to add, as for `set_attributes`.
+    The file must be open for writing. `properties` is as for `set_attributes`.
     """
     set_attributes(h5_file['devices/' + device_name], properties)
 
@@ -176,19 +148,11 @@ def get(h5_file, device_name, location):
 
     Parameters
     ----------
-    h5_file : h5py.File
-        The shot file.
-    device_name : str
-        The name of the device.
     location : str
         One of the names in ``VALID_PROPERTY_LOCATIONS``. ``'device_properties'``
         reads the attributes of the device's group in ``devices``.
         ``'connection_table_properties'`` and ``'unit_conversion_parameters'``
         read the device's row of the connection table.
-
-    Returns
-    -------
-    dict
 
     Raises
     ------

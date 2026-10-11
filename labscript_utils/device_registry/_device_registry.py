@@ -159,16 +159,7 @@ runviewer_parser = ClassRegister('runviewer_parser')
 def import_class_by_fullname(fullname):
     """Import and return a class from its fully qualified name.
 
-    Parameters
-    ----------
-    fullname : str
-        The absolute import path of the class, such as
-        ``"module.submodule.ClassName"``.
-
-    Returns
-    -------
-    type
-        The class.
+    The name is the absolute import path, such as ``"module.submodule.ClassName"``.
     """
     split = fullname.split('.')
     module_name = '.'.join(split[:-1])
@@ -180,22 +171,12 @@ def import_class_by_fullname(fullname):
 def deprecated_import_alias(fullname):
     """Allow a class to be imported from an old location.
 
-    The class is not imported until the returned callable is first called, and
-    a warning then points to the new import location. Use it in the module
-    where the class used to be::
+    Returns a callable that calls the class with the arguments it is given. The
+    class is not imported until the callable is first called, and a warning then
+    points to the new import location. Use it in the module where the class used
+    to be::
 
         ClassName = deprecated_import_alias("new.path.to.ClassName")
-
-    Parameters
-    ----------
-    fullname : str
-        The absolute import path of the class at its new location.
-
-    Returns
-    -------
-    callable
-        Calls the class with the arguments it is given and returns the
-        instance.
     """
     calling_module_name = inspect.getmodule(inspect.stack()[1][0]).__name__
     cls = []
@@ -224,16 +205,8 @@ _register_classes_script_files = {}
 def get_BLACS_tab(name):
     """Return the BLACS tab class of a labscript device.
 
-    Parameters
-    ----------
-    name : str
-        The device class name.
-
-    Returns
-    -------
-    type
-        The class named in a `register_classes` call for the device, or else
-        the one decorated with `BLACS_tab` in labscript_devices/<name>.py.
+    The class is the one named in a `register_classes` call for the device, or
+    else the one decorated with `BLACS_tab` in labscript_devices/<name>.py.
 
     Raises
     ------
@@ -251,16 +224,8 @@ def get_BLACS_tab(name):
 def get_runviewer_parser(name):
     """Return the runviewer parser class of a labscript device.
 
-    Parameters
-    ----------
-    name : str
-        The device class name.
-
-    Returns
-    -------
-    type
-        The class named in a `register_classes` call for the device, or else
-        the one decorated with `runviewer_parser` in labscript_devices/<name>.py.
+    The class is the one named in a `register_classes` call for the device, or
+    else the one decorated with `runviewer_parser` in labscript_devices/<name>.py.
 
     Raises
     ------
@@ -284,8 +249,6 @@ def register_classes(labscript_device_name, BLACS_tab=None, runviewer_parser=Non
 
     Parameters
     ----------
-    labscript_device_name : str
-        The device name alone, such as ``"DeviceName"``.
     BLACS_tab, runviewer_parser : str, optional
         The fully qualified import paths of the BLACS tab and runviewer parser
         classes, such as ``"labscript_devices.DeviceName.DeviceTab"``. They
@@ -311,9 +274,7 @@ def register_classes(labscript_device_name, BLACS_tab=None, runviewer_parser=Non
 def populate_registry():
     """Run every ``register_classes.py`` in the device folders.
 
-    These files call `register_classes` to name the BLACS tab and runviewer
-    parser classes of their devices. The folders are those in
-    `LABSCRIPT_DEVICES_DIRS`, searched recursively.
+    The folders are those in `LABSCRIPT_DEVICES_DIRS`, searched recursively.
     """
     for devices_dir in LABSCRIPT_DEVICES_DIRS:
         for folder, _, filenames in os.walk(devices_dir):
