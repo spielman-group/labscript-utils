@@ -140,8 +140,8 @@ _denier = None
 
 def enable():
     if '--allow-double-imports' in sys.argv:
-        # Calls to enable/disable the double import denier are ignored if this
-        # command line argument is present.
+        # Calls to enable the double import denier are ignored if this command
+        # line argument is present.
         return
     global _denier
     if _denier is None:
@@ -155,14 +155,3 @@ def enable():
             raise AssertionError(msg)
     sys.meta_path.insert(0, _denier)
     _denier.enabled = True
-
-
-def disable():
-    if '--allow-double-imports' in sys.argv:
-        # Calls to enable/disable the double import denier are ignored if this
-        # command line argument is present.
-        return
-    if not _denier.enabled:
-        raise RuntimeError('not enabled')
-    sys.meta_path.remove(_denier)
-    _denier.enabled = False

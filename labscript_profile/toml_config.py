@@ -148,14 +148,3 @@ class TomlConfigParser(configparser.ConfigParser):
             for option, value in section.items():
                 self.set(section_name, str(option), value)
         return [str(filename)]
-
-    def to_toml_dict(self):
-        data = {}
-        if self.defaults():
-            data[self.default_section] = dict(self.defaults())
-        for section in self.sections():
-            data[section] = dict(self._sections[section])
-        return data
-
-    def write_toml(self, filename):
-        dump_toml_file(filename, self.to_toml_dict())
