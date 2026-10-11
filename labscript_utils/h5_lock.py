@@ -54,17 +54,18 @@ class File(_File):
     """
 
     def __init__(self, name, mode=None, driver=None, libver=None, **kwds):
-        if not isinstance(name, h5py._objects.ObjectID):
-            kwargs = {}
-            if mode == 'r':
-                kwargs['read_only'] = True
-            # Do not terminate upon SIGTERM while the file is open:
-            self.kill_lock = kill_lock
-            self.kill_lock.acquire()
-            # Ask other zlock users not to open the file while we have it open:
-            self.zlock = Lock(path_to_agnostic(name), **kwargs)
-            self.zlock.acquire()
         try:
+            if not isinstance(name, h5py._objects.ObjectID):
+                kwargs = {}
+                if mode == 'r':
+                    kwargs['read_only'] = True
+                # Do not terminate upon SIGTERM while the file is open:
+                kill_lock.acquire()
+                self.kill_lock = kill_lock
+                # Ask other zlock users not to open the file while we have it open:
+                zlock = Lock(path_to_agnostic(name), **kwargs)
+                zlock.acquire()
+                self.zlock = zlock
             super().__init__(name, mode, driver, libver, **kwds)
         except:
             if hasattr(self, 'zlock'):
