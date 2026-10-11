@@ -24,20 +24,20 @@ except ImportError:
     import importlib_metadata
 
 
-class NotFound(object):
-    pass
+class NotFound:
+    """Returned by `get_version` for a package that is not installed."""
 
 
-class NoVersionInfo(object):
-    pass
+class NoVersionInfo:
+    """Returned by `get_version` for a package whose version cannot be found."""
 
 
 class VersionException(RuntimeError):
-    pass
+    """Raised by `check_version` when a package's version is not acceptable."""
 
 
 class BrokenInstall(RuntimeError):
-    pass
+    """Raised when a package has more than one set of installed metadata."""
 
 
 ERR_BROKEN_INSTALL = """Multiple metadata files for {package} found in {path}; cannot
@@ -47,20 +47,25 @@ metadata files/folders, then reinstall the package.""".replace('\n', ' ')
 
 
 def get_import_path(import_name):
-    """Get which entry in sys.path a module would be imported from, without importing
-    it.
-    
-    Args:
-        import_name (str): The module name.
+    """Get the folder a module would be imported from, without importing it.
 
-    Raises:
-        ModuleNotFoundError: Raised if the module is not installed.
-        NotImplementedError: Raised if the module is a "namespace package".
-            Support for namepsace packages is not currently availabled.
+    Parameters
+    ----------
+    import_name : str
+        The module name.
 
-    Returns:
-        str: The path to the folder containing the module.
+    Returns
+    -------
+    str
+        The path to the folder containing the module, or for a package the
+        folder containing the package.
 
+    Raises
+    ------
+    ModuleNotFoundError
+        If the module is not installed.
+    NotImplementedError
+        If the module is a namespace package, which is not supported.
     """
     spec = importlib.util.find_spec(import_name)
     if spec is None:
@@ -83,7 +88,6 @@ def _get_metadata_version(project_name, import_path):
 
     Raise BrokenInstall if several installations match.
     """
-    
     for finder in sys.meta_path:
         if hasattr(finder, 'find_distributions'):
             context = importlib_metadata.DistributionFinder.Context(
@@ -162,23 +166,30 @@ def get_version(import_name, project_name=None, import_path=None):
     ``project_name`` (the name given to pip, which may differ from the import name),
     a ``__version__.py`` file, and a ``__version__`` literal in the package source.
 
-    Args:
-        import_name (str): The module name.
-        project_name (str, optional): The package name (e.g. the name used when pip
-            installing the package). This must be specified if it does not match the
-            module name.
-        import_path (str, optional): The path to the folder containing the installed
-            package.
+    Parameters
+    ----------
+    import_name : str
+        The module name, which must be top-level.
+    project_name : str, optional
+        The package name, as given to pip. Must be specified if it differs from
+        `import_name`.
+    import_path : str, optional
+        The path to the folder containing the installed package. Default is
+        where `get_import_path` finds it.
 
-    Raises:
-        NotImplementedError: Raised if the module name contains a period. Only 
-            top-level packages are supported at this time.
+    Returns
+    -------
+    str or NotFound or NoVersionInfo
+        The version. `NotFound` is returned if the package cannot be found, and
+        `NoVersionInfo` if no version is found in the ways above, or if it is
+        None.
 
-    Returns: 
-        The version literal of the package. 
-        If the package cannot be found, :class:`NotFound` is returned. 
-        If the version cannot be obtained in the above way, or if the version was found
-        but was :code:`None`, :class:`NoVersionInfo` is returned.
+    Raises
+    ------
+    NotImplementedError
+        If `import_name` contains a period, or is a namespace package.
+    BrokenInstall
+        If the package has more than one set of installed metadata.
     """
     if project_name is None:
         project_name = import_name
@@ -229,41 +240,43 @@ def check_version(module_name, at_least, less_than, version=None, project_name=N
     ``project_name`` when it differs from ``module_name``, as for pyserial imported
     as 'serial'.
 
-    Args:
-        module_name (str): The name of the module to check.
-        at_least (str): The minimum acceptable module version.
-        less_than (str): The minimum unacceptable module version. Usually this would be
-            the next major version if the package follows 
-            `semver <https://semver.org>`_.
-        version (str, optional): The current version of the installed package. Useful when the
-            package version is stored in a non-standard location.
-        project_name (str, optional): The package name (e.g. the name used when pip
-            installing the package). This must be specified if it does not match the
-            module name.
+    Parameters
+    ----------
+    module_name : str
+        The name of the module to check.
+    at_least : str
+        The minimum acceptable version.
+    less_than : str
+        The minimum unacceptable version. Usually the next major version, if the
+        package follows `semver <https://semver.org>`_.
+    version : str, optional
+        The installed version, for a package that stores it somewhere
+        `get_version` does not look.
+    project_name : str, optional
+        The package name, as given to pip. Must be specified if it differs from
+        `module_name`.
 
-    Raises:
-        :exc:`VersionException`: if the module was not found or its version could not
-            be determined.
-
+    Raises
+    ------
+    VersionException
+        If the module is not found, its version cannot be determined, or the
+        version is outside the range.
     """
     if version is None:
         version = get_version(module_name, project_name)
 
     if version is NotFound:
-        raise VersionException('Module {} not found'.format(module_name))
+        raise VersionException(f'Module {module_name} not found')
 
     if version is NoVersionInfo:
-        raise VersionException(
-            'Could not get version info from module {}'.format(module_name)
-        )
+        raise VersionException(f'Could not get version info from module {module_name}')
 
     at_least_version, less_than_version, installed_version = [
         packaging.version.parse(v) for v in [at_least, less_than, version]
     ]
 
     if not at_least_version <= installed_version < less_than_version:
-        msg = (
-            '{module_name} {version} found. '
-            + '{at_least} <= {module_name} < {less_than} required.'
+        raise VersionException(
+            f'{module_name} {version} found. '
+            f'{at_least} <= {module_name} < {less_than} required.'
         )
-        raise VersionException(msg.format(**locals()))
