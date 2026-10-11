@@ -16,7 +16,6 @@ from pathlib import Path
 import importlib
 import tokenize
 import ast
-import setuptools_scm
 import packaging.version
 
 try:
@@ -152,6 +151,10 @@ def package_version(package):
     """
     root = Path(sys.modules[package].__file__).parent.parent
     if (root / '.git').is_dir():
+        # Imported where it is used, so that importing labscript_utils, which
+        # every program and compile does, does not pay for it.
+        import setuptools_scm
+
         return setuptools_scm.get_version(
             root, version_scheme='release-branch-semver', local_scheme='node-and-date'
         )
@@ -203,6 +206,8 @@ def get_version(import_name, project_name=None, import_path=None):
             return NotFound
     if not os.path.exists(os.path.join(import_path, import_name)):
         return NotFound
+    import setuptools_scm
+
     try:
         # Check if setuptools_scm gives us a version number, for the case that it's a
         # git repo or PyPI tarball:
