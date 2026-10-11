@@ -141,8 +141,8 @@ def exec_qapplication(qapplication):
     int
         The exit code of the event loop.
     """
-    # Python only sees the interrupt when the interpreter runs, which the timer
-    # makes happen every 500 ms.
+    # Python runs signal handlers, Ctrl-C's or zprocess's SIGTERM, only when the
+    # interpreter runs, which the timer makes happen every 500 ms.
     timer = QtCore.QTimer()
     timer.start(500)
     timer.timeout.connect(lambda: None)

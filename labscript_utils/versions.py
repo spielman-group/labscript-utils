@@ -146,13 +146,22 @@ def package_version(package):
     """Return the version of a labscript suite package, for its ``__version__``.
 
     Each package's ``__init__`` sets ``__version__ = package_version(__package__)``.
-    In a git checkout the version comes from setuptools_scm, so that it names the
-    commit; otherwise it is the installed distribution's, or None if there is none.
+
+    Parameters
+    ----------
+    package : str
+        The package's import name, already in ``sys.modules``.
+
+    Returns
+    -------
+    str or None
+        In a git checkout, setuptools_scm's version, which names the commit;
+        otherwise the installed distribution's version, or None if there is none.
     """
     root = Path(sys.modules[package].__file__).parent.parent
     if (root / '.git').is_dir():
-        # Imported where it is used, so that importing labscript_utils, which
-        # every program and compile does, does not pay for it.
+        # Imported here, so that an installed copy, which is no git checkout,
+        # does not pay for it whenever labscript_utils is imported.
         import setuptools_scm
 
         return setuptools_scm.get_version(

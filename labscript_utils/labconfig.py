@@ -88,6 +88,11 @@ class LabscriptApplication(object):
         )
 
     def save_configuration(self, save_file):
+        """Save the app's state, from its ``get_save_data()``, to ``save_file``.
+
+        Records the file and data as ``last_save_config_file`` and
+        ``last_save_data``, and shows the file in the window title.
+        """
         save_data = self.get_save_data()
         save_file = save_appconfig(save_file, {f'{self.app_name}_state': save_data})
         self.last_save_config_file = save_file

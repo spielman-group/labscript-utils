@@ -21,7 +21,8 @@ class LeftClickMixin:
     List it before the view's Qt base class. `leftClicked(index)` is emitted
     when the left button is pressed and released on the same valid index, and
     `doubleLeftClicked(index)` as well when that click was the second of a
-    double click.
+    double click. A subclass cancels a click by setting `_pressed_index` to
+    None before calling `mouseReleaseEvent`.
     """
 
     leftClicked = Signal(QtCore.QModelIndex)

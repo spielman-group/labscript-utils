@@ -17,6 +17,8 @@ import os
 from qtutils.qt import QtCore, QtGui, QtWidgets
 from qtutils.qt.QtCore import pyqtSignal as Signal
 
+from labscript_utils import ensure_str
+
 from . import file_dialogs
 from .lockable import LockableOutput
 
@@ -151,8 +153,7 @@ class ImageOutput(LockableOutput, QtWidgets.QWidget):
         
     @value.setter
     def value(self, value):
-        if isinstance(value, bytes):
-            value = value.decode()
+        value = ensure_str(value)
         decoded_image = base64.b64decode(value)
         pixmap = QtGui.QPixmap()
         pixmap.loadFromData(decoded_image, flags=QtCore.Qt.ImageConversionFlag.AvoidDither | QtCore.Qt.ImageConversionFlag.ThresholdAlphaDither | QtCore.Qt.ImageConversionFlag.ThresholdDither)
