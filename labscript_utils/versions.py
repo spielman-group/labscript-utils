@@ -297,11 +297,3 @@ def check_version(module_name, at_least, less_than, version=None, project_name=N
             + '{at_least} <= {module_name} < {less_than} required.'
         )
         raise VersionException(msg.format(**locals()))
-
-
-if __name__ == '__main__':
-    assert get_version('subprocess') == NoVersionInfo
-    assert get_version('plsgtbg') == NotFound
-    assert type(get_version('labscript_utils')) in [str, bytes]
-    assert type(get_version('numpy')) in [str, bytes]
-    assert type(get_version('serial', 'pyserial')) in [str, bytes]

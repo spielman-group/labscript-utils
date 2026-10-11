@@ -55,7 +55,3 @@ class _ProfilingImporter(object):
 _profiling_importer = _ProfilingImporter()
 enable = _profiling_importer.enable
 disable = _profiling_importer.disable
-
-if __name__ == '__main__':
-    enable(threshold=0.05)
-    import IPython
