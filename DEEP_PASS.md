@@ -1045,8 +1045,8 @@ of duplicates (Ian), but counted as a consumer.
   serve all four, but the wording differs per app.
 - Outcome: labscript-utils f0b294a, with save_configuration on
   LabscriptApplication since 4e50a77; lyse keeps its own Load prompt through
-  config_description. Consumers: owners' edits sent as one combined patch each
-  (runmanager, lyse, runviewer, blacs).
+  config_description. Consumers: lyse 7e96ae4, runmanager 9877b45, runviewer
+  4db574e (save_configuration only, keeping LabscriptApplication).
 
 ### 5. Views that signal a left click, in lyse and runmanager
 
@@ -1071,8 +1071,7 @@ of duplicates (Ian), but counted as a consumer.
   - The `.ui` files promote by class name and need no edit.
 - Visible to a user: no. `lyse.widgets.TreeView` and `TableView` go, but nothing
   outside lyse uses them.
-- Outcome: labscript-utils 62e8323. Consumers: owners' edits sent as one
-  combined patch each (runmanager, lyse, runviewer, blacs).
+- Outcome: labscript-utils 62e8323. Consumers: lyse 7e96ae4, runmanager 9877b45.
 
 ### 6. File dialogs that return a path
 
@@ -1096,11 +1095,11 @@ of duplicates (Ian), but counted as a consumer.
   and blacs `shot_execution.py`.
 - Visible to a user: no.
 - Outcome: labscript-utils d90310a; the application layer's two dialogs use it
-  too. blacs's five dialogs built as `QFileDialog` objects (`__main__.py`
-  load and save front panel, and three in `plugins/connection_table`) use it
-  as well, 27 sites in all; they lose only the detail view of Qt's own dialog
-  where the native one is not used. Consumers: owners' edits sent as one
-  combined patch each (runmanager, lyse, runviewer, blacs).
+  too. blacs's five dialogs built as `QFileDialog` objects (`__main__.py` load
+  and save front panel, and three in `plugins/connection_table`) use it as well,
+  27 sites in all; they lose only the detail view of Qt's own dialog where the
+  native one is not used. Consumers: runmanager 9877b45, lyse 7e96ae4, runviewer
+  4db574e, blacs 20aabd4.
 
 ### 7. `unitconversions.test`, a copy of `example1`
 
@@ -1138,8 +1137,8 @@ of duplicates (Ian), but counted as a consumer.
 - Visible to a user: yes, larger tabs in the Preferences dialog. Also,
   `FingerTabBarWidget(width=, height=)` becomes `minwidth=, minheight=`; only the
   demo passes them.
-- Outcome: labscript-utils 5935816, tidied in 063ec31. runmanager: owners' edits
-  sent as one combined patch each (runmanager, lyse, runviewer, blacs).
+- Outcome: labscript-utils 5935816, tidied in 063ec31. Consumers: runmanager
+  9877b45.
 
 ### 9. Restyling on a theme change, and the first-paint signal
 
@@ -1167,8 +1166,8 @@ of duplicates (Ian), but counted as a consumer.
   - runmanager: the base class at `__main__.py:2024`, and delete 2025-2029,
     2031-2033, 2035-2042, 2050-2055 and 2501-2505.
 - Visible to a user: no.
-- Outcome: labscript-utils 7404602. Consumers: owners' edits sent as one
-  combined patch each (runmanager, lyse, runviewer, blacs).
+- Outcome: labscript-utils 7404602. Consumers: lyse 7e96ae4, blacs 20aabd4,
+  runmanager 9877b45.
 
 ### 10. `dict_diff`, in labscript-utils and runmanager (approved)
 
@@ -1244,8 +1243,8 @@ of duplicates (Ian), but counted as a consumer.
 - Consumer edits: the lines above in the three `__main__` files, each taking the
   application from `splash.qapplication`.
 - Visible to a user: no.
-- Outcome: labscript-utils f0b294a. Consumers: owners' edits sent as one
-  combined patch each (runmanager, lyse, runviewer, blacs).
+- Outcome: labscript-utils f0b294a. Consumers: lyse 7e96ae4, runmanager 9877b45,
+  runviewer 4db574e.
 
 ### 13. Choosing a readable text colour by contrast
 
@@ -1267,8 +1266,8 @@ of duplicates (Ian), but counted as a consumer.
   - runmanager: delete `__main__.py:198-217` and change 229-232.
 - Visible to a user: no.
 - Outcome: labscript-utils 3a7d146, in themed_window.py by Ian's decision.
-  Consumers: owners' edits sent as one combined patch each (runmanager, lyse,
-  runviewer, blacs).
+  Consumers: blacs 20aabd4, runmanager 9877b45; at an exact tie blacs now picks
+  black text where it picked white, which no real colour reaches.
 
 ### 14. Reading properties from the connection table
 
@@ -1340,9 +1339,9 @@ of duplicates (Ian), but counted as a consumer.
   - runviewer: `__main__.py:479, 1573-1577, 1587`.
 - Visible to a user: no. A lab-local device that copied the private import
   would need the new name.
-- Outcome: labscript-utils d784002, with connections._ensure_str an alias until
-  lyse and labscript-devices switch; blacs 268ac41. runmanager, lyse, runviewer
-  and labscript-devices: edits sent.
+- Outcome: done: labscript-utils d784002, and 3c6e2d3 removes connections'
+  interim alias; blacs 268ac41, runmanager 9877b45, lyse 7e96ae4, runviewer
+  4db574e, labscript-devices d081fa2 (FunctionRunner's inline copy too).
 
 ### 18. Reading a labconfig option with a default, two ways in `get_config`
 
@@ -1372,8 +1371,7 @@ of duplicates (Ian), but counted as a consumer.
   - runmanager: delete `__main__.py:260-269`; 21 calls become
     `app.error_dialog` or `self.error_dialog`.
 - Visible to a user: no.
-- Outcome: labscript-utils f0b294a. Consumers: owners' edits sent as one
-  combined patch each (runmanager, lyse, runviewer, blacs).
+- Outcome: labscript-utils f0b294a. Consumers: lyse 7e96ae4, runmanager 9877b45.
 
 ### 20. `ElidedLabelContainer.setElideMode` repeats the scroll area's checks
 
@@ -1386,6 +1384,18 @@ of duplicates (Ian), but counted as a consumer.
 - Consumer edits: none.
 - Visible to a user: no.
 - Outcome: done in labscript-utils, 0aeaa63.
+
+### Outcome
+
+All twenty entries are done. labscript-utils' side is 789ed7a..3c6e2d3, with
+review fixes in 4e50a77, 063ec31 and 3752d13. Every consumer's suite passes on
+its CodeHealth against labscript-utils 3c6e2d3: runmanager 139, blacs 69, lyse
+44, labscript-devices 43, labscript-agents 15, runviewer 10, labscript 3, and
+hyde's 17 plugin-related test files. Non-blank code lines across the suite:
+labscript-utils +230, which holds the shared code now; runmanager -401, lyse
+-218, blacs -75, runviewer -48, labscript -24, labscript-devices -25,
+labscript-agents -19, labscript-suite -24; 604 fewer in all, and 12 fewer test
+lines.
 
 ### Considered, and proposed to leave
 
