@@ -85,7 +85,7 @@ def setup_logging(
     try:
         # fileno() is needed below. It raises in Jupyter notebooks, where log
         # messages are then not printed to stdout or stderr.
-        stdout_fileno = sys.stdout.fileno()
+        stdout_fileno = sys.stdout.fileno() if sys.stdout is not None else -1
     except UnsupportedOperation:
         warnings.warn(
             "Logging to stdout and stderr is disabled. "
