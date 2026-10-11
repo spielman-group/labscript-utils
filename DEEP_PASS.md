@@ -1034,10 +1034,13 @@ of duplicates (Ian), but counted as a consumer.
   - runviewer `__main__.py`: imports 71-77, class line 205, and delete 384-390.
   - The menu wiring, the `.ui` actions and runmanager's
     `tests/test_configuration.py` are unchanged.
-- Visible to a user: yes, in two small ways.
+- Visible to a user: yes, in small ways.
   - lyse's Save item follows a Save as, which it does not do today.
-  - lyse's Load prompt says "which groups are active/open", wording copied from
-    runmanager; lyse has no groups.
+  - lyse's Load prompt said "which groups are active/open", wording copied from
+    runmanager; it now says "which scripts are loaded", as lyse's quit prompt
+    does.
+  - lyse's "no changes to revert" and "Dataframe is empty" warnings used to raise
+    AttributeError, since `Lyse` has no `self.app`; they now show.
 - Decision for Ian: whether labscript-utils should hold a GUI application layer
   at all. Entries 12 and 19 share the same new module.
 - Optional, about 17 more lines: the "save changes?" Yes/No/Cancel prompt
@@ -1244,7 +1247,8 @@ of duplicates (Ian), but counted as a consumer.
   application from `splash.qapplication`.
 - Visible to a user: no.
 - Outcome: labscript-utils f0b294a. Consumers: lyse 7e96ae4, runmanager 9877b45,
-  runviewer 4db574e.
+  runviewer 4db574e. lyse 83cfd6c also runs each worker's event loop with
+  `exec_qapplication`, so Ctrl-C and zprocess's SIGTERM now end idle workers.
 
 ### 13. Choosing a readable text colour by contrast
 
@@ -1474,6 +1478,21 @@ Decisions beyond the entries:
   - The `fingertab.py` demo.
   - lyse's `get_check_state` binding shim.
   - runmanager's `get_shot_globals` forwarder and its unused `dedent` import.
+- **From the final review, for later steps:**
+  - Step 3: `FingerTabWidget.setTabClosable(i, False)` on a tab with a close
+    button raises TypeError in `FingerTabBarWidget.setTabButton`; carried over
+    from runmanager, and no caller does it yet.
+  - Step 4: blacs keeps a one-call `execute_program` around `exec`, which drops
+    the exit code (`__main__.py:692-695`).
+  - Step 2 leftovers, for the owners: runmanager's and lyse's quit prompts repeat
+    the text of their `config_description` and the shared Yes/No/Cancel block;
+    blacs `connection_table/__init__.py:432` and runviewer `__main__.py:755`
+    normalise paths the dialogs already return absolute.
+  - Every suite package now imports `labscript_utils.versions.package_version`,
+    and labscript-agents uses `labscript_profile.toml_config`, so their
+    labscript_utils floors must rise with the dependency-floor item.
+  - The installed setuptools_scm warns that `release-branch-semver` is renamed;
+    `package_version` and each repo's pyproject are the places to change it.
 - **For other owners:**
   - labscript-agents keeps unused copies of labscript-optimization's routine
     plumbing, 242 lines, on purpose according to its plan.
