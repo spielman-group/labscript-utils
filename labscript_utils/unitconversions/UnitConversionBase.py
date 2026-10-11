@@ -11,8 +11,8 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-# copy and math are unused here, but they reach every conversion module through
-# its `from .UnitConversionBase import *`.
+# copy, math and MethodType are unused here, but they reach every conversion module
+# through its `from .UnitConversionBase import *`.
 import copy
 from types import MethodType
 import math
@@ -27,9 +27,6 @@ class _MultiplicativeConversion:
         self.factor = float(factor)
         self.to_base = bool(to_base)
         self.__name__ = name
-
-    def __get__(self, instance, class_):
-        return MethodType(self, instance)
 
     def __call__(self, value):
         if self.to_base:
