@@ -31,7 +31,7 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
         if name in self._widget_groups:
             raise RuntimeError('The tool palette group already has a palette named %s'%name)
             
-        # Create the tool palette and store a reference to it and an index indicating the order of Tool Palettes
+        # Create the tool palette and store a reference to it
         tool_palette = ToolPalette(self,name,*args,**kwargs)
         push_button = QtWidgets.QPushButton(name)        
         push_button.setIcon(QtGui.QIcon(CONTRACT_ICON))
@@ -55,7 +55,7 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
             return lambda: self._on_button_clicked(name)
             
         push_button.clicked.connect(create_callback(name))
-        self._widget_groups[name] = (len(self._widget_groups), tool_palette, push_button)
+        self._widget_groups[name] = (tool_palette, push_button)
         
         frame_layout.addWidget(header_widget)
         frame_layout.addWidget(tool_palette)
@@ -67,7 +67,7 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
     def _on_button_clicked(self,name):
         # work out if it is shown or hidden
         #call show or hide method
-        if self._widget_groups[name][1].isHidden():
+        if self._widget_groups[name][0].isHidden():
             self.show_palette(name)
         else:
             self.hide_palette(name)
@@ -76,7 +76,7 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
     def show_palette(self,name):
         if name not in self._widget_groups:
             raise RuntimeError('The tool palette does not have a palette named %s'%name)
-        _, palette, push_button = self._widget_groups[name]
+        palette, push_button = self._widget_groups[name]
         palette.show()
         push_button.setIcon(QtGui.QIcon(CONTRACT_ICON))
         push_button.setToolTip('Click to hide')
@@ -85,7 +85,7 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
         if name not in self._widget_groups:
             raise RuntimeError('The tool palette does not have a palette named %s'%name)
         
-        _, palette, push_button = self._widget_groups[name]
+        palette, push_button = self._widget_groups[name]
         palette.hide()
         push_button.setIcon(QtGui.QIcon(EXPAND_ICON))
         push_button.setToolTip('Click to show')
@@ -99,7 +99,7 @@ class ToolPaletteGroup(QtWidgets.QVBoxLayout):
         if name not in self._widget_groups:
             raise RuntimeError('The tool palette group does not contain a palette named %s'%name)
             
-        return self._widget_groups[name][1]
+        return self._widget_groups[name][0]
 
 
 class ToolPalette(QtWidgets.QScrollArea):
@@ -117,8 +117,6 @@ class ToolPalette(QtWidgets.QScrollArea):
         #self._layout.setMaximumSize(QSize(524287,524287))
         #self._layout.setSizeConstraint(QLayout.SizeConstraint.SetMinAndMaxSize)
         self._widget_list = []
-        self._parent_group = parent
-        self._name = name
         
         # need to keep track of these internally because the GridLayout returns the number of 
         # allocated rows/columns with columnCount()/RowCount() rather than the number of visible ones
@@ -162,7 +160,6 @@ class ToolPalette(QtWidgets.QScrollArea):
         # so need to take into account the borders around the grid layout? What are they?)
         num_widgets_per_row = (layout_width-layout_spacing*3)//(max_width+layout_spacing)
 
-        # print self._name
         # print 'number_of_widgets: %d'%len(self._widget_list)
         # print 'layout_width: %d'%layout_width
         # print 'layout_spacing: %d'%layout_spacing

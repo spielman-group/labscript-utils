@@ -41,10 +41,9 @@ def configure_qapplication(qapplication):
         if icon_path:
             qapplication.setWindowIcon(QtGui.QIcon(icon_path))
         if not qapplication.property('_labscript_qapplication_configured'):
-            # Native macOS widget styling makes many Qt controls look
-            # inconsistent with the rest of the suite. Use Qt's own style, but
-            # preserve the current palette so dark/light appearance still
-            # follows the active theme.
+            # Native macOS styling looks inconsistent with the rest of the
+            # suite. Use Qt's own style, keeping the palette so dark or light
+            # appearance still follows the theme.
             palette = QtGui.QPalette(qapplication.palette())
             qapplication.setStyle('Fusion')
             qapplication.setPalette(palette)
