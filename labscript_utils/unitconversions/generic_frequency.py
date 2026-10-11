@@ -21,7 +21,7 @@ class FreqConversion(UnitConversion):
     Parameters
     ----------
     calibration_parameters : dict
-        Passed on to `UnitConversion`; its ``'magnitudes'`` entry is the only one used.
+        Only the ``'magnitudes'`` entry is used (see `UnitConversion`).
     """
 
     # Must be defined here and match the default hardware unit in the BLACS tab.

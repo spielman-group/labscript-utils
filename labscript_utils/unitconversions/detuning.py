@@ -16,13 +16,13 @@ from .UnitConversionBase import *
 class detuning(UnitConversion):
     """Laser detuning set by an AOM, whose frequency in Hz is the base unit.
 
-    The 'MHz' unit is the AOM frequency in MHz, 'd_MHz' is the detuning in MHz, and
-    'linewidths' is the detuning in units of the natural linewidth.
+    'MHz' is the AOM frequency, 'd_MHz' the detuning in MHz, and 'linewidths' the
+    detuning in natural linewidths.
 
     Parameters
     ----------
     calibration_parameters : dict
-        Calibration parameters. Missing keys are filled in place with their defaults.
+        Missing keys are filled in place with their defaults.
 
         - ``'pass'``: single (1) or double (2) pass; a negative value flips the sign of
           the shift (default 1).

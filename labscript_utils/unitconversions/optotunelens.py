@@ -18,15 +18,14 @@ from .UnitConversionBase import *
 class OptotuneLens(UnitConversion):
     """Conversion from volts to the current and position of an Optotune lens.
 
-    The current is ``I[A] = current_cal * V[V]``. The 'distance' unit is the lens
-    position, fitted as ``Pos(I) = a*exp(b*I) + c*I - a``, which is zero at zero
-    current. Converting volts to 'distance' limits the current to the range 0 to
-    ``I_Max``.
+    The 'distance' unit is the lens position, fitted as
+    ``Pos(I) = a*exp(b*I) + c*I - a``, which is zero at zero current. Converting
+    volts to 'distance' limits the current to the range 0 to ``I_Max``.
 
     Parameters
     ----------
     calibration_parameters : dict
-        Calibration parameters. Missing keys are filled in place with their defaults.
+        Missing keys are filled in place with their defaults.
 
         - ``'current_cal'``: amps per volt (default 0.05).
         - ``'I_Max'``: largest current used for 'distance', in amps (default 0.3).

@@ -14,11 +14,7 @@ from .UnitConversionBase import *
 
 
 class _QuadConversion(UnitConversion):
-    """Conversions between volts, amps and gauss per cm for a quadrupole coil.
-
-    A subclass provides ``A_to_base``, ``A_from_base`` and ``default_parameters`` for
-    the calibration parameters, which must include ``'Gcm_per_A'``.
-    """
+    """Quadrupole coil conversions; a subclass defines the amps conversions."""
 
     base_unit = 'V'
     derived_units = ['A', 'Gcm']
@@ -46,7 +42,7 @@ class quad_driver(_QuadConversion):
     Parameters
     ----------
     calibration_parameters : dict, optional
-        Calibration parameters. Missing keys are filled in place with their defaults.
+        Missing keys are filled in place with their defaults.
 
         - ``'A_per_V'``: amps per volt (default 19.9757).
         - ``'Gcm_per_A'``: gauss per cm per amp (default 1.88679).

@@ -17,13 +17,10 @@ from .UnitConversionBase import *
 class BidirectionalCoilDriver(UnitConversion):
     """Conversion from volts to amps for a coil driver with a linear current.
 
-    The current is ``I[A] = slope * V[V] + shift``, where the voltage is first limited
-    to a saturation value.
-
     Parameters
     ----------
     calibration_parameters : dict, optional
-        Calibration parameters. Missing keys are filled in place with their defaults.
+        Missing keys are filled in place with their defaults.
 
         - ``'slope'``: amps per volt (default 1).
         - ``'shift'``: amps at zero volts (default 0).

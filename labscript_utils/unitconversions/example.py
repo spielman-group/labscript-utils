@@ -19,7 +19,7 @@ class example1(UnitConversion):
     Parameters
     ----------
     calibration_parameters : dict
-        Calibration parameters. Missing keys are filled in place with their defaults.
+        Missing keys are filled in place with their defaults.
 
         - ``'a'``: amps per volt (default 2).
         - ``'b'``: gauss per volt (default 3).
@@ -68,7 +68,7 @@ class example2(UnitConversion):
     Parameters
     ----------
     calibration_parameters : dict
-        Calibration parameters. Missing keys are filled in place with their defaults.
+        Missing keys are filled in place with their defaults.
 
         - ``'offset'``: detuned frequency at a base frequency of zero, in MHz
           (default 32.7).
@@ -101,7 +101,7 @@ class example3(UnitConversion):
     Parameters
     ----------
     calibration_parameters : dict
-        Calibration parameters. Missing keys are filled in place with their defaults.
+        Missing keys are filled in place with their defaults.
 
         - ``'grad'``: watts per volt (default 2).
         - ``'int'``: watts at zero volts (default 0.05).

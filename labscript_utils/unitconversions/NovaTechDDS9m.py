@@ -20,7 +20,7 @@ class NovaTechDDS9mFreqConversion(UnitConversion):
     Parameters
     ----------
     calibration_parameters : dict
-        Passed on to `UnitConversion`; its ``'magnitudes'`` entry is the only one used.
+        Only the ``'magnitudes'`` entry is used (see `UnitConversion`).
     """
 
     # Must be defined outside of __init__, and must match the default hardware unit
@@ -47,13 +47,12 @@ class NovaTechDDS9mFreqConversion(UnitConversion):
 class NovaTechDDS9mAmpConversion(UnitConversion):
     """Amplitude conversion of a NovaTech DDS9m channel, from 'Arb' to hardware units.
 
-    The hardware units are the DDS's integer amplitude steps, 1023 being full scale
-    and equal to 1 'Arb'.
+    The 'hardware' unit is the DDS's integer amplitude step, 1023 being full scale, 1 'Arb'.
 
     Parameters
     ----------
     calibration_parameters : dict
-        Passed on to `UnitConversion`; its ``'magnitudes'`` entry is the only one used.
+        Only the ``'magnitudes'`` entry is used (see `UnitConversion`).
     """
 
     # Must be defined outside of __init__, and must match the default hardware unit

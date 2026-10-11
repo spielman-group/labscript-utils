@@ -19,7 +19,7 @@ class quad_monitor(_QuadConversion):
     Parameters
     ----------
     calibration_parameters : dict, optional
-        Calibration parameters. Missing keys are filled in place with their defaults.
+        Missing keys are filled in place with their defaults.
 
         - ``'A_per_V'``: amps per volt (default 20.032).
         - ``'Gcm_per_A'``: gauss per cm per amp (default 1.88679).
