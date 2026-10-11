@@ -39,7 +39,7 @@ class ErrorWindow(tkinter.Text):
         self.imlabel.pack(side=constants.LEFT)
         self.textlabel = tkinter.Label(
             self.upperframe,
-            text=f'It looks like an error has occured:\n{sys.argv[2]}',
+            text=f'It looks like an error has occurred:\n{sys.argv[2]}',
             borderwidth=10,
             wraplength=400,
             justify='left',
