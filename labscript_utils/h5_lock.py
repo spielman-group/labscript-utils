@@ -10,6 +10,13 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
+"""Make h5py files lock themselves with zlock while they are open.
+
+Import this module before anything imports h5py: it raises ImportError if h5py
+is already imported. Importing it connects to the zlock server, unless the
+READTHEDOCS environment variable is set, and replaces ``h5py.File`` with a
+subclass that holds a zlock on the file.
+"""
 import sys
 import os
 
@@ -29,15 +36,23 @@ if 'h5py' in sys.modules:
             prior."""
         msg = dedent(msg)
         msg += "\n\nTraceback (h5py import):\n"
-        msg += "------------\n%s------------" % tb
+        msg += f"------------\n{tb}------------"
         raise ImportError(msg)
     else:
         raise ImportError('h5_lock must be imported prior to importing h5py')
-        
+
 import h5py
 
 _File = h5py.File
+
+
 class File(_File):
+    """An ``h5py.File`` that holds a zlock on its path, and the kill lock, while open.
+
+    The locks are not taken when ``name`` is an h5py object ID rather than a path.
+    The zlock is read-only if ``mode`` is 'r'.
+    """
+
     def __init__(self, name, mode=None, driver=None, libver=None, **kwds):
         if not isinstance(name, h5py._objects.ObjectID):
             kwargs = {}
@@ -50,7 +65,7 @@ class File(_File):
             self.zlock = Lock(path_to_agnostic(name), **kwargs)
             self.zlock.acquire()
         try:
-            _File.__init__(self, name, mode, driver, libver, **kwds)
+            super().__init__(name, mode, driver, libver, **kwds)
         except:
             if hasattr(self, 'zlock'):
                 self.zlock.release()
@@ -59,13 +74,13 @@ class File(_File):
             raise
 
     def close(self):
-        _File.close(self)
+        super().close()
         if hasattr(self, 'zlock'):
             self.zlock.release()
         if hasattr(self, 'kill_lock'):
             self.kill_lock.release()
 
-    # Not holding h5py's library-wide lock ("phil") in __exit__ avoids a deadlock:
+    # __exit__ is overridden so as not to hold h5py's library-wide lock ("phil"):
     # close() would take kill_lock._lock under phil, while a garbage collection in a
     # thread holding kill_lock._lock waits for phil to deallocate HDF5 objects.
     def __exit__(self, *args):
@@ -73,8 +88,9 @@ class File(_File):
 
 
 def hack_locks_onto_h5py():
-    # Monkeypatch h5py so all files are locked:
+    """Replace ``h5py.File`` with the locking :class:`File`."""
     h5py.File = File
+
 
 if os.environ.get('READTHEDOCS'):
     # prevent starting a zlock server on RTD, which always fails
