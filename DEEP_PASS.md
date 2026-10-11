@@ -924,6 +924,9 @@ of duplicates (Ian), but counted as a consumer.
 - Decision for Ian: this is upstream boilerplate in seven repos, so it widens the
   fork's difference from upstream at every sync. The new function was not run in
   a real checkout.
+- Outcome: done: labscript-utils c4ecaec; labscript 4a9dcde, labscript-devices
+  f986065, runmanager 538ce6c, blacs 769a004, lyse 0bc790d, runviewer a5ef546,
+  labscript-suite 62a725f. No repository's packaging read __version__.py.
 
 ### 2. Output widgets: lock menu, wheel pass-through, lock and unlock, four times
 
@@ -962,6 +965,8 @@ of duplicates (Ian), but counted as a consumer.
 - Visible to a user: no. A lab-local BLACS tab calling
   `widget.lock(notify_do=False)` by keyword would break; nothing in the suite
   does.
+- Outcome: done in labscript-utils, f76d464: 72 lines saved, with full
+  docstrings on the new public names. No consumer edits.
 
 ### 3. Starting a zprocess server, and connecting to zlock and zlog
 
@@ -991,6 +996,8 @@ of duplicates (Ian), but counted as a consumer.
 - Consumer edits: none. Callers of the two connect functions, and the `-m`
   command lines, are unchanged.
 - Visible to a user: no. `run_server` is a new public name.
+- Outcome: done in labscript-utils, 18cde67; with entry 18, 63 lines saved. No
+  consumer edits.
 
 ### 4. Save, save as, revert and load configuration in lyse and runmanager
 
@@ -1036,6 +1043,10 @@ of duplicates (Ian), but counted as a consumer.
 - Optional, about 17 more lines: the "save changes?" Yes/No/Cancel prompt
   appears four times (lyse 232, 340; runmanager 2512, 4385). One method could
   serve all four, but the wording differs per app.
+- Outcome: labscript-utils f0b294a, with save_configuration on
+  LabscriptApplication since 4e50a77; lyse keeps its own Load prompt through
+  config_description. Consumers: owners' edits sent as one combined patch each
+  (runmanager, lyse, runviewer, blacs).
 
 ### 5. Views that signal a left click, in lyse and runmanager
 
@@ -1060,6 +1071,8 @@ of duplicates (Ian), but counted as a consumer.
   - The `.ui` files promote by class name and need no edit.
 - Visible to a user: no. `lyse.widgets.TreeView` and `TableView` go, but nothing
   outside lyse uses them.
+- Outcome: labscript-utils 62e8323. Consumers: owners' edits sent as one
+  combined patch each (runmanager, lyse, runviewer, blacs).
 
 ### 6. File dialogs that return a path
 
@@ -1082,6 +1095,9 @@ of duplicates (Ian), but counted as a consumer.
   lyse `__main__.py`, `filebox.py` and `routines.py`, runviewer `__main__.py`,
   and blacs `shot_execution.py`.
 - Visible to a user: no.
+- Outcome: labscript-utils d90310a; the application layer's two dialogs use it
+  too. Consumers: owners' edits sent as one combined patch each (runmanager,
+  lyse, runviewer, blacs).
 
 ### 7. `unitconversions.test`, a copy of `example1`
 
@@ -1096,6 +1112,7 @@ of duplicates (Ian), but counted as a consumer.
   namespace through `from labscript import *`. A lab sequence or an old shot
   file naming `unitconversions.test.test` would break; nothing in the suite
   does. Ian's call. This is also a step 4 candidate.
+- Outcome: done in labscript-utils, 7da8765.
 
 ### 8. Finger tabs, in labscript-utils and runmanager
 
@@ -1118,6 +1135,8 @@ of duplicates (Ian), but counted as a consumer.
 - Visible to a user: yes, larger tabs in the Preferences dialog. Also,
   `FingerTabBarWidget(width=, height=)` becomes `minwidth=, minheight=`; only the
   demo passes them.
+- Outcome: labscript-utils 5935816, tidied in 063ec31. runmanager: owners' edits
+  sent as one combined patch each (runmanager, lyse, runviewer, blacs).
 
 ### 9. Restyling on a theme change, and the first-paint signal
 
@@ -1145,6 +1164,8 @@ of duplicates (Ian), but counted as a consumer.
   - runmanager: the base class at `__main__.py:2024`, and delete 2025-2029,
     2031-2033, 2035-2042, 2050-2055 and 2501-2505.
 - Visible to a user: no.
+- Outcome: labscript-utils 7404602. Consumers: owners' edits sent as one
+  combined patch each (runmanager, lyse, runviewer, blacs).
 
 ### 10. `dict_diff`, in labscript-utils and runmanager (approved)
 
@@ -1172,6 +1193,12 @@ of duplicates (Ian), but counted as a consumer.
     `labscript_utils>=3.3.0`) must rise to the version that carries the change;
   - no fork version number exists yet for that floor, and dependency floors
     are an open item.
+- Outcome: done: labscript-utils 789ed7a, runmanager 5db8175. The review notes
+  two further differences from the old labscript-utils copy, both runmanager's
+  long-standing behaviour: equal nested lists of uneven lengths now compare
+  different, and a tuple and an equal list compare equal. runmanager's
+  labscript_utils floor stays until a fork version exists; dependency floors are
+  an open item.
 
 ### 11. Reading a TOML file
 
@@ -1192,6 +1219,8 @@ of duplicates (Ian), but counted as a consumer.
   - runmanager: `globals_file.py:28, 136-138`.
 - Visible to a user: no. labscript-optimization is unchanged: its config code
   must not depend on labscript-utils.
+- Outcome: done: runmanager 5db8175, labscript-agents c0a1ed2 (and fb9ca7b,
+  labscript_utils as a required dependency). No labscript-utils change.
 
 ### 12. The event loop that Ctrl-C ends, and a QApplication made twice
 
@@ -1212,6 +1241,8 @@ of duplicates (Ian), but counted as a consumer.
 - Consumer edits: the lines above in the three `__main__` files, each taking the
   application from `splash.qapplication`.
 - Visible to a user: no.
+- Outcome: labscript-utils f0b294a. Consumers: owners' edits sent as one
+  combined patch each (runmanager, lyse, runviewer, blacs).
 
 ### 13. Choosing a readable text colour by contrast
 
@@ -1224,13 +1255,17 @@ of duplicates (Ian), but counted as a consumer.
   rule equals choosing black or white by contrast ratio, with no mismatch. A
   deliberately wrong rule failed the same check.
 - Stays: `contrast_ratio(a, b)` and `best_contrast(reference, candidates)` on
-  `QColor`, in a new `qtwidgets/contrast.py`.
+  `QColor`, in a new `qtwidgets/contrast.py` (built in `themed_window.py`, by
+  Ian's decision).
 - Core lines saved: 14. After the new file's banner the saving is 1, so this is
   worth doing only in a module shared with other helpers.
 - Consumer edits:
   - blacs: delete `progress_bar/__init__.py:49-64` and change 201-204;
   - runmanager: delete `__main__.py:198-217` and change 229-232.
 - Visible to a user: no.
+- Outcome: labscript-utils 3a7d146, in themed_window.py by Ian's decision.
+  Consumers: owners' edits sent as one combined patch each (runmanager, lyse,
+  runviewer, blacs).
 
 ### 14. Reading properties from the connection table
 
@@ -1243,6 +1278,7 @@ of duplicates (Ian), but counted as a consumer.
 - Core lines saved: 11.
 - Consumer edits: none. The helpers are private, and `get` keeps its signature.
 - Visible to a user: no.
+- Outcome: done in labscript-utils, bf751f5.
 
 ### 15. `quad_monitor` and `quad_driver`
 
@@ -1258,6 +1294,8 @@ of duplicates (Ian), but counted as a consumer.
 - Consumer edits: none.
 - Visible to a user: no. Outputs are identical over eight inputs and four
   parameter sets.
+- Outcome: done in labscript-utils, 98dca62; 8 lines saved, the quad defaults no
+  longer shared between instances.
 
 ### 16. `FileWatcher.add_files` and `add_folders`
 
@@ -1268,6 +1306,7 @@ of duplicates (Ian), but counted as a consumer.
 - Core lines saved: 10.
 - Consumer edits: none.
 - Visible to a user: no. The baseline maps matched before and after.
+- Outcome: done in labscript-utils, 2c6dab7.
 
 ### 17. `_ensure_str`, defined four times
 
@@ -1298,6 +1337,9 @@ of duplicates (Ian), but counted as a consumer.
   - runviewer: `__main__.py:479, 1573-1577, 1587`.
 - Visible to a user: no. A lab-local device that copied the private import
   would need the new name.
+- Outcome: labscript-utils d784002, with connections._ensure_str an alias until
+  lyse and labscript-devices switch; blacs 268ac41. runmanager, lyse, runviewer
+  and labscript-devices: edits sent.
 
 ### 18. Reading a labconfig option with a default, two ways in `get_config`
 
@@ -1308,6 +1350,7 @@ of duplicates (Ian), but counted as a consumer.
 - Core lines saved: 9. This is as much style as duplication.
 - Consumer edits: none.
 - Visible to a user: no.
+- Outcome: done in labscript-utils, ba12b35.
 
 ### 19. Error and question dialogs
 
@@ -1326,6 +1369,8 @@ of duplicates (Ian), but counted as a consumer.
   - runmanager: delete `__main__.py:260-269`; 21 calls become
     `app.error_dialog` or `self.error_dialog`.
 - Visible to a user: no.
+- Outcome: labscript-utils f0b294a. Consumers: owners' edits sent as one
+  combined patch each (runmanager, lyse, runviewer, blacs).
 
 ### 20. `ElidedLabelContainer.setElideMode` repeats the scroll area's checks
 
@@ -1337,6 +1382,7 @@ of duplicates (Ian), but counted as a consumer.
 - Core lines saved: 4.
 - Consumer edits: none.
 - Visible to a user: no.
+- Outcome: done in labscript-utils, 0aeaa63.
 
 ### Considered, and proposed to leave
 
@@ -1372,7 +1418,7 @@ others do not.
   8, 9, 10, 11, 12, 13, 17, 19): 503.
 
 The new modules would be `lockable.py`, `application.py`, `leftclick.py`,
-`file_dialogs.py`, `themed_window.py` and `contrast.py`, all in
+`file_dialogs.py` and `themed_window.py` (which holds the contrast functions), all in
 `qtwidgets/`. Entries 4, 12 and 19 share one of them.
 
 Decisions beyond the entries:
@@ -1424,6 +1470,9 @@ Decisions beyond the entries:
     `zprocess.start_daemon`, whose `os.fork()` is the reason; that is the zprocess
     session's to fix.
   - blacs's `shot_execution.tempfilename` duplicates the stdlib's `tempfile`.
+  - blacs builds `QFileDialog` objects for the same open, save and folder
+    choices at `__main__.py:455, 600` and `plugins/connection_table`
+    (396, 433, 456): a later round for `file_dialogs`.
   - `docs/source/conf.py` boilerplate is copied in eight repos (step 5).
   - zprocess's zlock and zlog servers share code.
 
