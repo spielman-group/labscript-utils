@@ -22,8 +22,6 @@ Tab = namedtuple('Tab', ['widget', 'text', 'data', 'text_color', 'tooltip',
 
 
 class _BaseDragDropTabBar(QtWidgets.QTabBar):
-    """Behavior shared by _Limbo and DragDropTabBar."""
-
     # The QPoint of the mouse relative to the top left corner of the dragged
     # tab when the drag began. Shared by all instances.
     _dragged_tab_grab_point = None
@@ -57,7 +55,6 @@ class _BaseDragDropTabBar(QtWidgets.QTabBar):
         return tab
 
     def add_dragged_tab(self, index, tab):
-        """Insert tab at index and apply its configuration."""
         self.prev_active_tab = self.currentIndex()
 
         self.parent().insertTab(index, tab.widget, tab.text)
@@ -79,8 +76,7 @@ class _BaseDragDropTabBar(QtWidgets.QTabBar):
 
 
 class _Limbo(_BaseDragDropTabBar):
-    """A floating tab bar that holds the dragged tab while it is outside every
-    DragDropTabBar."""
+    """A floating tab bar holding the dragged tab outside every tab bar."""
 
     def __init__(self):
         self.parent_tabwidget = QtWidgets.QTabWidget()
@@ -134,8 +130,7 @@ class _Limbo(_BaseDragDropTabBar):
         return 0
 
     def update(self):
-        """Move to keep the tab under the mouse, using the cursor's current
-        position rather than that of any event, for responsiveness."""
+        """Move the tab under the cursor's current position, then repaint."""
         if self.dragged_tab_grab_point is not None:
             self.move(QtGui.QCursor.pos() - self.dragged_tab_grab_point)
         super().update()
@@ -150,8 +145,7 @@ class _Limbo(_BaseDragDropTabBar):
 
 
 class TabAnimation(QtCore.QAbstractAnimation):
-    """Animate the tabs of a DragDropTabBar toward their positions, and the
-    floating limbo tab toward the tab bar it returns to."""
+    """Animate a DragDropTabBar's tabs and the limbo tab returning to it."""
 
     # Time constant in milliseconds: an object moves at its distance from its
     # target divided by tau, in pixels per millisecond.
@@ -198,8 +192,7 @@ class TabAnimation(QtCore.QAbstractAnimation):
         self.ensure_running()
 
     def animate_limbo(self, limbo, index):
-        """Animate the floating tab limbo flying into the tab at index, which
-        is not drawn until it arrives."""
+        """Fly the limbo tab into the tab at index, hidden until it arrives."""
         # The tab is already back in this bar; limbo only draws its pixmap.
         self.limbo = limbo
         self.limbo.animation_starting()
@@ -277,12 +270,7 @@ class TabAnimation(QtCore.QAbstractAnimation):
 class DragDropTabBar(_BaseDragDropTabBar):
     """The tab bar of a DragDropTabWidget.
 
-    Parameters
-    ----------
-    parent : DragDropTabWidget
-        The tab widget that owns this tab bar.
-    group_id
-        Tabs can be dragged between tab bars with the same group_id.
+    Tabs can be dragged between tab bars with the same group_id.
     """
 
     # The tab widgets in each group, which share a group_id.
@@ -346,12 +334,9 @@ class DragDropTabBar(_BaseDragDropTabBar):
         self.update()
 
     def _leftflush(self):
-        """Left edge of a tab made flush with the left of the tab bar."""
         return self.FLUSH_GAP
 
     def _rightflush(self):
-        """Right edge of a tab made flush with the right of the tab bar, leaving
-        room for the scroll buttons."""
         return (self.width() - 2 * self.SCROLL_BUTTON_WIDTH -
                 self.FLUSH_GAP - self.SCROLL_BUTTON_GAP)
 
@@ -438,8 +423,7 @@ class DragDropTabBar(_BaseDragDropTabBar):
             dest.update()
 
     def insertion_index_at(self, pos):
-        """Return the index at which a tab with its upper left corner at the
-        global position pos would be inserted."""
+        """Return the insertion index for a tab with its corner at global pos."""
         left = self.mapFromGlobal(pos).x()
         for other in range(self.count()):
             other_midpoint = self.tabRect(other).center().x()
@@ -457,8 +441,7 @@ class DragDropTabBar(_BaseDragDropTabBar):
         self.animation.positions[self.dragged_tab_index] = left
 
     def update_tab_index(self, index, pos):
-        """Move the tab at index, which is dragged to pos, past any tab whose
-        midpoint it has crossed, and return its new index."""
+        """Move the dragged tab at index past tabs it crosses; return its new index."""
         # Where the tab rect would be if pinned to the mouse at the point where
         # it was grabbed.
         pinned_rect = self.tabRect(index)
@@ -493,10 +476,7 @@ class DragDropTabBar(_BaseDragDropTabBar):
     def widgetAt(self, pos):
         """Return the tab bar under pos, or the limbo if there is none.
 
-        Only tab widgets in this bar's group are considered. With
-        accept_drops_bar_only a tab widget counts only over its tab bar, or over
-        a strip of one tab's height if it has no tabs; otherwise it counts
-        anywhere over the widget.
+        Only tab widgets in this bar's group are considered.
         """
         for tab_widget in self.tab_widgets[self.group_id]:
             count = tab_widget.tabBar().count()
@@ -571,8 +551,7 @@ class DragDropTabBar(_BaseDragDropTabBar):
                                        - self.tabRect(self.dragged_tab_index).topLeft())
 
     def mouseMoveEvent(self, event):
-        """Move the dragged tab to the tab bar under the mouse, or to limbo if
-        there is none, and update its position in that bar."""
+        """Move the dragged tab to the tab bar under the mouse, or to limbo."""
         super().mouseMoveEvent(event)
         if not self.drag_in_progress:
             self.update()
@@ -736,17 +715,14 @@ class DragDropTabBar(_BaseDragDropTabBar):
 
 
 class DragDropTabWidget(QtWidgets.QTabWidget):
-    """A tab widget whose tabs can be dragged to other tab widgets that share
-    its group_id, and reordered with animation.
+    """A tab widget whose tabs can be dragged and reordered with animation.
 
     Parameters
     ----------
     group_id : hashable, optional
-        Tabs can be dragged between widgets with the same group_id. None
-        disables dragging.
+        Tabs move between widgets sharing a group_id. None disables dragging.
     accept_drops_bar_only : bool, optional
-        If True, tabs are dropped only on the tab bar at the top of a widget,
-        rather than anywhere over it.
+        If True, tabs drop only on the tab bar, not anywhere over the widget.
     """
 
     def __init__(self, group_id=None, accept_drops_bar_only=False):
@@ -762,5 +738,4 @@ class DragDropTabWidget(QtWidgets.QTabWidget):
         self.tabBar().setUsesScrollButtons(uses_scrollbuttons)
 
     def setElideMode(self, mode):
-        """Ignored: elision follows setUsesScrollButtons, with right elision
-        when scroll buttons are off and none when they are on."""
+        """Ignored: elision follows setUsesScrollButtons (right if off, none if on)."""
