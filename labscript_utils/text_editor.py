@@ -25,17 +25,9 @@ def open_in_editor(path, parent=None, program='text_editor'):
 
     The program is ``[programs] <program>``, given ``<program>_arguments``. Each
     ``{file}`` in the arguments is replaced by ``path``; with none, ``path`` comes
-    before them. When the program is not set, or cannot be launched, a dialog
-    says so instead, and nothing is raised.
-
-    Parameters
-    ----------
-    path : str or os.PathLike
-        The file to open. An empty path opens nothing.
-    parent : QWidget, optional
-        The window the dialog belongs to.
-    program : str, optional
-        The ``[programs]`` key naming the program, such as ``'hdf5_viewer'``.
+    before them. An empty ``path`` opens nothing. When the program is not set, or
+    cannot be launched, a dialog on ``parent`` says so instead, and nothing is
+    raised.
     """
     path = os.fspath(path)
     if not path:

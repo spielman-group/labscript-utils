@@ -33,16 +33,8 @@ if not prefix.endswith(os.path.sep):
 def path_to_agnostic(path):
     """Return ``path`` in the form that is valid on any computer.
 
-    Parameters
-    ----------
-    path : str
-        A path on this computer.
-
-    Returns
-    -------
-    str
-        The absolute path. If it is on the shared drive, it is instead written in
-        the form ``Z:\\<path relative to the drive>``, with backslashes.
+    A path on the shared drive is written ``Z:\\<path relative to the drive>``, with
+    backslashes; any other is made absolute.
     """
     path = os.path.abspath(path)
     if path.startswith(prefix):
@@ -55,16 +47,8 @@ def path_to_agnostic(path):
 def path_to_local(path):
     """Return the path on this computer for a path in the form valid on any computer.
 
-    Parameters
-    ----------
-    path : str
-        A path, possibly of the form ``Z:\\<path relative to the drive>``.
-
-    Returns
-    -------
-    str
-        The path on this computer's shared drive if ``path`` starts with ``Z:\\``,
-        else ``path`` unchanged.
+    A path starting with ``Z:\\`` is placed on this computer's shared drive; any
+    other is returned unchanged.
     """
     if path.startswith('Z:\\'):
         path = path.split('Z:\\', 1)[1]
