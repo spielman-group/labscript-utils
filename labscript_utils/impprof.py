@@ -12,7 +12,8 @@
 #####################################################################
 import time
 
-class _ProfilingImporter(object):
+
+class _ProfilingImporter:
     def __init__(self):
         self.enabled = False
         self.normal_import = None
@@ -23,7 +24,7 @@ class _ProfilingImporter(object):
         except AttributeError:
             self.builtins_dict = __builtins__
 
-    def profiling_import(self, name, *args,**kwargs):
+    def profiling_import(self, name, *args, **kwargs):
         self.depth += 1
         start_time = time.time()
         try:
@@ -32,11 +33,22 @@ class _ProfilingImporter(object):
             self.depth -= 1
         time_taken = time.time() - start_time
         if time_taken > self.threshold:
-            print(' '*self.depth + '[%.2f] import %s'%(time_taken, name))
+            print(' '*self.depth + f'[{time_taken:.2f}] import {name}')
         return result
 
-
     def enable(self, threshold=0.1):
+        """Print each import that takes longer than ``threshold`` seconds.
+
+        Parameters
+        ----------
+        threshold : float, optional
+            Time in seconds above which an import is printed. Default 0.1.
+
+        Raises
+        ------
+        RuntimeError
+            If import profiling is already enabled.
+        """
         if self.enabled:
             raise RuntimeError('Already enabled')
         self.enabled = True
@@ -45,6 +57,13 @@ class _ProfilingImporter(object):
         self.builtins_dict['__import__'] = self.profiling_import
 
     def disable(self):
+        """Stop printing import times.
+
+        Raises
+        ------
+        RuntimeError
+            If import profiling is not enabled.
+        """
         if not self.enabled:
             raise RuntimeError('Not enabled')
         self.enabled = False

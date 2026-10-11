@@ -14,37 +14,53 @@ import sys
 import inspect
 import threading
 from datetime import datetime
-import traceback 
+import traceback
+
 
 def log(log_path=None, module_names=(), sub=False, all=False, mode='w'):
     """Trace and log Python execution.
-    
-    output includes the time, thread name, containing function name, line number and source line. 
-    Indentation before the thread name represents stack depth, indentation before source line is as in the source line itself.
-    
-    log_path: the path of the desired output file to write to, or None for stdout (default=None)
-    module_names: list of module names that tracing is desired for (default=())
-    sub: whether submodules of the above modules should be traced (default=False)
-    all: whether all modules should be traced, in which case module_names is ignored (default=False)
-    mode: mode to open the output file in, if log_path is not None (default='w')
+
+    Each line of output has the time, thread name, module name, line number,
+    containing function name and source line. Indentation before the thread name
+    represents stack depth, and indentation before the source line is as in the
+    source line itself. Tracing applies to the calling thread and to threads
+    started afterwards.
+
+    Parameters
+    ----------
+    log_path : str, optional
+        Path of the output file to write to, or None (the default) for stdout.
+    module_names : sequence of str, optional
+        Names of the modules to trace.
+    sub : bool, optional
+        Whether to trace modules whose names begin with one of ``module_names``,
+        such as their submodules. Default False.
+    all : bool, optional
+        Whether to trace all modules, in which case ``module_names`` is ignored.
+        Default False.
+    mode : str, optional
+        Mode to open the output file in, if ``log_path`` is not None. Default 'w'.
     """
-    
     if log_path is None:
         outfile = sys.stdout
     else:
         outfile = open(log_path, mode, 1)
-    
+
     threadlocal = threading.local()
-    
+
     def per_thread_init():
         threadlocal.stack_depth = 0
         threadlocal.threadname = threading.current_thread().name
         threadlocal.is_initialised = True
-        
+
     def write(module_name, lineno, function, message):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] # chop microseconds to milliseconds
+        # Chop microseconds to milliseconds.
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         indentation = ' '*(2*threadlocal.stack_depth - 1)
-        output = "[%s]%s%s: %s:%s in %s: " % (timestamp, indentation, threadlocal.threadname, module_name, lineno, function)
+        output = (
+            f"[{timestamp}]{indentation}{threadlocal.threadname}: "
+            f"{module_name}:{lineno} in {function}: "
+        )
         if isinstance(message, list):
             indent = len(output)
             output += message[0]
@@ -52,10 +68,11 @@ def log(log_path=None, module_names=(), sub=False, all=False, mode='w'):
                 output += ' '*indent + line
         else:
             output += message + '\n'
-        
-        # This is atomic, thanks to the GIL, so we don't need to serialise access from multiple threads:
+
+        # Atomic, thanks to the GIL, so access from multiple threads need not be
+        # serialised.
         outfile.write(output)
-        
+
     def traceit(frame, event, arg):
         if sys is None:
             # Interpreter is shutting down
@@ -74,7 +91,8 @@ def log(log_path=None, module_names=(), sub=False, all=False, mode='w'):
                 module_name = frame.f_globals["__name__"]
             except KeyError:
                 module_name = '<string>'
-            if module_name in module_names or all or (sub and any([module_name.startswith(s) for s in module_names])):
+            if (module_name in module_names or all
+                    or (sub and any([module_name.startswith(s) for s in module_names]))):
                 line = code_context[0].rstrip() if code_context else '<within exec() or eval()>'
                 if event == 'line':
                     write(module_name, lineno, function, line)
@@ -83,13 +101,8 @@ def log(log_path=None, module_names=(), sub=False, all=False, mode='w'):
                     exception = traceback.format_exception_only(exc_type, exc_value)
                     write(module_name, lineno, function, exception)
         return traceit
-             
+
     per_thread_init()
     write('tracelog','','','\n\n***starting***\n')
     threading.settrace(traceit)
     sys.settrace(traceit)
-    
-    
-    
-    
-
