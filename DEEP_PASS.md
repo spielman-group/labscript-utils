@@ -1140,8 +1140,10 @@ of duplicates (Ian), but counted as a consumer.
 - Visible to a user: yes, larger tabs in the Preferences dialog. Also,
   `FingerTabBarWidget(width=, height=)` becomes `minwidth=, minheight=`; only the
   demo passes them.
-- Outcome: labscript-utils 5935816, tidied in 063ec31. Consumers: runmanager
-  9877b45.
+- Outcome: reversed by Ian's decision: finger tabs are not standard for a
+  configuration dialog. labscript-utils fb7909c gives the Preferences dialog a
+  plain QTabWidget, runmanager 26a7777 takes its three classes back, and the
+  the commit after deletes `qtwidgets/fingertab.py`.
 
 ### 9. Restyling on a theme change, and the first-paint signal
 
@@ -1479,9 +1481,9 @@ Decisions beyond the entries:
   - lyse's `get_check_state` binding shim.
   - runmanager's `get_shot_globals` forwarder and its unused `dedent` import.
 - **From the final review, for later steps:**
-  - Step 3: `FingerTabWidget.setTabClosable(i, False)` on a tab with a close
-    button raises TypeError in `FingerTabBarWidget.setTabButton`; carried over
-    from runmanager, and no caller does it yet.
+  - Step 3, for runmanager now that the finger tabs are back there:
+    `FingerTabWidget.setTabClosable(i, False)` on a tab with a close button
+    raises TypeError in `FingerTabBarWidget.setTabButton`; no caller does it yet.
   - Step 4: blacs keeps a one-call `execute_program` around `exec`, which drops
     the exit code (`__main__.py:692-695`).
   - Step 2 leftovers, for the owners: runmanager's and lyse's quit prompts repeat
