@@ -11,15 +11,17 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
+# copy and math are unused here, but they reach every conversion module through
+# its `from .UnitConversionBase import *`.
 import copy
 from types import MethodType
 import math
 from numpy import iterable, array
 
 
-class _MultiplicativeConversion(object):
-    """Callable for conversion functions that are just multiplicative
-       transformations of another conversion function"""
+class _MultiplicativeConversion:
+    """A conversion that scales another conversion by a constant factor."""
+
     def __init__(self, name, unprefixed_method, factor, to_base):
         self.unprefixed_method = unprefixed_method
         self.factor = float(factor)
@@ -27,7 +29,7 @@ class _MultiplicativeConversion(object):
         self.__name__ = name
 
     def __get__(self, instance, class_):
-        """Bind like an instance method"""
+        """Bind like an instance method."""
         return MethodType(self, instance)
 
     def __call__(self, value):
@@ -38,53 +40,105 @@ class _MultiplicativeConversion(object):
 
 
 def vectorise(method):
+    """Make a conversion method accept an iterable as well as a scalar.
+
+    Parameters
+    ----------
+    method : callable
+        Conversion method of the form ``method(self, value)`` for a scalar value.
+
+    Returns
+    -------
+    callable
+        A method that applies `method` to each element of an iterable argument and
+        returns a numpy array, or calls `method` directly for a scalar.
+    """
     def f(instance, arg):
         if iterable(arg):
             return array([method(instance, el) for el in arg])
         else:
             return method(instance, arg)
     return f
-            
 
-class UnitConversion(object):
-    _magnitude_list = {'p': 1e-12,'n':1e-9, 'u':1e-6,'m': 1e-3,
-                       'k': 1e3, 'M': 1e6,'G': 1e9,'T': 1e12}
 
-    unit_list = _magnitude_list # alias for backward compat
+class UnitConversion:
+    """Base class of the unit conversions of an output channel.
+
+    A subclass sets the class attribute ``base_unit``, which must match the default
+    hardware unit of the channel in its BLACS tab, and lists the units it converts to
+    and from in ``derived_units``, either as a class attribute or on the instance
+    before calling this constructor. For each derived unit ``<unit>`` it defines
+    ``<unit>_to_base(self, value)`` and ``<unit>_from_base(self, value)``.
+
+    Parameters
+    ----------
+    params : dict
+        Calibration parameters. Its optional ``'magnitudes'`` entry lists the prefixes
+        (``'p'``, ``'n'``, ``'u'``, ``'m'``, ``'k'``, ``'M'``, ``'G'``, ``'T'``) for which
+        a prefixed copy of each derived unit is generated, such as ``'mA'`` for
+        ``'A'``. The unicode micro sign is accepted for ``'u'``.
+
+    Attributes
+    ----------
+    derived_units : list of str
+        The derived units including any prefixed ones, ordered by the position of the
+        unprefixed unit in the original list and then by magnitude.
+    units : dict
+        Prefix-to-factor mapping for the prefixes in ``params['magnitudes']``. Kept as
+        an alias for backward compatibility.
+    unit_list : dict
+        Prefix-to-factor mapping for every supported prefix. Kept as an alias for
+        backward compatibility.
+
+    Raises
+    ------
+    AttributeError
+        If a derived unit lacks its ``_to_base`` or ``_from_base`` method.
+    KeyError
+        If ``params['magnitudes']`` contains an unsupported prefix.
+    """
+
+    _magnitude_list = {'p': 1e-12, 'n': 1e-9, 'u': 1e-6, 'm': 1e-3,
+                       'k': 1e3, 'M': 1e6, 'G': 1e9, 'T': 1e12}
+
+    # Alias kept for backward compatibility.
+    unit_list = _magnitude_list
 
     def __init__(self, params):
         magnitudes = params.get('magnitudes', [])
-        
-        # Convert any unicode 'mu' symbol to a 'u':
-        magnitudes = [p if p != '\u03bc' else 'u' for p in magnitudes]
+
+        # Accept the unicode micro sign for 'u'.
+        magnitudes = [p if p != 'μ' else 'u' for p in magnitudes]
         self._magnitudes = {prefix: self._magnitude_list[prefix] for prefix in magnitudes}
 
-        # A list of tuples we will use to sort the list of derived units once
-        # we produce the units for the provided magnitudes:
+        # (sort key, unit) pairs, sorted once the prefixed units have been added.
         derived_units_sortlist = []
 
         for i, derived_unit in enumerate(self.derived_units):
-            # Append the unit magnitude derived unit to the list:
             sortinfo = (i, 1)
             derived_units_sortlist.append((sortinfo, derived_unit))
 
-            # Dynamically create instance methods for each other magnitude:
+            # Create the methods of each prefixed unit from the unprefixed ones.
             unprefixed_to_base = getattr(self, derived_unit + "_to_base")
             unprefixed_from_base = getattr(self, derived_unit + "_from_base")
             for prefix, factor in self._magnitudes.items():
                 unit = prefix + derived_unit
                 to_base_name = unit + "_to_base"
                 from_base_name = unit + "_from_base"
-                self.__dict__[to_base_name] = _MultiplicativeConversion(to_base_name, unprefixed_to_base, factor, to_base=True)
-                self.__dict__[from_base_name] = _MultiplicativeConversion(from_base_name, unprefixed_from_base, factor, to_base=False)
+                self.__dict__[to_base_name] = _MultiplicativeConversion(
+                    to_base_name, unprefixed_to_base, factor, to_base=True
+                )
+                self.__dict__[from_base_name] = _MultiplicativeConversion(
+                    from_base_name, unprefixed_from_base, factor, to_base=False
+                )
 
-                # Append to the sortlist:
                 sortinfo = (i, factor)
                 derived_units_sortlist.append((sortinfo, unit))
 
-        # Sort derived units first by position of the unit in the original
-        # list of derived_units without prefixes, then by magnitude:
+        # Sort first by position of the unit in the original list of derived_units
+        # without prefixes, then by magnitude.
         derived_units_sortlist.sort()
         self.derived_units = [unit for sortinfo, unit in derived_units_sortlist]
 
-        self.units = self._magnitudes # alias for backward compat
+        # Alias kept for backward compatibility.
+        self.units = self._magnitudes

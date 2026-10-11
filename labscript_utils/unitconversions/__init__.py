@@ -15,12 +15,13 @@ import importlib
 from .UnitConversionBase import UnitConversion
 
 
-class _All(object):
-    """Backward compatibility for importers importing * from here and expecting to be
-    able to access all unit conversion classes that way. For performance reasons we
-    don't want to import everything unless someone actually does this, so we replace
-    __all__ with a custom object so we can detect when someone does an import * and
-    only import all the classes if this occurs"""
+class _All:
+    """Lazy ``__all__`` for ``from labscript_utils.unitconversions import *``.
+
+    Importing every conversion module is slow, so it waits until a star import first
+    asks for the names. This keeps old importers able to find all unit conversion
+    classes in this namespace.
+    """
 
     __all__ = None
 
@@ -30,24 +31,20 @@ class _All(object):
         return self.__all__[ix]
 
     def _import_all(self):
-        """imports all unit conversion classes in module within this subpackage into
-        this module's globals. This is used only for backward compatibility with unit
-        conversion classes that were not specified with a fully qualified name"""
+        """Import every conversion module of this package into this module's globals."""
         if self.__all__ is None:
             self.__all__ = []
         for filename in os.listdir(os.path.split(__file__)[0]):
             if filename.endswith('.py') and filename != '__init__.py':
                 module = filename[:-3]
                 result = {}
-                import_line = 'from labscript_utils.unitconversions.%s import *'
-                exec(import_line % module, result, result)
+                exec(f'from labscript_utils.unitconversions.{module} import *', result, result)
                 for name, value in result.items():
                     globals()[name] = value
                     if isinstance(value, type) and issubclass(value, UnitConversion):
                         self.__all__.append(name)
                         # Full names for an older BLACS; due for removal in future.
-                        fullname = 'labscript_utils.unitconversions.%s.%s'
-                        fullname = fullname % (module, name)
+                        fullname = f'labscript_utils.unitconversions.{module}.{name}'
                         globals()[fullname] = value
 
 
@@ -55,18 +52,34 @@ __all__ = _All()
 
 
 def get_unit_conversion_class(fullname):
-    """import and return the unit conversion class with the given name. Ideally this is
-    a fully qualified class name with an absolute import path, i.e.
-    path.to.some.module.ClassName. But if it is just a single name, we fall back to
-    looking through all classes defined in submodules. This allows backward
-    compatibility with old shot files that do not have the full name saved."""
+    """Import and return the unit conversion class with the given name.
+
+    Parameters
+    ----------
+    fullname : str
+        Fully qualified class name with an absolute import path, such as
+        ``path.to.some.module.ClassName``. A bare class name is also accepted, for old
+        shot files that do not save the full name; it is looked up among the names of
+        every module in this package.
+
+    Returns
+    -------
+    type
+        The unit conversion class.
+
+    Raises
+    ------
+    KeyError
+        If a bare class name is not defined in this package.
+    ImportError
+        If the module of a fully qualified name cannot be imported.
+    AttributeError
+        If the module of a fully qualified name does not define the class.
+    """
     if '.' not in fullname:
-        # It's just a class name, no import path. Fall back to importing everything to
-        # find it:
         if __all__.__all__ is None:
             __all__._import_all()
         return globals()[fullname]
-    # Otherwise, import the module and return the class
     split = fullname.split('.')
     module_name = '.'.join(split[:-1])
     class_name = split[-1]
