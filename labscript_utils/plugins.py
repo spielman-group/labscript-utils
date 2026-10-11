@@ -583,9 +583,7 @@ context objects. Existing plugins can keep overriding
             self.settings = data['settings']
             self.services = data['services']
 
-The ``data`` dictionary is app-defined. Old plugins may still define
-``plugin_setup_complete(self)`` without the ``data`` argument, and the manager
-keeps that compatibility path.
+The ``data`` dictionary is app-defined.
 
 Plugins that need ordered startup work can return setup activity records from
 ``get_setup_activities()``. Each record has ``name``, ``priority``, and
@@ -622,7 +620,6 @@ during shutdown so the plugin can release resources before exit.
 """
 
 import importlib
-import inspect
 import logging
 import os
 import warnings
@@ -1302,44 +1299,14 @@ class PluginManager(object):
             module_name = activity['module_name']
             activity_name = activity['name']
             action = activity['action']
-            args = self._setup_action_args(module_name, activity_name, action, data)
             try:
-                action(*args)
+                action(data)
             except Exception:
                 self.logger.exception(
                     "Error in setup activity '%s' for plugin '%s'. "
                     "Plugin may not be functional."
                     % (activity_name, module_name)
                 )
-
-    def _setup_action_args(self, module_name, activity_name, action, data):
-        """Return the arguments a setup activity's ``action`` accepts.
-
-        Old plugins define ``plugin_setup_complete`` without a ``data``
-        argument. Detecting that by letting a call fail would re-run whatever
-        side effects an action that got partway through had already performed,
-        so bind the signature instead and call it exactly once.
-        """
-        try:
-            inspect.signature(action).bind(data)
-        except TypeError:
-            if activity_name != 'plugin_setup_complete':
-                # Only plugin_setup_complete has a legacy no-argument form. Any
-                # other arity mismatch is a plugin bug, so let the call raise
-                # and be reported rather than quietly calling it differently.
-                return (data,)
-            # Backwards compatibility for old plugins.
-            self.logger.warning(
-                "Plugin '%s' using old API. Please update "
-                "Plugin.plugin_setup_complete method to accept a "
-                "dictionary of blacs_data as the only argument."
-                % module_name
-            )
-            return ()
-        except ValueError:
-            # No introspectable signature; assume the current API.
-            pass
-        return (data,)
 
     def _get_plugin_event_handlers(self, plugin):
         """Return one plugin's event handlers, or None."""

@@ -435,20 +435,6 @@ def test_equal_priority_setup_activities_run_in_plugin_name_order():
     assert calls == ['alpha', 'zeta']
 
 
-def test_plugin_setup_complete_without_argument_is_called_without_app_data():
-    calls = []
-
-    class NoArgumentSetupPlugin(BasePlugin):
-        def plugin_setup_complete(self):
-            calls.append('legacy-no-arg')
-
-    manager = make_manager()
-    manager.plugins = {'legacy': NoArgumentSetupPlugin({})}
-
-    manager.setup_complete({'unused': object()})
-
-    assert calls == ['legacy-no-arg']
-
 def _make_plugin_dirs(tmp_path, names):
     for name in names:
         (tmp_path / name).mkdir(parents=True)
