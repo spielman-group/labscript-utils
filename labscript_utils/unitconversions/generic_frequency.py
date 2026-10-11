@@ -30,7 +30,7 @@ class FreqConversion(UnitConversion):
     def __init__(self, calibration_parameters=None):
         self.parameters = calibration_parameters
         if hasattr(self, 'derived_units'):
-            self.derived_units += ['kHz', 'MHz', 'GHz']
+            self.derived_units = self.derived_units + ['kHz', 'MHz', 'GHz']
         else:
             self.derived_units = ['kHz', 'MHz', 'GHz']
         super().__init__(self.parameters)
