@@ -7,18 +7,20 @@
 
 from qtutils.qt import QtCore, QtGui, QtWidgets
 
+Qt = QtCore.Qt
+_RIGHT_SIDE = QtWidgets.QTabBar.ButtonPosition.RightSide
+
 
 class FingerTabBarWidget(QtWidgets.QTabBar):
 
     """A TabBar with the tabs on the left and the text horizontal. Credit to
-    @LegoStormtroopr, https://gist.github.com/LegoStormtroopr/5075267. We will
-    promote the TabBar from the ui file to one of these."""
+    @LegoStormtroopr, https://gist.github.com/LegoStormtroopr/5075267.
+    FingerTabWidget installs one as its tab bar."""
 
     def __init__(self, parent=None, minwidth=180, minheight=30, **kwargs):
         QtWidgets.QTabBar.__init__(self, parent, **kwargs)
         self.minwidth = minwidth
         self.minheight = minheight
-        self.iconPosition = kwargs.pop('iconPosition', QtWidgets.QTabWidget.West)
         self._movable = None
         self.tab_movable = {}
         self.paint_clip = None
@@ -66,7 +68,7 @@ class FingerTabBarWidget(QtWidgets.QTabBar):
         if total_height > self.parent().height():
             # Don't paint over the top of the scroll buttons:
             scroll_buttons_area_height = 2*self.style().pixelMetric(
-                QtWidgets.QStyle.PM_TabBarScrollButtonWidth)
+                QtWidgets.QStyle.PixelMetric.PM_TabBarScrollButtonWidth)
             self.paint_clip = (
                 self.width(), self.parent().height() - scroll_buttons_area_height
             )
@@ -82,21 +84,25 @@ class FingerTabBarWidget(QtWidgets.QTabBar):
         for index in range(self.count()):
             tabRect = self.tabRect(index)
             self.initStyleOption(option, index)
-            painter.drawControl(QtWidgets.QStyle.CE_TabBarTabShape, option)
+            painter.drawControl(
+                QtWidgets.QStyle.ControlElement.CE_TabBarTabShape, option
+            )
             if not self.tabIcon(index).isNull():
                 icon = self.tabIcon(index).pixmap(self.iconSize())
-                alignment = QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter
+                alignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
                 tabRect.moveLeft(10)
                 painter.drawItemPixmap(tabRect, alignment, icon)
                 tabRect.moveLeft(self.iconSize().width() + 15)
             else:
                 tabRect.moveLeft(10)
-            painter.drawText(tabRect, QtCore.Qt.AlignVCenter, self.tabText(index))
+            painter.drawText(
+                tabRect, Qt.AlignmentFlag.AlignVCenter, self.tabText(index)
+            )
         if self.paint_clip is not None:
             x_clip, y_clip = self.paint_clip
             painter.setClipping(False)
             palette = self.palette()
-            mid_color = palette.color(QtGui.QPalette.Mid)
+            mid_color = palette.color(QtGui.QPalette.ColorRole.Mid)
             painter.setPen(mid_color)
             painter.drawLine(0, y_clip, x_clip, y_clip)
         painter.end()
@@ -109,7 +115,7 @@ class FingerTabBarWidget(QtWidgets.QTabBar):
         height = max(self.minheight, height)
         width = text_width + 15
 
-        button = self.tabButton(index, QtWidgets.QTabBar.RightSide)
+        button = self.tabButton(index, _RIGHT_SIDE)
         if button is not None:
             height = max(height, button.height() + 7)
             # Same amount of space around the button horizontally as it has vertically:
@@ -130,7 +136,7 @@ class FingerTabBarWidget(QtWidgets.QTabBar):
 class TabToolButton(QtWidgets.QToolButton):
     def __init__(self, *args, **kwargs):
         QtWidgets.QToolButton.__init__(self, *args, **kwargs)
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
     def paintEvent(self, event):
         painter = QtWidgets.QStylePainter(self)
@@ -142,12 +148,14 @@ class TabToolButton(QtWidgets.QToolButton):
             painter.setClipRect(0, 0, local_point.x(), local_point.y())
         option = QtWidgets.QStyleOptionToolButton()
         self.initStyleOption(option)
-        painter.drawComplexControl(QtWidgets.QStyle.CC_ToolButton, option)
+        painter.drawComplexControl(
+            QtWidgets.QStyle.ComplexControl.CC_ToolButton, option
+        )
 
     def get_correct_position(self):
         parent = self.parent()
         for index in range(parent.count()):
-            if parent.tabButton(index, QtWidgets.QTabBar.RightSide) is self:
+            if parent.tabButton(index, _RIGHT_SIDE) is self:
                 break
         else:
             raise LookupError('Tab not found')
@@ -193,14 +201,14 @@ class FingerTabWidget(QtWidgets.QTabWidget):
         return index
 
     def setTabClosable(self, index, closable):
-        right_button = self.tabBar().tabButton(index, QtWidgets.QTabBar.RightSide)
+        right_button = self.tabBar().tabButton(index, _RIGHT_SIDE)
         if closable:
             if not right_button:
                 # Make one:
                 close_button = TabToolButton(self.parent())
                 close_button.setIcon(QtGui.QIcon(':/qtutils/fugue/cross'))
                 self.tabBar().setTabButton(
-                    index, QtWidgets.QTabBar.RightSide, close_button
+                    index, _RIGHT_SIDE, close_button
                 )
                 close_button.clicked.connect(
                     lambda: self._on_close_button_clicked(close_button)
@@ -208,10 +216,10 @@ class FingerTabWidget(QtWidgets.QTabWidget):
         else:
             if right_button:
                 # Get rid of it:
-                self.tabBar().setTabButton(index, QtWidgets.QTabBar.RightSide, None)
+                self.tabBar().setTabButton(index, _RIGHT_SIDE, None)
 
     def _on_close_button_clicked(self, button):
         for index in range(self.tabBar().count()):
-            if self.tabBar().tabButton(index, QtWidgets.QTabBar.RightSide) is button:
+            if self.tabBar().tabButton(index, _RIGHT_SIDE) is button:
                 self.tabCloseRequested.emit(index)
                 break

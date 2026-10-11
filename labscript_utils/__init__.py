@@ -15,7 +15,7 @@ import sys
 import os
 import importlib
 
-from .versions import package_version
+from .versions import VersionException, check_version, package_version
 
 __version__ = package_version(__package__)
 
@@ -47,9 +47,6 @@ def import_or_reload(modulename):
         return sys.modules[modulename]
     module = importlib.import_module(modulename)
     return module
-
-
-from labscript_utils.versions import VersionException, check_version
 
 
 def dedent(s):

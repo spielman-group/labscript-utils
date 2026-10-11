@@ -419,7 +419,7 @@ def run_server(module, port, *extra_args, tui=False):
     ----------
     module : str
         Name of the server's module in ``zprocess``, such as ``'zlock'``.
-    port : int
+    port : int or str
         Port for the server to listen on.
     *extra_args : str
         Further command-line arguments for the server.

@@ -24,9 +24,7 @@ from zprocess import raise_exception_in_thread
 from labscript_utils import ensure_str
 
 # Kept until lyse and labscript-devices import ensure_str instead.
-def _ensure_str(s):
-    """convert bytestrings and numpy strings to python strings"""
-    return s.decode() if isinstance(s, bytes) else str(s)
+_ensure_str = ensure_str
 
 
 class ConnectionTable(object):

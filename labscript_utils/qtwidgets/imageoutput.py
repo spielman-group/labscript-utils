@@ -68,10 +68,6 @@ class BrowseButton(QtWidgets.QPushButton):
     
     
 class ImageView(QtWidgets.QGraphicsView):
-    def __init__(self, *args, **kwargs):
-        QtWidgets.QGraphicsView.__init__(self, *args, **kwargs)
-        self.installEventFilter(self)
-        
     def contextMenuEvent(self, event):
         self.parent().popup_lock_menu(self, event.pos())
 
