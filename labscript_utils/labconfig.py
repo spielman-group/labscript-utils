@@ -87,6 +87,13 @@ class LabscriptApplication(object):
             ensure_directory=ensure_directory,
         )
 
+    def save_configuration(self, save_file):
+        save_data = self.get_save_data()
+        save_file = save_appconfig(save_file, {f'{self.app_name}_state': save_data})
+        self.last_save_config_file = save_file
+        self.last_save_data = save_data
+        self.set_config_window_title(save_file)
+
     def set_config_window_title(self, filename, max_length=60):
         path = format_path_for_display(filename)
         separator = '\\' if os.name == 'nt' else '/'
