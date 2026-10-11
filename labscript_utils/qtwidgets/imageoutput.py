@@ -51,7 +51,6 @@ class BrowseButton(QtWidgets.QPushButton):
 
         self.last_opened_folder = os.path.dirname(image_file)
 
-        raw_data = ''
         with open(image_file, 'rb') as f:
             raw_data = f.read()
 
