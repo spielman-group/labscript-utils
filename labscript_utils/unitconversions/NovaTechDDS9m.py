@@ -13,43 +13,67 @@
 
 from .UnitConversionBase import *
 
+
 class NovaTechDDS9mFreqConversion(UnitConversion):
-    # This must be defined outside of init, and must match the default hardware unit specified within the BLACS tab
+    """Frequency conversion of a NovaTech DDS9m channel, from Hz to MHz.
+
+    Parameters
+    ----------
+    calibration_parameters : dict
+        Passed on to `UnitConversion`; its ``'magnitudes'`` entry is the only one used.
+    """
+
+    # Must be defined outside of __init__, and must match the default hardware unit
+    # specified within the BLACS tab.
     base_unit = 'Hz'
 
-    def __init__(self,calibration_parameters = None):            
-        self.parameters = calibration_parameters        
-        if hasattr(self,'derived_units'):
+    def __init__(self, calibration_parameters=None):
+        self.parameters = calibration_parameters
+        if hasattr(self, 'derived_units'):
             self.derived_units.append('MHz')
         else:
-            self.derived_units = ['MHz']        
-        UnitConversion.__init__(self,self.parameters)
+            self.derived_units = ['MHz']
+        super().__init__(self.parameters)
 
-    def MHz_to_base(self,MHz):
+    def MHz_to_base(self, MHz):
         Hz = MHz*10.0**6
         return Hz
-    def MHz_from_base(self,Hz):
+
+    def MHz_from_base(self, Hz):
         MHz = Hz/10.0**6
         return MHz
-    
-        
+
+
 class NovaTechDDS9mAmpConversion(UnitConversion):
-    # This must be defined outside of init, and must match the default hardware unit specified within the BLACS tab
+    """Amplitude conversion of a NovaTech DDS9m channel, from 'Arb' to hardware units.
+
+    The hardware units are the DDS's integer amplitude steps, 1023 being full scale
+    and equal to 1 'Arb'.
+
+    Parameters
+    ----------
+    calibration_parameters : dict
+        Passed on to `UnitConversion`; its ``'magnitudes'`` entry is the only one used.
+    """
+
+    # Must be defined outside of __init__, and must match the default hardware unit
+    # specified within the BLACS tab.
     base_unit = 'Arb'
-    
-    def __init__(self,calibration_parameters = None):            
+
+    def __init__(self, calibration_parameters=None):
         self.parameters = calibration_parameters
-        
-        if hasattr(self,'derived_units'):
+
+        if hasattr(self, 'derived_units'):
             self.derived_units.append('hardware')
         else:
-            self.derived_units = ['hardware']        
-        
-        UnitConversion.__init__(self,self.parameters)
+            self.derived_units = ['hardware']
 
-    def hardware_to_base(self,hardware):
+        super().__init__(self.parameters)
+
+    def hardware_to_base(self, hardware):
         arb = hardware/1023.0
         return arb
-    def hardware_from_base(self,arb):
+
+    def hardware_from_base(self, arb):
         hardware = arb*1023.0
         return hardware
