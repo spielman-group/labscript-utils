@@ -28,8 +28,6 @@ class ConnectionTable:
 
     Parameters
     ----------
-    h5file : str or pathlib.Path
-        File holding the 'connection table' dataset.
     logging_prefix : str, optional
         If given, log to the logger ``<logging_prefix>.ConnectionTable``.
     exceptions_in_thread : bool, optional
@@ -39,10 +37,6 @@ class ConnectionTable:
 
     Attributes
     ----------
-    filepath : str or pathlib.Path
-        The `h5file` argument.
-    raw_table : numpy.ndarray
-        The connection table dataset, one row per device.
     table : dict
         `Connection` objects keyed by device name.
     toplevel_children : dict
@@ -108,20 +102,14 @@ class ConnectionTable:
     def compare_to(self, other):
         """Check that this table contains every device in another table.
 
-        Devices that exist only in this table do not count as a mismatch.
-
-        Parameters
-        ----------
-        other : ConnectionTable
-            The table whose devices must all be present here, with the same
-            class, parent port, unit conversion, BLACS connection and
-            properties.
+        Devices that exist only in this table are ignored, and each device is
+        compared as in `Connection.compare_to`.
 
         Returns
         -------
         tuple of (bool, dict)
             Whether the tables are compatible, and a dict describing the
-            differences, which is empty when they are. Its keys are
+            differences, empty when they are. Its keys are
             ``'children_missing'`` (devices of `other` absent here, name to
             True), ``'children'`` (name to the error dict from
             `Connection.compare_to`) and, if `other` is not a
@@ -158,14 +146,7 @@ class ConnectionTable:
             value.print_details('  ')
 
     def get_attached_devices(self):
-        """Find the devices that are connected to BLACS.
-
-        Returns
-        -------
-        dict
-            Device instance name to labscript class name, for every device
-            whose 'BLACS_connection' is non-empty.
-        """
+        """Find the devices connected to BLACS, as a dict of name to class name."""
         attached_devices = {}
         for name, device in self.table.items():
             if device.BLACS_connection:
@@ -174,20 +155,7 @@ class ConnectionTable:
         return attached_devices
 
     def find_child(self, parent_name, parent_port):
-        """Find the device connected to a given port of a given device.
-
-        Parameters
-        ----------
-        parent_name : str
-            Name of the parent device, e.g. ``'pulseblaster_0'``.
-        parent_port : str
-            Parent port the child is connected through, e.g. ``'dds 0'``.
-
-        Returns
-        -------
-        Connection or None
-            The matching device, or None if there is none.
-        """
+        """Find the device connected to a given port of a given device, or None."""
         for name, connection in self.table.items():
             if (connection.parent_name == parent_name
                     and connection.parent_port == parent_port):
@@ -195,13 +163,7 @@ class ConnectionTable:
         return None
 
     def find_by_name(self,name):
-        """Find a device by name, searching the whole device tree.
-
-        Returns
-        -------
-        Connection or None
-            The device called `name`, or None if there is none.
-        """
+        """Find a device by name, searching the whole device tree, or None."""
         name = ensure_str(name)
         for device_name, connection in self.toplevel_children.items():
             if device_name == name:
@@ -230,11 +192,6 @@ class Connection:
 
     The row's fields are deserialised and presented as attributes, with
     defaults supplied for fields that older HDF5 files lack.
-
-    Parameters
-    ----------
-    raw_row : numpy.void
-        One row of the 'connection table' dataset.
 
     Attributes
     ----------
@@ -328,11 +285,6 @@ class Connection:
         connection and properties, then recurses into the children of
         `other_connection`. Children present only here are ignored.
 
-        Parameters
-        ----------
-        other_connection : Connection
-            The device to compare against.
-
         Returns
         -------
         tuple of (bool, dict)
@@ -381,32 +333,13 @@ class Connection:
             return True, error
 
     def print_details(self,indent):
-        """Print the names of all descendants, each level indented further.
-
-        Parameters
-        ----------
-        indent : str
-            Prefix for the names of the children.
-        """
+        """Print the names of all descendants, each level indented further."""
         for name, child in self.child_list.items():
             print(indent + name)
             child.print_details(indent + '  ')
 
     def find_child(self, parent_name, parent_port):
-        """Find a descendant connected to a given port of a given device.
-
-        Parameters
-        ----------
-        parent_name : str
-            Name of the parent device.
-        parent_port : str
-            Parent port the child is connected through.
-
-        Returns
-        -------
-        Connection or None
-            The matching descendant, or None if there is none.
-        """
+        """Find a descendant connected to a given port of a given device, or None."""
         for name, connection in self.child_list.items():
             if connection.parent_name == parent_name and connection.parent_port == parent_port:
                 return connection
@@ -421,13 +354,7 @@ class Connection:
         return None
 
     def find_by_name(self, name):
-        """Find a descendant by name.
-
-        Returns
-        -------
-        Connection or None
-            The descendant called `name`, or None if there is none.
-        """
+        """Find a descendant by name, or None."""
         name = ensure_str(name)
         for device_name, connection in self.child_list.items():
             if device_name == name:
