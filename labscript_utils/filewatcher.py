@@ -10,7 +10,7 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-from inspect import getfullargspec
+from inspect import Parameter, signature
 from queue import Queue, Empty
 import threading
 import os
@@ -56,7 +56,11 @@ class FileWatcher:
 
     def __init__(self, callback, files=None, folders=None, clean_modified_info=None,
                  hashable_types=None, interval=1, **kwargs):
-        if len(getfullargspec(callback)[0]) > 2:
+        positional = [
+            p for p in signature(callback).parameters.values()
+            if p.kind in (Parameter.POSITIONAL_ONLY, Parameter.POSITIONAL_OR_KEYWORD)
+        ]
+        if len(positional) > 2:
             # For backwards compatability, allow callback to have only two args
             self.callback = callback
         else:
