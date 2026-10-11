@@ -202,9 +202,6 @@ class FileWatcher(object):
         # Backward compat for BLACS from before file hashes were introduced
         return self.get_modified_info()
 
-    def add_folder(self, folder):
-        self.add_folders((folder,))
-
     def _set_clean_modified_info(self, new_files, clean_modified_info):
         # Remove keys from the clean_modified_info that are not in the files
         # watchlist:

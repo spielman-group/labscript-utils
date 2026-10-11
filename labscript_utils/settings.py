@@ -140,9 +140,6 @@ class Settings(object):
     def register_callback(self,callback):
         self.callback_list.append(callback)
         
-    def remove_callback(self,callback):
-        self.callback_list.remove(callback)
-    
     def on_save(self,*args,**kwargs):
         # Save the settings
         if self.storage == 'hdf5':

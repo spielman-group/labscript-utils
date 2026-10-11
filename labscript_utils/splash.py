@@ -73,7 +73,6 @@ class Splash(QtWidgets.QFrame):
     imwidth = 150
     imheight = 150
     alpha = 0.875
-    icon_frac = 0.65
     BG = '#ffffff'
     FG = '#000000'
 
