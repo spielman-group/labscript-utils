@@ -14,11 +14,9 @@
 
 """Plugin discovery, instantiation, and hook routing for labscript apps.
 
-``PluginManager`` finds plugin packages, instantiates their ``Plugin`` class and
-calls the hooks a plugin defines. The application owns settings storage, the
-notification manager, menu objects, UI containers, and event firing; the manager
-only calls hooks and routes contributions to the contexts the application
-registered.
+The application owns settings storage, the notification manager, menus, UI
+containers and event firing; the manager only calls hooks and routes
+contributions to the contexts the application registered.
 
 The usual package layout is::
 
@@ -30,10 +28,9 @@ The usual package layout is::
 
 The module name becomes the plugin name, and ``Plugin(initial_settings)``
 receives its saved settings dictionary. A plugin need not inherit ``BasePlugin``;
-it only defines the hooks the application and manager call, each named in
-``BasePlugin`` or ``PluginManager``.
+it only defines the hooks the application and manager call.
 
-Two menu paths are supported, intentionally with different contracts:
+Two menu paths are supported, with different contracts:
 
 * ``MenuBuilder`` renders the nested menu that a plugin's menu class returns
   from ``get_menu_items()``, immediately, from ``PluginManager.setup_plugins()``.
@@ -43,11 +40,10 @@ Two menu paths are supported, intentionally with different contracts:
   ``name``, and ``action`` metadata, then renders all plugins together after
   contribution routing is complete.
 
-``labscript_utils.plugins`` does not know whether a plugin UI belongs in a
-tab, MDI subwindow, dock widget, dialog, fixed frame, or plugin-owned modal
-container. Plugins declare a named ``context`` and applications register
-objects that implement ``add(plugin_name, contribution, data)``. That is the
-full shared UI contract.
+A plugin declares a named ``context`` for a UI contribution, and the application
+registers objects that implement ``add(plugin_name, contribution, data)``. That
+is the full shared UI contract; the module does not know where a plugin UI
+lives.
 
 Contribution menu skeleton with MenuContext
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -186,26 +182,15 @@ __all__ = [
 class Callback:
     """Wrap a callable with priority metadata and method-style binding.
 
-    ``priority`` is used when ``PluginManager.get_event_handlers()`` gathers all
-    callbacks for a named event. Lower numbers run first.
-
-    The descriptor protocol is implemented so that a ``Callback`` stored as a
-    class attribute binds like an instance method when accessed from a plugin
-    instance. This keeps decorated methods usable without extra wrapper code.
-
-    Parameters
-    ----------
-    func : callable
-        The function to call.
-    priority : int, optional
-        Sort key for event handlers; defaults to ``DEFAULT_PRIORITY``.
+    ``PluginManager.get_event_handlers()`` sorts the callbacks for an event by
+    ``priority``, lowest first. A ``Callback`` stored as a class attribute binds
+    to the plugin instance like a method.
     """
     def __init__(self, func, priority=DEFAULT_PRIORITY):
         self.priority = priority
         self.func = func
 
     def __get__(self, instance, class_):
-        """Bind to ``instance`` the same way a normal function descriptor does."""
         if instance is None:
             return self
         else:
@@ -216,19 +201,7 @@ class Callback:
 
 
 class callback:
-    """Decorator that turns a function into a :class:`Callback`.
-
-    The decorator is optional. A plain method can still be returned from
-    ``get_event_handlers()`` if it already behaves like a callback. Use the
-    decorator when you want to attach a non-default priority or make the
-    callback object explicit in the class body.
-
-    Parameters
-    ----------
-    priority : int, optional
-        Priority given to the resulting :class:`Callback`; defaults to
-        ``DEFAULT_PRIORITY``.
-    """
+    """Decorator that turns a function into a :class:`Callback`."""
     def __init__(self, priority=DEFAULT_PRIORITY):
         self.priority = priority
 
@@ -239,75 +212,40 @@ class callback:
 class BasePlugin:
     """Reference implementation of the plugin interface.
 
-    Subclass this when you want a concrete starting point, but it is not
-    required; a plugin can also satisfy the contract by duck typing.
+    Subclassing is optional; a plugin can satisfy the contract by duck typing.
     It provides only the hooks a contribution-based application reaches. A
     plugin driven through ``setup_plugins()`` and ``close_plugins()``, as BLACS
     drives its plugins, also defines ``get_setting_classes``,
     ``get_notification_classes``, ``get_menu_class``, ``set_menu_instance``,
     ``set_notification_instances``, ``get_save_data`` and ``close``.
-
     """
     def __init__(self, initial_settings):
-        """Store the plugin's saved settings.
-
-        Subclasses commonly keep this dictionary and use it during
-        ``plugin_setup_complete()`` to restore UI state or background state.
-
-        Parameters
-        ----------
-        initial_settings : dict
-            The saved configuration for the plugin. Applications pass the
-            dictionary returned by the previous ``get_save_data()`` call, or an
-            empty dictionary for a first run.
-        """
+        """Store the plugin's saved settings."""
         self.initial_settings = initial_settings
 
     def get_event_handlers(self):
         """Return a mapping of event names to handlers, or ``None``.
 
-        This is the shared event hook. Return a mapping such as
-        ``{'shot_complete': self.on_shot_complete}``. Event names are
-        application-defined strings; this shared layer only collects and
-        orders handlers. Values may be plain callables or
-        :class:`Callback` instances created with the :class:`callback`
-        decorator. The manager sorts handlers for a given event by their
-        ``priority`` attribute.
+        Event names are application-defined strings. Values may be plain
+        callables or :class:`Callback` instances, which the manager sorts by
+        ``priority``.
         """
         return None
 
     def get_ui_contributions(self):
-        """Return app-context UI contributions.
+        """Return an iterable of UI contribution dictionaries.
 
-        Return an iterable of dictionaries. Each contribution has a
-        ``context`` key naming an application-registered context. The
-        application owns what that context means: a known tab area, a deferred
-        MDI workspace, a dialog registry, a fixed frame, or another
-        app-specific host. The remaining keys are application-defined.
+        Each has a ``context`` key naming an application-registered context; the
+        remaining keys are application-defined.
         """
         return []
 
     def get_menu_contributions(self):
-        """Return shared menu contributions.
-
-        Return an iterable of dictionaries. This is the app-neutral menu path.
-        Existing BLACS-style plugins can continue using ``get_menu_class()``
-        and :class:`MenuBuilder`; new apps can register a ``menus`` context and
-        route these dictionaries through :class:`MenuContext`. Apart from
-        stable menu keys such as ``location``, ``path``, ``group``, ``order``,
-        ``name``, and ``action``, the concrete menu objects remain
-        application-owned.
-        """
+        """Return an iterable of menu contribution dictionaries."""
         return []
 
     def get_services(self):
-        """Return named services exposed by this plugin.
-
-        Return a mapping of service names to concrete objects. Applications can
-        aggregate these mappings into a shared service registry before calling
-        ``setup_complete()``, making plugin-to-plugin dependencies
-        order-independent.
-        """
+        """Return a mapping of service names to objects this plugin exposes."""
         return {}
 
 
@@ -327,27 +265,11 @@ class MenuBuilder:
     ``triggered`` signal.
     """
     def __init__(self, icon_factory):
-        """Create a menu builder.
-
-        Parameters
-        ----------
-        icon_factory : callable
-            Function called as ``icon_factory(icon_name)`` before adding an
-            icon-bearing menu action. Applications using Qt typically pass
-            ``QIcon``.
-        """
+        """Create a builder; ``icon_factory(icon_name)`` makes action icons."""
         self.icon_factory = icon_factory
 
     def create_menu(self, parent, menu_parameters):
-        """Recursively build menus and actions from a nested menu dictionary.
-
-        Parameters
-        ----------
-        parent
-            Menu or menu bar the new items are added to.
-        menu_parameters : dict
-            The menu description.
-        """
+        """Recursively build menus and actions from a nested menu dictionary."""
         if 'name' in menu_parameters:
             if 'menu_items' in menu_parameters:
                 child = parent.addMenu(menu_parameters['name'])
@@ -546,8 +468,8 @@ class PluginManager:
     ``discover_modules()`` and ``instantiate_plugins()``, then
     ``setup_plugins()`` (settings pages, menus, notifications), or
     ``collect_services()``, ``register_context()`` and ``setup_contexts()``,
-    or both, then ``setup_complete()``. It asks ``get_event_handlers()`` for handlers
-    when it fires an event, and calls ``close_plugins()`` at shutdown.
+    or both, then ``setup_complete()``. It calls ``get_event_handlers()`` when
+    it fires an event and ``close_plugins()`` at shutdown.
     """
     def __init__(
         self,
@@ -565,17 +487,9 @@ class PluginManager:
         plugin_package : str
             Import package containing plugin subpackages, for example
             ``'myapp.plugins'``.
-        plugins_dir : str
-            Filesystem path scanned for plugin directories.
         config
             Config object with ``has_section()``, ``add_section()``,
             ``has_option()``, ``set()``, and ``getboolean()`` methods.
-        config_section : str
-            Section containing plugin enable/disable options.
-        default_plugins : iterable of str, optional
-            Plugin names enabled by default when first discovered.
-        logger : logging.Logger, optional
-            Logger used for plugin import, setup, callback, and shutdown errors.
         """
         self.plugin_package = plugin_package
         self.plugins_dir = plugins_dir
@@ -593,12 +507,8 @@ class PluginManager:
 
         A plugin directory with no enable flag gets one, true if its name is in
         ``default_plugins``. Only enabled plugins are imported; an import
-        failure is logged and the plugin skipped.
-
-        Returns
-        -------
-        dict
-            Imported plugin modules by plugin name.
+        failure is logged and the plugin skipped. Returns the modules by plugin
+        name.
 
         Raises
         ------
@@ -641,18 +551,10 @@ class PluginManager:
     def instantiate_plugins(self, plugin_settings=None):
         """Create ``Plugin`` instances for each imported module.
 
-        Instantiation failures are logged and skipped.
-
-        Parameters
-        ----------
-        plugin_settings : dict, optional
-            Maps plugin names to the saved configuration dictionary for that
-            plugin. Missing entries fall back to an empty dictionary.
-
-        Returns
-        -------
-        dict
-            ``Plugin`` instances by plugin name.
+        ``plugin_settings`` maps plugin names to their saved settings
+        dictionaries; a plugin without an entry gets an empty one.
+        Instantiation failures are logged and skipped. Returns the instances by
+        plugin name.
         """
         if plugin_settings is None:
             plugin_settings = {}
@@ -675,36 +577,17 @@ class PluginManager:
     def setup_plugins(self, data, notifications, menu_builder, menubar):
         """Collect plugin UI and startup contributions.
 
-        This is typically called after the application has created its
-        menu and notification hosts and before it finishes wiring its settings
-        UI and callback registrations.
-
         For each plugin it collects the classes from ``get_setting_classes()``;
         instantiates the class ``get_menu_class()`` returns with ``data``,
         passes its ``get_menu_items()`` to ``menu_builder`` under ``menubar``,
         and hands the instance to ``set_menu_instance()``; adds each class from
-        ``get_notification_classes()`` to ``notifications`` and passes a dict
-        of class to instance to ``set_notification_instances()``; and keeps the
+        ``get_notification_classes()`` to ``notifications``, which needs
+        ``add_notification()`` and ``get_instance()``, and passes a dict of
+        class to instance to ``set_notification_instances()``; and keeps the
         ``settings_changed`` handler from ``get_event_handlers()``. A plugin
         that raises is logged and the rest are still set up.
 
-        Parameters
-        ----------
-        data
-            Application data passed to each plugin's menu class.
-        notifications
-            Notification manager with ``add_notification()`` and
-            ``get_instance()``.
-        menu_builder : MenuBuilder
-            Builds each plugin's menu.
-        menubar
-            Parent the plugin menus are created under.
-
-        Returns
-        -------
-        tuple
-            ``(settings_pages, settings_callbacks)`` for the application to
-            consume.
+        Returns ``(settings_pages, settings_callbacks)``.
         """
         settings_pages = []
         settings_callbacks = []
@@ -746,13 +629,6 @@ class PluginManager:
         A context is any object with ``add(plugin_name, contribution, data)``.
         UI contributions go to the context named by their ``context`` key, and
         menu contributions to the context registered as ``'menus'``.
-
-        Parameters
-        ----------
-        name : str
-            Name plugins use to refer to the context.
-        context
-            The object receiving contributions.
         """
         self.contexts[name] = context
 
@@ -775,11 +651,6 @@ class PluginManager:
 
         A contribution for an unregistered context, or whose context raises in
         ``add()``, is logged and skipped.
-
-        Parameters
-        ----------
-        data
-            Application data passed to each context's ``add()``.
         """
         for module_name, plugin in self.plugins.items():
             ui_contributions = self._get_contributions(
@@ -817,15 +688,7 @@ class PluginManager:
     def collect_services(self, base_services=None):
         """Merge app-owned and plugin-owned services into one registry.
 
-        Parameters
-        ----------
-        base_services : dict, optional
-            Services the application already owns.
-
-        Returns
-        -------
-        dict
-            The merged registry, also kept as ``services``.
+        Returns the merged dict, also kept as ``services``.
 
         Raises
         ------
@@ -868,11 +731,6 @@ class PluginManager:
         name order, each action called with ``data``. A failing action is
         logged and the rest still run; a plugin whose records are malformed is
         skipped whole.
-
-        Parameters
-        ----------
-        data
-            Application data passed to each action.
         """
         setup_activities = []
 
@@ -926,23 +784,11 @@ class PluginManager:
                 )
 
     def _get_plugin_event_handlers(self, plugin):
-        """Return one plugin's event handlers, or None."""
         hook = getattr(plugin, 'get_event_handlers', None)
         return hook() if hook is not None else None
 
     def get_event_handlers(self, name):
-        """Return all event handlers registered for ``name``, sorted by priority.
-
-        Parameters
-        ----------
-        name : str
-            Event name.
-
-        Returns
-        -------
-        list
-            The handlers, lowest ``priority`` first.
-        """
+        """Return all event handlers registered for ``name``, sorted by priority."""
         callbacks = []
 
         for plugin in self.plugins.values():
