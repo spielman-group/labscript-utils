@@ -74,4 +74,4 @@ class InvertedDigitalOutput(DigitalOutput):
 
     @state.setter
     def state(self, state):
-        DigitalOutput.state.fset(self, not state)
+        DigitalOutput.state.fset(self, not bool(int(state)))
