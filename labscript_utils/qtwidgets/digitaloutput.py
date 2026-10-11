@@ -17,10 +17,7 @@ from .lockable import LockableOutput
 
 
 class DigitalOutput(LockableOutput, QtWidgets.QPushButton):
-    """A checkable button that shows and sets a BLACS digital output.
-
-    Right-clicking it offers to lock it. Its ``state`` is whether it is checked.
-    """
+    """A checkable button that shows and sets a BLACS digital output."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -32,21 +29,12 @@ class DigitalOutput(LockableOutput, QtWidgets.QPushButton):
         self._output = None
 
     def set_DO(self, DO, notify_old_DO=True, notify_new_DO=True, inverted=False):
-        """Put a BLACS digital output in charge of this button.
+        """Put a BLACS digital output, or None, in charge of this button.
 
-        Nothing is notified when ``DO`` is the output already in charge.
-
-        Parameters
-        ----------
-        DO : DigitalOut or None
-            The output to put in charge, or None for none.
-        notify_old_DO : bool, optional
-            Whether to remove this button from the output that was in charge.
-        notify_new_DO : bool, optional
-            Whether to add this button to ``DO``.
-        inverted : bool, optional
-            Passed to ``DO.add_widget``: whether the button shows the opposite of
-            the output's state.
+        Nothing is notified when ``DO`` is already in charge. Otherwise
+        ``notify_old_DO`` and ``notify_new_DO`` choose whether the old output
+        removes this button and the new output adds it, and ``inverted`` is
+        passed to ``DO.add_widget``.
         """
         if DO != self._output:
             if self._output is not None and notify_old_DO:

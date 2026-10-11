@@ -76,23 +76,10 @@ class ImageView(QtWidgets.QGraphicsView):
 class ImageOutput(LockableOutput, QtWidgets.QWidget):
     """A labelled button and a view that show and set a BLACS image output.
 
-    The button loads an image from a file. Right-clicking the button or the view
-    offers to lock the widget.
-
     Parameters
     ----------
-    name : str
-        The label text.
     width, height : int
-        The size in pixels of the image, and of the view. Only an image of exactly
-        this size can be shown.
-    *args, **kwargs
-        Passed to ``QWidget``.
-
-    Attributes
-    ----------
-    imageUpdated : Signal(str)
-        Emitted with the new ``value`` when an image has been set.
+        The size in pixels of the image and of the view.
     """
 
     imageUpdated = Signal(str)
@@ -155,18 +142,11 @@ class ImageOutput(LockableOutput, QtWidgets.QWidget):
         self._pixmap_item = None
 
     def set_Image(self, Image, notify_old_Image=True, notify_new_Image=True):
-        """Put a BLACS image output in charge of this widget.
+        """Put a BLACS image output, or None, in charge of this widget.
 
-        Nothing is notified when ``Image`` is the output already in charge.
-
-        Parameters
-        ----------
-        Image : ImageOut or None
-            The output to put in charge, or None for none.
-        notify_old_Image : bool, optional
-            Whether to remove this widget from the output that was in charge.
-        notify_new_Image : bool, optional
-            Whether to add this widget to ``Image``.
+        Nothing is notified when ``Image`` is already in charge. Otherwise
+        ``notify_old_Image`` and ``notify_new_Image`` choose whether the old
+        output removes this widget and the new output adds it.
         """
         if Image != self._output:
             if self._output is not None and notify_old_Image:
@@ -183,9 +163,9 @@ class ImageOutput(LockableOutput, QtWidgets.QWidget):
     def value(self):
         """str: the image shown, as base64 text.
 
-        Setting it, from text or bytes, shows the image and emits ``imageUpdated``.
-        An image that is not ``width`` by ``height`` pixels is refused with a
-        warning dialog.
+        Setting it, from text or bytes, shows the image and emits ``imageUpdated``
+        with the new value. An image that is not ``width`` by ``height`` pixels is
+        refused with a warning dialog.
         """
         return self._value
 

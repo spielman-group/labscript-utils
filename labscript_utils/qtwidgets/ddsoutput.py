@@ -22,14 +22,6 @@ class DDSOutput(QtWidgets.QWidget):
 
     The sub-channels are named ``'gate'``, ``'freq'``, ``'amp'`` and ``'phase'``. The
     gate is a DigitalOutput and the others are AnalogOutputs.
-
-    Parameters
-    ----------
-    hardware_name : str
-        The name of the output, shown in the label with ``connection_name``.
-    connection_name : str, optional
-        The connection of the output, shown below ``hardware_name``.
-    parent : QWidget, optional
     """
 
     def __init__(self, hardware_name, connection_name='-', parent=None):

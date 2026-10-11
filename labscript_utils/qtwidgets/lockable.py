@@ -19,15 +19,9 @@ class LockableOutput:
 
     List it before the widget's Qt base class. The widget installs itself as its
     own event filter, so that the menu opens while its target is disabled and a
-    disabled widget passes scroll-wheel events to its parent.
-
-    Attributes
-    ----------
-    _lock_target : QWidget
-        The widget that locking disables. The subclass sets it.
-    _output
-        The BLACS output object that the widget belongs to, or None. The
-        subclass keeps it.
+    disabled widget passes scroll-wheel events to its parent. It also sets
+    ``_lock_target``, the widget that locking disables, and ``_output``, its BLACS
+    output or None.
     """
 
     @property
@@ -36,15 +30,7 @@ class LockableOutput:
         return not self._lock_target.isEnabled()
 
     def popup_lock_menu(self, source, pos):
-        """Pop up a menu that locks or unlocks the widget.
-
-        Parameters
-        ----------
-        source : QWidget
-            The widget of this output that was right-clicked.
-        pos : QPoint
-            The click position in ``source``.
-        """
+        """Pop up the lock menu for ``source``, a widget of this output, at ``pos``."""
         menu = QtWidgets.QMenu(source)
         menu.addAction("Unlock" if self.lock_state else "Lock")
         menu.triggered.connect(self._menu_triggered)

@@ -41,20 +41,12 @@ class NoStealFocusDoubleSpinBox(QtWidgets.QDoubleSpinBox):
 class AnalogOutput(LockableOutput, QtWidgets.QWidget):
     """A labelled spin box and unit combo box that show and set a BLACS analog output.
 
-    Right-clicking it offers to lock it, and right-clicking the spin box also
-    offers to step the value and to set the step size.
-
     Parameters
     ----------
-    hardware_name : str
-        The name of the output, shown in the label with ``connection_name``.
-    connection_name : str, optional
-        The connection of the output, shown below ``hardware_name``.
     display_name : str, optional
         Label text to show in place of the hardware and connection names.
     horizontal_alignment : bool, optional
         Lay the label, spin box and combo box out in a row rather than a column.
-    parent : QWidget, optional
     """
 
     def __init__(self, hardware_name, connection_name='-', display_name=None,
@@ -180,18 +172,11 @@ class AnalogOutput(LockableOutput, QtWidgets.QWidget):
         self._output = None
 
     def set_AO(self, AO, notify_old_AO=True, notify_new_AO=True):
-        """Put a BLACS analog output in charge of this widget.
+        """Put a BLACS analog output, or None, in charge of this widget.
 
-        Nothing is notified when ``AO`` is the output already in charge.
-
-        Parameters
-        ----------
-        AO : AnalogOut or None
-            The output to put in charge, or None for none.
-        notify_old_AO : bool, optional
-            Whether to remove this widget from the output that was in charge.
-        notify_new_AO : bool, optional
-            Whether to add this widget to ``AO``.
+        Nothing is notified when ``AO`` is already in charge. Otherwise
+        ``notify_old_AO`` and ``notify_new_AO`` choose whether the old output
+        removes this widget and the new output adds it.
         """
         if AO != self._output:
             if self._output is not None and notify_old_AO:

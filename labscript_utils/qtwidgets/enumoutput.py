@@ -19,19 +19,12 @@ from .lockable import LockableOutput
 class EnumOutput(LockableOutput, QtWidgets.QWidget):
     """A labelled combo box that shows and sets a BLACS enum output.
 
-    Right-clicking it offers to lock it.
-
     Parameters
     ----------
-    hardware_name : str
-        The name of the output, shown in the label with ``connection_name``.
-    connection_name : str, optional
-        The connection of the output, shown below ``hardware_name``.
     display_name : str, optional
         Label text to show in place of the hardware and connection names.
     horizontal_alignment : bool, optional
         Lay the label and combo box out in a row rather than a column.
-    parent : QWidget, optional
     """
 
     def __init__(self, hardware_name, connection_name='-', display_name=None,
@@ -101,18 +94,11 @@ class EnumOutput(LockableOutput, QtWidgets.QWidget):
         self._output = None
 
     def set_EO(self, EO, notify_old_EO=True, notify_new_EO=True):
-        """Put a BLACS enum output in charge of this widget.
+        """Put a BLACS enum output, or None, in charge of this widget.
 
-        Nothing is notified when ``EO`` is the output already in charge.
-
-        Parameters
-        ----------
-        EO : EnumOut or None
-            The output to put in charge, or None for none.
-        notify_old_EO : bool, optional
-            Whether to remove this widget from the output that was in charge.
-        notify_new_EO : bool, optional
-            Whether to add this widget to ``EO``.
+        Nothing is notified when ``EO`` is already in charge. Otherwise
+        ``notify_old_EO`` and ``notify_new_EO`` choose whether the old output
+        removes this widget and the new output adds it.
         """
         if EO != self._output:
             if self._output is not None and notify_old_EO:
