@@ -56,17 +56,17 @@ move the resulting file somewhere (for example the labconfig directory)
 and then add it to labconfig like:
 
 [security]
-shared_secret = %(labscript_suite)s/labconfig/zpsecret-09f6dfa0.key
+shared_secret = '%(labscript_suite)s/labconfig/zpsecret-09f6dfa0.key'
 
 You will need to copy the same shared secret to all computers running
 the labscript suite that need to communicate with each other. Treat this
-file like a password: it allows anyone on the same network acess to
-labscript suite programs, most of of which are capable of remote code
+file like a password: it allows anyone on the same network access to
+labscript suite programs, most of which are capable of remote code
 execution. If you are on a trusted network and don't want to use encrypted
 communication, you may instead set:
 
 [security]
-allow_insecure = True
+allow_insecure = true
 
 in your configuration, but this is not advised."""
 
