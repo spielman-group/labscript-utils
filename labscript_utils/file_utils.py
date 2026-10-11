@@ -1,13 +1,14 @@
 #####################################################################
 #                                                                   #
-# file_utils.py                                                     #
+# /labscript_utils/file_utils.py                                    #
 #                                                                   #
-# Copyright 2013, Monash University                                 #
+# Copyright 2026, JQI                                               #
+# Author: Ian Spielman                                              #
 #                                                                   #
-# This file is part of the labscript suite (see                     #
-# http://labscriptsuite.org) and is licensed under the Simplified   #
-# BSD License. See the license.txt file in the root of the project  #
-# for the full license.                                             #
+# This file is part of labscript-utils, in the labscript suite      #
+# (see http://labscriptsuite.org), and is licensed under the        #
+# Simplified BSD License. See the license.txt file in the root of   #
+# the project for the full license.                                 #
 #                                                                   #
 #####################################################################
 
@@ -18,11 +19,27 @@ import re
 def next_available_indexed_filepath(filepath, suffix_format, start=None):
     """Return the first non-existent filepath created by appending a formatted suffix.
 
-    ``suffix_format`` is formatted with a single ``index`` keyword argument and is
-    inserted between the filepath stem and its extension. If filepath already ends
-    with a suffix matching the pattern, that suffix is stripped. If ``start`` is
-    ``None``, the search begins at the next higher index from that suffix. Otherwise
-    ``start`` is used exactly as provided."""
+    The suffix goes between the filepath's stem and its extension. If filepath
+    already ends with a suffix matching ``suffix_format``, that suffix is
+    stripped first.
+
+    Parameters
+    ----------
+    filepath : str or path-like
+        Path whose stem and extension the suffix is placed between.
+    suffix_format : str
+        Format string with a single ``index`` field, such as ``'_{index:03d}'``.
+    start : int, optional
+        First index to try. If ``None``, the search begins one past the index of
+        an existing suffix on ``filepath``, or at 0 if it has none.
+
+    Returns
+    -------
+    candidate : str
+        The first filepath that does not exist.
+    index : int
+        The index used to build ``candidate``.
+    """
     basename, ext = os.path.splitext(filepath)
     suffix_pattern = re.escape(suffix_format)
     suffix_pattern = re.sub(
