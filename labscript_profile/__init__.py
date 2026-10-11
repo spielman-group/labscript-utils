@@ -4,7 +4,7 @@ import os
 import configparser
 from ast import literal_eval
 from pathlib import Path
-from subprocess import check_output
+from subprocess import CalledProcessError, check_output
 import socket
 from getpass import getuser
 
@@ -70,7 +70,12 @@ def add_userlib_and_pythonlib():
     ``labscript_utils``, so that interpreter start-up does not import
     ``labscript_utils``.
     """
-    labconfig = ensure_labconfig()
+    try:
+        labconfig = ensure_labconfig()
+    except (OSError, CalledProcessError):
+        # Every interpreter start runs this, through the .pth file: an unreadable
+        # host name must not print a traceback there. The apps still raise it.
+        return
     if labconfig is None:
         return
     if not labconfig.exists():
