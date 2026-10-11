@@ -13,7 +13,6 @@
 from qtutils.qt import QtCore, QtWidgets
 
 import labscript_utils.h5_lock, h5py
-from labscript_utils.qtwidgets.fingertab import FingerTabWidget
 
 # Create a generic interface for displaying pages of settings
 class Settings(object):
@@ -87,8 +86,7 @@ class Settings(object):
             # Create the layout
             layout = QtWidgets.QVBoxLayout(self.dialog)
             #Create the Notebook
-            self.notebook = FingerTabWidget(self.dialog)            
-            self.notebook.setTabPosition(QtWidgets.QTabWidget.TabPosition.West)
+            self.notebook = QtWidgets.QTabWidget(self.dialog)
             self.notebook.show() 
             layout.addWidget(self.notebook)
             
