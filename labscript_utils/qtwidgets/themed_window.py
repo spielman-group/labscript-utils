@@ -19,9 +19,7 @@ class ThemedWindow:
     """Mixin for a window that refreshes its widgets when the theme changes.
 
     List it before the window's Qt base class. The window applies each child
-    widget's style sheet and palette again, which complex widgets such as
-    tree and table views need to follow a new theme, and then emits
-    `themeChanged` for anything of the window's own that follows the theme.
+    widget's style sheet and palette again, and then emits `themeChanged`.
     """
 
     themeChanged = Signal()

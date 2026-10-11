@@ -32,18 +32,11 @@ class LinkIndicator(QtWidgets.QWidget):
     called from any thread, and takes effect when the GUI thread next processes
     events, even when called on it.
 
-    It asks through a client of its own, so a caller passes the application's
-    address, never a client: zprocess requests from two threads on one client can
-    block each other for good.
+    It asks through a client of its own, because zprocess requests from two
+    threads on one client can block each other for good.
 
     Parameters
     ----------
-    name : str
-        The remote application, as the title and the tooltip name it.
-    host : str
-        The machine the remote application runs on, also given in the tooltip.
-    port : int
-        The port the remote application's server listens on.
     command : str, optional
         A request to make in place of a hello, such as ``'get_status'``, for an
         ``on_answer`` that needs its answer.
@@ -53,7 +46,6 @@ class LinkIndicator(QtWidgets.QWidget):
         exception's message.
     status_width : int, optional
         The indicator's fixed width, in pixels. A longer status is elided.
-    parent : QWidget, optional
     """
 
     def __init__(
@@ -119,16 +111,15 @@ class LinkIndicator(QtWidgets.QWidget):
     def show_state(self, state, details=()):
         """Show what the remote application is doing.
 
-        The state and details are kept, and shown whenever the application is
-        answering, including again after an outage.
+        ``state`` and ``details`` are kept, and shown while the application
+        answers, including again after an outage.
 
         Parameters
         ----------
         state : str or None
-            Shown as the status while the application answers. While it is None,
-            the status reads ``Responding``.
+            The status text. None shows ``Responding``.
         details : iterable of str, optional
-            Lines added to the tooltip while the application answers.
+            Lines added to the tooltip.
         """
         self.state = state
         self.details = tuple(details)

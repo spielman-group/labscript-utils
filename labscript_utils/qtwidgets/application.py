@@ -25,11 +25,6 @@ _Button = QtWidgets.QMessageBox.StandardButton
 class LabscriptGuiApplication(LabscriptApplication):
     """A labscript application whose main window is ``self.ui``.
 
-    Adds the handlers of the configuration menu, and error and question dialogs
-    that belong to the window.
-
-    Notes
-    -----
     A subclass defines ``get_save_data()`` and ``load_configuration(filename)``,
     and sets ``last_save_config_file`` and ``last_save_data`` to ``None`` before
     the first save or load. It connects the actions of its configuration menu to
@@ -42,23 +37,12 @@ class LabscriptGuiApplication(LabscriptApplication):
 
     @inmain_decorator()
     def error_dialog(self, message):
-        """Warn the user, from any thread.
-
-        Parameters
-        ----------
-        message : str
-            The text of the warning.
-        """
+        """Warn the user, from any thread."""
         QtWidgets.QMessageBox.warning(self.ui, self.app_name, message)
 
     @inmain_decorator()
     def question_dialog(self, message):
         """Ask the user a Yes/No question, from any thread.
-
-        Parameters
-        ----------
-        message : str
-            The question.
 
         Returns
         -------
@@ -146,18 +130,7 @@ class LabscriptGuiApplication(LabscriptApplication):
 
 
 def exec_qapplication(qapplication):
-    """Run the event loop until it ends, or until Ctrl-C in the terminal.
-
-    Parameters
-    ----------
-    qapplication : QApplication
-        The application whose event loop runs.
-
-    Returns
-    -------
-    int
-        The exit code of the event loop.
-    """
+    """Run the event loop until it ends, or until Ctrl-C in the terminal."""
     # Python runs signal handlers, Ctrl-C's or zprocess's SIGTERM, only when the
     # interpreter runs, which the timer makes happen every 500 ms.
     timer = QtCore.QTimer()
