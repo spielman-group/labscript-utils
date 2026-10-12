@@ -102,10 +102,12 @@ def get_config():
     config['zlock_port'] = labconfig.get(
         'ports', 'zlock', fallback=zprocess.zlock.DEFAULT_PORT
     )
-    # We hard-code the zlog host and port, since zlog always runs on the computer with
-    # the top-level process
+    # zlog always runs on the computer with the top-level process, so its host is
+    # localhost; its port comes from the labconfig, as zlock's does.
     config['zlog_host'] = 'localhost'
-    config['zlog_port'] = zprocess.zlog.DEFAULT_PORT
+    config['zlog_port'] = labconfig.get(
+        'ports', 'zlog', fallback=zprocess.zlog.DEFAULT_PORT
+    )
     config['zprocess_remote_port'] = labconfig.get(
         'ports', 'zprocess_remote', fallback=zprocess.remote.DEFAULT_PORT
     )
