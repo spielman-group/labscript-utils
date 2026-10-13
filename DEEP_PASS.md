@@ -1795,14 +1795,18 @@ How they were checked:
 
 ### 11. `Splash.update_text` waits for a paint only while the window is exposed
 
-- Guard: `labscript_utils/splash.py:Splash.update_text`, the `isExposed()` test
-  (5 lines). From 0811a4c (2026-10-04); also offered as c8303fa on UpstreamBugFixes.
+- Guard: `labscript_utils/splash.py:Splash.update_text`, the `isExposed()` test,
+  made after one pass of events (6 lines). From 0811a4c (2026-10-04), and Chris
+  Billington's 3142858 from his review of upstream PR #128; also offered as
+  c8303fa and 269be98 on UpstreamBugFixes.
 - Symptom:
   - Shown offscreen: upstream's `update_text` before `show()` waits forever, and
     CodeHealth's returns.
   - A splash covered by another window on macOS stalls start-up until it is
     brought forward. That comes from the commit message; it needs a real macOS
     window server.
+  - Without the pass of events, a splash on Linux never painted, since a window
+    is not exposed until it is mapped (Chris Billington, #128).
 - Cause: macOS paints no covered window, outside our reach, meeting upstream's
   wait for a paint that may not come.
 - Proposal: keep. `self.repaint()` might replace the whole wait, but that needs a
