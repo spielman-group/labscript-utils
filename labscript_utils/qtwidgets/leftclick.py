@@ -14,6 +14,8 @@
 from qtutils.qt import QtCore, QtWidgets
 from qtutils.qt.QtCore import pyqtSignal as Signal
 
+from labscript_utils.qtwidgets.row_order import moved_row_order
+
 
 class LeftClickMixin:
     """Mixin for an item view that signals a left click on an item.
@@ -69,9 +71,46 @@ class LeftClickMixin:
         return result
 
 
-class TreeView(LeftClickMixin, QtWidgets.QTreeView):
-    """A QTreeView that emits leftClicked and doubleLeftClicked."""
+class MovableRowsMixin:
+    """Mixin for a view of a QStandardItemModel whose rows the user reorders.
+
+    List it before the view's Qt base class. `rowsReordered(order)` is emitted
+    after a reorder, with the new position of each row indexed by its old one.
+    """
+
+    rowsReordered = Signal(list)
+
+    def reorder_rows(self, order):
+        """Move each row to its new position, keeping the selected rows selected.
+
+        Parameters
+        ----------
+        order : list of int
+            The new position of each row, indexed by its old one.
+        """
+        model = self.model()
+        selection_model = self.selectionModel()
+        selected = {index.row() for index in selection_model.selectedIndexes()}
+        rows = [model.takeRow(0) for _ in order]
+        for row in sorted(range(len(rows)), key=order.__getitem__):
+            model.appendRow(rows[row])
+        for row in selected:
+            selection_model.select(
+                model.indexFromItem(rows[row][0]),
+                QtCore.QItemSelectionModel.SelectionFlag.Select
+                | QtCore.QItemSelectionModel.SelectionFlag.Rows,
+            )
+        self.rowsReordered.emit(order)
+
+    def move_selected_rows(self, direction):
+        """Move the selected rows ``'up'``, ``'down'``, to the ``'top'`` or the ``'bottom'``."""
+        selected = {index.row() for index in self.selectionModel().selectedIndexes()}
+        self.reorder_rows(moved_row_order(self.model().rowCount(), selected, direction))
 
 
-class TableView(LeftClickMixin, QtWidgets.QTableView):
-    """A QTableView that emits leftClicked and doubleLeftClicked."""
+class TreeView(LeftClickMixin, MovableRowsMixin, QtWidgets.QTreeView):
+    """A QTreeView that emits leftClicked and doubleLeftClicked, and moves rows."""
+
+
+class TableView(LeftClickMixin, MovableRowsMixin, QtWidgets.QTableView):
+    """A QTableView that emits leftClicked and doubleLeftClicked, and moves rows."""

@@ -1,4 +1,4 @@
 Possible improvements
 =====================
 
-* Runviewer's channel list and lyse's routine lists are reordered with up, down, top and bottom buttons, which modern interfaces have replaced with drag and drop; both use :func:`labscript_utils.qtwidgets.row_order.moved_row_order`, so the change can be made in one place.
+* Runviewer's channel list, lyse's routine lists and runmanager's axes are reordered with up, down, top and bottom buttons, which modern interfaces have replaced with drag and drop; all three call :meth:`labscript_utils.qtwidgets.leftclick.MovableRowsMixin.move_selected_rows`, so the change can be made in one place.
