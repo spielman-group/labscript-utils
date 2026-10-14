@@ -11,6 +11,7 @@ This documentation is primarily for developers who might want to use this common
 
    labconfig
    api/index
+   improvements
    
 .. toctree::
    :maxdepth: 2
