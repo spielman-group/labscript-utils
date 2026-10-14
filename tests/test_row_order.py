@@ -58,6 +58,9 @@ def test_a_view_moves_its_selected_rows_and_says_where_they_went():
         view.selectionModel().select(
             model.index(row, 0), QtCore.QItemSelectionModel.SelectionFlag.Select
         )
+    view.selectionModel().setCurrentIndex(
+        model.index(3, 0), QtCore.QItemSelectionModel.SelectionFlag.NoUpdate
+    )
     orders = []
     view.rowsReordered.connect(orders.append)
 
@@ -66,4 +69,5 @@ def test_a_view_moves_its_selected_rows_and_says_where_they_went():
     assert [model.item(row).text() for row in range(5)] == list('BDACE')
     selected = {index.row() for index in view.selectionModel().selectedIndexes()}
     assert selected == {0, 1}
+    assert view.currentIndex().row() == 1, 'the current item moves with its row'
     assert orders == [[2, 0, 3, 1, 4]]

@@ -81,7 +81,7 @@ class MovableRowsMixin:
     rowsReordered = Signal(list)
 
     def reorder_rows(self, order):
-        """Move each row to its new position, keeping the selected rows selected.
+        """Move each row to its new position, keeping the selection and current item.
 
         Parameters
         ----------
@@ -91,6 +91,7 @@ class MovableRowsMixin:
         model = self.model()
         selection_model = self.selectionModel()
         selected = {index.row() for index in selection_model.selectedIndexes()}
+        current = self.currentIndex()
         rows = [model.takeRow(0) for _ in order]
         for row in sorted(range(len(rows)), key=order.__getitem__):
             model.appendRow(rows[row])
@@ -99,6 +100,11 @@ class MovableRowsMixin:
                 model.indexFromItem(rows[row][0]),
                 QtCore.QItemSelectionModel.SelectionFlag.Select
                 | QtCore.QItemSelectionModel.SelectionFlag.Rows,
+            )
+        if current.isValid():
+            selection_model.setCurrentIndex(
+                model.indexFromItem(rows[current.row()][current.column()]),
+                QtCore.QItemSelectionModel.SelectionFlag.NoUpdate,
             )
         self.rowsReordered.emit(order)
 
