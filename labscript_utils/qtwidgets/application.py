@@ -30,10 +30,12 @@ class LabscriptGuiApplication(LabscriptApplication):
     the first save or load. It connects the actions of its configuration menu to
     the ``on_*_triggered`` handlers. ``config_description`` says what its
     configuration holds, for the prompt that offers to save unsaved changes
-    before a load.
+    before a load or on quitting. ``geometry_keys`` names the parts of its save
+    data that are window geometry, which quitting saves without asking.
     """
 
     config_description = 'GUI state'
+    geometry_keys = ()
 
     @inmain_decorator()
     def error_dialog(self, message):
@@ -95,23 +97,46 @@ class LabscriptGuiApplication(LabscriptApplication):
             f'Save configuration {self.last_save_config_file}'
         )
 
-    def on_load_configuration_triggered(self):
+    def offer_to_save_changes(self, title, quitting=False):
+        """Offer to save the configuration if it has changed since the last save.
+
+        Parameters
+        ----------
+        title : str
+            The title of the prompt.
+        quitting : bool
+            If true, a change only to ``geometry_keys`` is saved without asking.
+
+        Returns
+        -------
+        bool
+            False if the user cancels.
+        """
         save_data = self.get_save_data()
-        if self.last_save_data is not None and save_data != self.last_save_data:
-            message = (
-                f'Current configuration ({self.config_description}) has changed: '
-                f"save config file '{self.last_save_config_file}'?"
-            )
-            reply = QtWidgets.QMessageBox.question(
-                self.ui,
-                'Load configuration',
-                message,
-                _Button.Yes | _Button.No | _Button.Cancel,
-            )
-            if reply == _Button.Cancel:
-                return
-            if reply == _Button.Yes:
-                self.save_configuration(self.last_save_config_file)
+        if self.last_save_data is None or save_data == self.last_save_data:
+            return True
+        changed = {
+            key for key in save_data if save_data[key] != self.last_save_data.get(key)
+        }
+        if quitting and changed <= set(self.geometry_keys):
+            self.save_configuration(self.last_save_config_file)
+            return True
+        message = (
+            f'Current configuration ({self.config_description}) has changed: '
+            f"save config file '{self.last_save_config_file}'?"
+        )
+        reply = QtWidgets.QMessageBox.question(
+            self.ui, title, message, _Button.Yes | _Button.No | _Button.Cancel
+        )
+        if reply == _Button.Cancel:
+            return False
+        if reply == _Button.Yes:
+            self.save_configuration(self.last_save_config_file)
+        return True
+
+    def on_load_configuration_triggered(self):
+        if not self.offer_to_save_changes('Load configuration'):
+            return
 
         if self.last_save_config_file is not None:
             default = self.last_save_config_file
