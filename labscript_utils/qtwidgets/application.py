@@ -20,6 +20,8 @@ from labscript_utils.labconfig import LabscriptApplication
 import labscript_utils.qtwidgets.file_dialogs as file_dialogs
 
 _Button = QtWidgets.QMessageBox.StandardButton
+# The save-data keys that geometry_save_data() always writes.
+_WINDOW_KEYS = ('window_size', 'window_pos', 'screen_geometry')
 
 
 class LabscriptGuiApplication(LabscriptApplication):
@@ -30,12 +32,15 @@ class LabscriptGuiApplication(LabscriptApplication):
     the first save or load. It connects the actions of its configuration menu to
     the ``on_*_triggered`` handlers. ``config_description`` says what its
     configuration holds, for the prompt that offers to save unsaved changes
-    before a load or on quitting. ``geometry_keys`` names the parts of its save
-    data that are window geometry, which quitting saves without asking.
+    before a load or on quitting. ``splitters`` names the main window's
+    splitters, attributes of ``self.ui``: ``geometry_save_data()`` saves their
+    sizes with the window's, ``restore_geometry()`` restores them, and quitting
+    saves a change only to these without asking. ``load_configuration()`` ends
+    with ``configuration_loaded()``.
     """
 
     config_description = 'GUI state'
-    geometry_keys = ()
+    splitters = ()
 
     @inmain_decorator()
     def error_dialog(self, message):
@@ -105,7 +110,7 @@ class LabscriptGuiApplication(LabscriptApplication):
         title : str
             The title of the prompt.
         quitting : bool
-            If true, a change only to ``geometry_keys`` is saved without asking.
+            If true, a change only to the window's geometry is saved without asking.
 
         Returns
         -------
@@ -118,7 +123,7 @@ class LabscriptGuiApplication(LabscriptApplication):
         changed = {
             key for key in save_data if save_data[key] != self.last_save_data.get(key)
         }
-        if quitting and changed <= set(self.geometry_keys):
+        if quitting and changed <= {*_WINDOW_KEYS, *self.splitters}:
             self.save_configuration(self.last_save_config_file)
             return True
         message = (
@@ -133,6 +138,49 @@ class LabscriptGuiApplication(LabscriptApplication):
         if reply == _Button.Yes:
             self.save_configuration(self.last_save_config_file)
         return True
+
+    def geometry_save_data(self):
+        """Return the main window's size and position, its splitters' sizes and the
+        screens' geometry, as part of ``get_save_data()``."""
+        size, pos = self.ui.size(), self.ui.pos()
+        save_data = {
+            'window_size': (size.width(), size.height()),
+            'window_pos': (pos.x(), pos.y()),
+            'screen_geometry': _screen_geometry(),
+        }
+        for name in self.splitters:
+            save_data[name] = getattr(self.ui, name).sizes()
+        return save_data
+
+    def restore_geometry(self, save_data):
+        """Restore what ``geometry_save_data()`` put in ``save_data``.
+
+        Nothing is restored once the screens have changed, so that the window is
+        not placed off them, nor its splitters sized for another window.
+        """
+        saved_screens = save_data.get('screen_geometry')
+        if saved_screens is None or [tuple(s) for s in saved_screens] != _screen_geometry():
+            return
+        if 'window_size' in save_data:
+            self.ui.resize(*save_data['window_size'])
+        if 'window_pos' in save_data:
+            self.ui.move(*save_data['window_pos'])
+        for name in self.splitters:
+            if name in save_data:
+                getattr(self.ui, name).setSizes(save_data[name])
+
+    def configuration_loaded(self, save_target):
+        """Make the configuration just loaded the saved one, kept in ``save_target``.
+
+        The Save item names the file, Save as and Revert are enabled, and the title
+        shows it.
+        """
+        self.last_save_config_file = save_target
+        self.last_save_data = self.get_save_data()
+        self.ui.actionSave_configuration.setText(f'Save configuration {save_target}')
+        self.ui.actionSave_configuration_as.setEnabled(True)
+        self.ui.actionRevert_configuration.setEnabled(True)
+        self.set_config_window_title(save_target)
 
     def on_load_configuration_triggered(self):
         if not self.offer_to_save_changes('Load configuration'):
@@ -152,6 +200,13 @@ class LabscriptGuiApplication(LabscriptApplication):
         )
         if file is not None:
             self.load_configuration(file)
+
+
+def _screen_geometry():
+    return [
+        (geometry.x(), geometry.y(), geometry.width(), geometry.height())
+        for geometry in (screen.geometry() for screen in QtWidgets.QApplication.screens())
+    ]
 
 
 def exec_qapplication(qapplication):
