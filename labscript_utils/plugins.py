@@ -564,9 +564,6 @@ class PluginManager:
 
     def _get_contributions(self, hook, module_name, label):
         """Return a plugin's contributions as a list, logging a hook that raises."""
-        if hook is None:
-            return []
-
         try:
             return list(hook() or ())
         except Exception:
@@ -584,9 +581,7 @@ class PluginManager:
         """
         for module_name, plugin in self.plugins.items():
             ui_contributions = self._get_contributions(
-                getattr(plugin, 'get_ui_contributions', None),
-                module_name,
-                'UI',
+                plugin.get_ui_contributions, module_name, 'UI'
             )
 
             for contribution in ui_contributions:
@@ -601,9 +596,7 @@ class PluginManager:
                     )
 
             menu_contributions = self._get_contributions(
-                getattr(plugin, 'get_menu_contributions', None),
-                module_name,
-                'menu',
+                plugin.get_menu_contributions, module_name, 'menu'
             )
 
             for contribution in menu_contributions:
@@ -629,9 +622,6 @@ class PluginManager:
         services = dict(base_services or {})
 
         for module_name, plugin in self.plugins.items():
-            if not hasattr(plugin, "get_services"):
-                continue
-
             try:
                 plugin_services = dict(plugin.get_services())
             except Exception:
@@ -718,8 +708,7 @@ class PluginManager:
 
         for plugin in self.plugins.values():
             try:
-                hook = getattr(plugin, 'get_event_handlers', None)
-                plugin_callbacks = hook() if hook is not None else None
+                plugin_callbacks = plugin.get_event_handlers()
                 if plugin_callbacks and name in plugin_callbacks:
                     callbacks.append(plugin_callbacks[name])
             except Exception:
@@ -746,8 +735,8 @@ class PluginManager:
             try:
                 results.append(handler(*args, **kwargs))
             except Exception:
-                # Not an f-string: the unformatted message must be the same for
-                # every event, since hyde reports each distinct one once.
+                # Not an f-string, so that the unformatted message is the same
+                # whichever event reached a failing handler.
                 self.logger.exception("Error in a plugin's handler for '%s'.", name)
         return results
 

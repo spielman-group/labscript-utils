@@ -267,7 +267,7 @@ class FakeContext(object):
 
 
 def test_setup_contexts_routes_ui_and_menu_contributions():
-    class Plugin(object):
+    class Plugin(BasePlugin):
         def get_ui_contributions(self):
             return [{'context': 'mdi', 'key': 'browser'}]
 
@@ -283,7 +283,7 @@ def test_setup_contexts_routes_ui_and_menu_contributions():
         None,
         'app/plugins',
     )
-    manager.plugins = {'plugin': Plugin(), 'legacy': object()}
+    manager.plugins = {'plugin': Plugin()}
     manager.register_context('mdi', mdi_context)
     manager.register_context('menus', menu_context)
 
@@ -319,22 +319,6 @@ def test_collect_services_merges_base_and_plugin_services():
     assert services['answer'] == 42
     assert services['greeter'] is str.upper
     assert manager.services is services
-
-
-def test_plugin_without_base_class_gets_setup_complete_with_app_data():
-    calls = []
-    data = {'services': object()}
-
-    class DuckTypedSetupPlugin(object):
-        def plugin_setup_complete(self, setup_data):
-            calls.append(('duck', setup_data))
-
-    manager = make_manager()
-    manager.plugins = {'duck': DuckTypedSetupPlugin()}
-
-    manager.setup_complete(data)
-
-    assert calls == [('duck', data)]
 
 
 def test_multiple_setup_activities_run_in_priority_order():
