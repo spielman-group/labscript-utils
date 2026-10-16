@@ -49,23 +49,19 @@ class Settings:
         if not self.file:
             raise Exception('You must specify a file to load/save preferences from')
 
-        for c in page_classes:
-            self.add_settings_interface(c)
+        for page_class in page_classes:
+            self.add(None, {'page': page_class}, None)
 
-    def add_settings_interface(self, setting_class):
-        """Add a page, loading its saved data.
+    def add(self, plugin_name, contribution, data):
+        """Add the page class ``contribution['page']``, loading its saved data.
 
-        Returns
-        -------
-        bool
-            False if a page with the same ``name`` was already added, otherwise
-            True.
+        This is the ``add`` of a plugin contribution context, so that an
+        application can register its ``Settings`` as one. A page whose ``name``
+        was already added is left as it is.
         """
-        if setting_class.name in self.pages:
-            return False
-
-        self.pages[setting_class.name] = setting_class(self.load(setting_class.name))
-        return True
+        page_class = contribution['page']
+        if page_class.name not in self.pages:
+            self.pages[page_class.name] = page_class(self.load(page_class.name))
 
     def load(self, name):
         """Return the saved data of a page, creating its entry if there is none.
