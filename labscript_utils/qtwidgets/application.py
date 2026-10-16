@@ -43,9 +43,19 @@ class LabscriptGuiApplication(LabscriptApplication):
     splitters = ()
 
     @inmain_decorator()
-    def error_dialog(self, message):
-        """Warn the user, from any thread."""
-        QtWidgets.QMessageBox.warning(self.ui, self.app_name, message)
+    def error_dialog(self, message, information=False):
+        """Warn the user, from any thread.
+
+        Parameters
+        ----------
+        information : bool
+            If true, show an information icon in place of the warning icon, for a
+            notice that is not a warning.
+        """
+        if information:
+            QtWidgets.QMessageBox.information(self.ui, self.app_name, message)
+        else:
+            QtWidgets.QMessageBox.warning(self.ui, self.app_name, message)
 
     @inmain_decorator()
     def question_dialog(self, message, default_no=False):
