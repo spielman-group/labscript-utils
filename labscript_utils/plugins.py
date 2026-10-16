@@ -14,9 +14,10 @@
 
 """Plugin discovery, instantiation, and hook routing for labscript apps.
 
-The application owns settings storage, the notification manager, menus, UI
-containers and event firing; the manager only calls hooks and routes
-contributions to the contexts the application registered.
+The application owns where things go: menus, UI containers, notifications, and
+where saved plugin state is stored. It chooses its events and when they fire.
+The manager calls the plugins' hooks, routes their contributions to the contexts
+the application registered, and fires an event to its handlers.
 
 The usual package layout is::
 
@@ -26,24 +27,19 @@ The usual package layout is::
             example/
                 __init__.py  # defines class Plugin
 
-The module name becomes the plugin name, and ``Plugin(initial_settings)``
-receives its saved settings dictionary. A plugin need not inherit ``BasePlugin``;
-it only defines the hooks the application and manager call.
-
-Two menu paths are supported, with different contracts:
-
-* ``MenuBuilder`` renders the nested menu that a plugin's menu class returns
-  from ``get_menu_items()``, immediately, from ``PluginManager.setup_plugins()``.
-  BLACS uses it.
-* ``MenuContext`` is the shared contribution path for future applications. It
-  collects actions with explicit ``location``, ``path``, ``group``, ``order``,
-  ``name``, and ``action`` metadata, then renders all plugins together after
-  contribution routing is complete.
+The module name becomes the plugin name. Another package can also ship a plugin
+as an ``importlib.metadata`` entry point naming its module, in the group the
+application gives the manager; the entry point's name is the plugin's. Each
+plugin is built as ``Plugin()``, with no arguments, and subclasses
+``BasePlugin``, overriding the hooks it needs. Its saved state goes out through
+``get_save_data()`` and comes back through ``restore_save_data(data)``.
 
 A plugin declares a named ``context`` for a UI contribution, and the application
 registers objects that implement ``add(plugin_name, contribution, data)``. That
 is the full shared UI contract; the module does not know where a plugin UI
-lives.
+lives. Menu contributions go to the context registered as ``menus``, normally a
+``MenuContext``, which renders the actions of every plugin together once
+contribution routing is complete.
 
 Contribution menu skeleton with MenuContext
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -59,6 +55,7 @@ Contribution menu skeleton with MenuContext
 * ``order``: numeric order within the group; defaults to ``DEFAULT_PRIORITY``
 * ``name``: action text
 * ``action``: callable connected to the action's ``triggered`` signal
+* ``icon``: an icon, or what the context's ``icon_factory`` turns into one
 * ``shortcut``, ``checkable``, and ``enabled``: optional action properties
   applied when the concrete action object supports them
 
@@ -76,8 +73,7 @@ is applied to the action unchanged.
 File-dialog-style plugin example::
 
     class FileDialogsPlugin(BasePlugin):
-        def __init__(self, initial_settings):
-            super(FileDialogsPlugin, self).__init__(initial_settings)
+        def __init__(self):
             self.services = None
 
         def plugin_setup_complete(self, data):
@@ -159,6 +155,7 @@ The application side of the contribution path::
 """
 
 import importlib
+import importlib.metadata
 import logging
 import os
 from types import MethodType
@@ -173,7 +170,6 @@ __all__ = [
     'Callback',
     'callback',
     'BasePlugin',
-    'MenuBuilder',
     'MenuContext',
     'PluginManager',
 ]
@@ -210,27 +206,21 @@ class callback:
 
 
 class BasePlugin:
-    """Reference implementation of the plugin interface.
+    """The plugin interface, every hook a no-op.
 
-    Subclassing is optional; a plugin can satisfy the contract by duck typing.
-    It provides only the hooks a contribution-based application reaches. A
-    plugin driven through ``setup_plugins()`` and ``close_plugins()``, as BLACS
-    drives its plugins, also defines ``get_setting_classes``,
-    ``get_notification_classes``, ``get_menu_class``, ``set_menu_instance``,
-    ``set_notification_instances``, ``get_save_data`` and ``close``.
+    A plugin subclasses it and overrides the hooks it needs. It may also define
+    ``plugin_setup_complete(data)`` or ``get_setup_activities()``, which
+    :meth:`PluginManager.setup_complete` calls.
     """
-    def __init__(self, initial_settings):
-        """Store the plugin's saved settings."""
-        self.initial_settings = initial_settings
 
     def get_event_handlers(self):
-        """Return a mapping of event names to handlers, or ``None``.
+        """Return a mapping of event names to handlers.
 
         Event names are application-defined strings. Values may be plain
         callables or :class:`Callback` instances, which the manager sorts by
         ``priority``.
         """
-        return None
+        return {}
 
     def get_ui_contributions(self):
         """Return an iterable of UI contribution dictionaries.
@@ -248,47 +238,15 @@ class BasePlugin:
         """Return a mapping of service names to objects this plugin exposes."""
         return {}
 
+    def get_save_data(self):
+        """Return the plugin's state to save, as data TOML can hold."""
+        return {}
 
-class MenuBuilder:
-    """Build menus from the nested dictionary format used by plugins.
+    def restore_save_data(self, data):
+        """Restore the state ``get_save_data()`` returned, ``{}`` if none was saved."""
 
-    Each menu description is a dictionary. Supported keys are:
-
-    * ``name``: text for a menu or action
-    * ``menu_items``: child menu descriptions, making a submenu
-    * ``icon``: icon name passed to ``icon_factory`` for actions
-    * ``action``: callable connected to the action's ``triggered`` signal
-    * ``separator``: a truthy sentinel that inserts a separator
-
-    The ``parent`` given to ``create_menu()`` must provide ``addMenu()``,
-    ``addAction()`` and ``addSeparator()``, and an action must have a
-    ``triggered`` signal.
-    """
-    def __init__(self, icon_factory):
-        """Create a builder; ``icon_factory(icon_name)`` makes action icons."""
-        self.icon_factory = icon_factory
-
-    def create_menu(self, parent, menu_parameters):
-        """Recursively build menus and actions from a nested menu dictionary."""
-        if 'name' in menu_parameters:
-            if 'menu_items' in menu_parameters:
-                child = parent.addMenu(menu_parameters['name'])
-                for child_menu_params in menu_parameters['menu_items']:
-                    self.create_menu(child, child_menu_params)
-            else:
-                if 'icon' in menu_parameters:
-                    child = parent.addAction(
-                        self.icon_factory(menu_parameters['icon']),
-                        menu_parameters['name'],
-                    )
-                else:
-                    child = parent.addAction(menu_parameters['name'])
-
-            if 'action' in menu_parameters:
-                child.triggered.connect(menu_parameters['action'])
-
-        elif 'separator' in menu_parameters:
-            parent.addSeparator()
+    def close(self):
+        """Release what the plugin holds, at application shutdown."""
 
 
 class MenuContext(object):
@@ -300,14 +258,19 @@ class MenuContext(object):
     Rendering is deferred until all plugins have contributed so ordering and
     group separators can be computed across plugins.
     """
-    def __init__(self, logger=None):
+    def __init__(self, logger=None, icon_factory=None):
         """Create a menu context.
 
-        Args:
-            logger (logging.Logger, optional): Logger used for skipped or
-                malformed menu contributions.
+        Parameters
+        ----------
+        logger : logging.Logger, optional
+            Logger used for skipped or malformed menu contributions.
+        icon_factory : callable, optional
+            Turns a contribution's ``icon``, such as a resource name, into the
+            icon set on its action. Without it the ``icon`` is set as given.
         """
         self.logger = logger or logging.getLogger(__name__)
+        self.icon_factory = icon_factory
         self.locations = {}
         self.contributions = []
 
@@ -431,6 +394,12 @@ class MenuContext(object):
                 if callback is not None:
                     action.triggered.connect(callback)
 
+                icon = contribution.get('icon', None)
+                if icon is not None and hasattr(action, 'setIcon'):
+                    if self.icon_factory is not None:
+                        icon = self.icon_factory(icon)
+                    action.setIcon(icon)
+
                 shortcut = contribution.get('shortcut', None)
                 if shortcut is not None and hasattr(action, 'setShortcut'):
                     action.setShortcut(shortcut)
@@ -462,23 +431,24 @@ class MenuContext(object):
 
 
 class PluginManager:
-    """Manage plugin discovery, lifecycle, and callback lookup.
+    """Manage plugin discovery, lifecycle, events and saved state.
 
     An application creates one manager per plugin directory and calls
-    ``discover_modules()`` and ``instantiate_plugins()``, then
-    ``setup_plugins()`` (settings pages, menus, notifications), or
-    ``collect_services()``, ``register_context()`` and ``setup_contexts()``,
-    or both, then ``setup_complete()``. It calls ``get_event_handlers()`` when
-    it fires an event and ``close_plugins()`` at shutdown.
+    ``discover_modules()``, ``instantiate_plugins()`` and
+    ``restore_save_data()``, then ``collect_services()``, ``register_context()``
+    and ``setup_contexts()``, then ``setup_complete()``. It fires its events with
+    ``fire_event()``, saves with ``get_save_data()``, and calls
+    ``close_plugins()`` at shutdown.
     """
     def __init__(
         self,
         plugin_package,
         plugins_dir,
-        config,
-        config_section,
+        config=None,
+        config_section=None,
         default_plugins=(),
         logger=None,
+        entry_point_group=None,
     ):
         """Create a plugin manager.
 
@@ -487,9 +457,21 @@ class PluginManager:
         plugin_package : str
             Import package containing plugin subpackages, for example
             ``'myapp.plugins'``.
-        config
+        plugins_dir : str
+            The folder of that package.
+        config : optional
             Config object with ``has_section()``, ``add_section()``,
-            ``has_option()``, ``set()``, and ``getboolean()`` methods.
+            ``has_option()``, ``set()``, and ``getboolean()`` methods, holding
+            each plugin's enable flag in ``config_section``. Without it, every
+            plugin found loads.
+        config_section : str, optional
+            The section of ``config`` holding the enable flags.
+        default_plugins : iterable of str
+            The plugins enabled when ``config`` has no flag for them yet.
+        logger : logging.Logger, optional
+        entry_point_group : str, optional
+            The ``importlib.metadata`` entry-point group, such as
+            ``'lyse.plugins'``, in which other packages name plugin modules.
         """
         self.plugin_package = plugin_package
         self.plugins_dir = plugins_dir
@@ -497,75 +479,72 @@ class PluginManager:
         self.config_section = config_section
         self.default_plugins = set(default_plugins)
         self.logger = logger or logging.getLogger(__name__)
+        self.entry_point_group = entry_point_group
         self.modules = {}
         self.plugins = {}
         self.services = {}
         self.contexts = {}
 
     def discover_modules(self):
-        """Scan the plugin directory, update config defaults, and import enabled modules.
+        """Find the plugins, update config defaults, and import enabled modules.
 
-        A plugin directory with no enable flag gets one, true if its name is in
-        ``default_plugins``. Only enabled plugins are imported; an import
-        failure is logged and the plugin skipped. Returns the modules by plugin
-        name.
+        The plugins are the folders in ``plugins_dir``, then the modules named
+        by entry points in ``entry_point_group``; a folder wins over an entry
+        point of the same name. A plugin with no enable flag gets one, true if
+        its name is in ``default_plugins``. Only enabled plugins are imported, or
+        every one without a config; an import failure is logged and the plugin
+        skipped. Returns the modules by plugin name.
 
         Raises
         ------
         ValueError
             If an enable flag in the config is not a boolean.
         """
-        if not self.config.has_section(self.config_section):
+        module_names = {
+            name: f'{self.plugin_package}.{name}'
+            for name in os.listdir(self.plugins_dir)
+            if os.path.isdir(os.path.join(self.plugins_dir, name))
+            and name != '__pycache__'
+        }
+        if self.entry_point_group is not None:
+            for entry_point in importlib.metadata.entry_points(
+                group=self.entry_point_group
+            ):
+                module_names.setdefault(entry_point.name, entry_point.module)
+
+        if self.config is not None and not self.config.has_section(
+            self.config_section
+        ):
             self.config.add_section(self.config_section)
 
         modules = {}
-        for module_name in os.listdir(self.plugins_dir):
-            module_path = os.path.join(self.plugins_dir, module_name)
-            if not os.path.isdir(module_path) or module_name == '__pycache__':
-                continue
-
-            # Keep the config in sync with what is present on disk.
-            if not self.config.has_option(self.config_section, module_name):
-                self.config.set(
-                    self.config_section,
-                    module_name,
-                    module_name in self.default_plugins,
-                )
-
-            # Only load activated plugins.
-            if self.config.getboolean(self.config_section, module_name):
-                try:
-                    module = importlib.import_module(
-                        self.plugin_package + '.' + module_name
+        for name, module_name in module_names.items():
+            if self.config is not None:
+                # Keep the config in sync with the plugins present.
+                if not self.config.has_option(self.config_section, name):
+                    self.config.set(
+                        self.config_section, name, name in self.default_plugins
                     )
-                except Exception:
-                    self.logger.exception(
-                        f"Could not import plugin '{module_name}'. Skipping."
-                    )
-                else:
-                    modules[module_name] = module
+                if not self.config.getboolean(self.config_section, name):
+                    continue
+            try:
+                modules[name] = importlib.import_module(module_name)
+            except Exception:
+                self.logger.exception(f"Could not import plugin '{name}'. Skipping.")
 
         self.modules = modules
         return modules
 
-    def instantiate_plugins(self, plugin_settings=None):
-        """Create ``Plugin`` instances for each imported module.
+    def instantiate_plugins(self):
+        """Build ``module.Plugin()`` for each imported module.
 
-        ``plugin_settings`` maps plugin names to their saved settings
-        dictionaries; a plugin without an entry gets an empty one.
         Instantiation failures are logged and skipped. Returns the instances by
         plugin name.
         """
-        if plugin_settings is None:
-            plugin_settings = {}
-
         plugins = {}
         for module_name, module in self.modules.items():
             try:
-                plugins[module_name] = module.Plugin(
-                    plugin_settings[module_name]
-                    if module_name in plugin_settings else {}
-                )
+                plugins[module_name] = module.Plugin()
             except Exception:
                 self.logger.exception(
                     f"Could not instantiate plugin '{module_name}'. Skipping"
@@ -573,55 +552,6 @@ class PluginManager:
 
         self.plugins = plugins
         return plugins
-
-    def setup_plugins(self, data, notifications, menu_builder, menubar):
-        """Collect plugin UI and startup contributions.
-
-        For each plugin it collects the classes from ``get_setting_classes()``;
-        instantiates the class ``get_menu_class()`` returns with ``data``,
-        passes its ``get_menu_items()`` to ``menu_builder`` under ``menubar``,
-        and hands the instance to ``set_menu_instance()``; adds each class from
-        ``get_notification_classes()`` to ``notifications``, which needs
-        ``add_notification()`` and ``get_instance()``, and passes a dict of
-        class to instance to ``set_notification_instances()``; and keeps the
-        ``settings_changed`` handler from ``get_event_handlers()``. A plugin
-        that raises is logged and the rest are still set up.
-
-        Returns ``(settings_pages, settings_callbacks)``.
-        """
-        settings_pages = []
-        settings_callbacks = []
-
-        for module_name, plugin in self.plugins.items():
-            try:
-                settings_pages.extend(plugin.get_setting_classes())
-
-                menu_class = plugin.get_menu_class()
-                if menu_class:
-                    # Must store a reference or else the methods called when
-                    # the menu actions are triggered will be garbage collected.
-                    menu = menu_class(data)
-                    menu_builder.create_menu(menubar, menu.get_menu_items())
-                    plugin.set_menu_instance(menu)
-
-                plugin_notifications = {}
-                for notification_class in plugin.get_notification_classes():
-                    notifications.add_notification(notification_class)
-                    plugin_notifications[notification_class] = (
-                        notifications.get_instance(notification_class)
-                    )
-                plugin.set_notification_instances(plugin_notifications)
-
-                callbacks = self._get_plugin_event_handlers(plugin)
-                if callbacks and 'settings_changed' in callbacks:
-                    settings_callbacks.append(callbacks['settings_changed'])
-
-            except Exception:
-                self.logger.exception(
-                    f"Plugin '{module_name}' error. Plugin may not be functional."
-                )
-
-        return settings_pages, settings_callbacks
 
     def register_context(self, name, context):
         """Register an application-owned plugin contribution context.
@@ -782,17 +712,14 @@ class PluginManager:
                     f"'{module_name}'. Plugin may not be functional."
                 )
 
-    def _get_plugin_event_handlers(self, plugin):
-        hook = getattr(plugin, 'get_event_handlers', None)
-        return hook() if hook is not None else None
-
     def get_event_handlers(self, name):
         """Return all event handlers registered for ``name``, sorted by priority."""
         callbacks = []
 
         for plugin in self.plugins.values():
             try:
-                plugin_callbacks = self._get_plugin_event_handlers(plugin)
+                hook = getattr(plugin, 'get_event_handlers', None)
+                plugin_callbacks = hook() if hook is not None else None
                 if plugin_callbacks and name in plugin_callbacks:
                     callbacks.append(plugin_callbacks[name])
             except Exception:
@@ -802,6 +729,60 @@ class PluginManager:
             key=lambda callback: getattr(callback, 'priority', DEFAULT_PRIORITY)
         )
         return callbacks
+
+    def fire_event(self, name, *args, **kwargs):
+        """Call every handler for the event ``name``, lowest priority first.
+
+        A handler that raises is logged, and the rest still run.
+
+        Returns
+        -------
+        list
+            The handlers' results, in the order they ran, leaving out any that
+            raised.
+        """
+        results = []
+        for handler in self.get_event_handlers(name):
+            try:
+                results.append(handler(*args, **kwargs))
+            except Exception:
+                # Not an f-string: the unformatted message must be the same for
+                # every event, since hyde reports each distinct one once.
+                self.logger.exception("Error in a plugin's handler for '%s'.", name)
+        return results
+
+    def get_save_data(self):
+        """Return ``{plugin name: data}`` from each plugin's ``get_save_data()``.
+
+        A plugin that returns nothing is left out, as is one that raises, which
+        is logged.
+        """
+        save_data = {}
+        for module_name, plugin in self.plugins.items():
+            try:
+                data = plugin.get_save_data()
+            except Exception:
+                self.logger.exception(
+                    f"Could not get save data from plugin '{module_name}'. Skipping."
+                )
+                continue
+            if data:
+                save_data[module_name] = data
+        return save_data
+
+    def restore_save_data(self, saved):
+        """Hand each plugin its part of what ``get_save_data()`` returned.
+
+        A plugin with no part gets ``{}``. A plugin that raises is logged, and
+        the rest are still restored.
+        """
+        for module_name, plugin in self.plugins.items():
+            try:
+                plugin.restore_save_data(saved.get(module_name, {}))
+            except Exception:
+                self.logger.exception(
+                    f"Could not restore the saved data of plugin '{module_name}'."
+                )
 
     def close_plugins(self):
         """Call ``close()`` on every plugin during application shutdown."""

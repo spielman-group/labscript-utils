@@ -1,3 +1,4 @@
+import importlib
 import logging
 import sys
 import uuid
@@ -10,7 +11,7 @@ from labscript_utils.plugins import (
     BasePlugin,
     Callback,
     DEFAULT_SETUP_PRIORITY,
-    MenuBuilder,
+    MenuContext,
     PluginManager,
     callback,
 )
@@ -37,12 +38,13 @@ def test_callback_binds_as_method_and_keeps_priority():
 
 
 def test_a_plugin_that_overrides_nothing_contributes_nothing():
-    plugin = BasePlugin({'x': 1})
+    plugin = BasePlugin()
 
-    assert plugin.initial_settings == {'x': 1}
-    assert plugin.get_event_handlers() is None
+    assert plugin.get_event_handlers() == {}
     assert plugin.get_ui_contributions() == []
     assert plugin.get_menu_contributions() == []
+    assert plugin.get_services() == {}
+    assert plugin.get_save_data() == {}
 
 
 def make_plugin_package(tmp_path, modules):
@@ -60,6 +62,23 @@ def make_plugin_package(tmp_path, modules):
     return package + '.plugins', plugins_dir
 
 
+def make_entry_point(tmp_path, group, name):
+    """Install a plugin module that a distribution names in ``group``."""
+    site = tmp_path / 'site'
+    module_name = 'entry_point_plugin_' + uuid.uuid4().hex
+    (site / f'{module_name}-0.dist-info').mkdir(parents=True)
+    (site / f'{module_name}-0.dist-info' / 'METADATA').write_text(
+        f'Metadata-Version: 2.1\nName: {module_name}\nVersion: 0\n'
+    )
+    (site / f'{module_name}-0.dist-info' / 'entry_points.txt').write_text(
+        f'[{group}]\n{name} = {module_name}\n'
+    )
+    (site / f'{module_name}.py').write_text('class Plugin(object):\n    pass\n')
+    sys.path.insert(0, str(site))
+    importlib.invalidate_caches()
+    return module_name
+
+
 def make_manager(logger=None):
     return PluginManager(
         'package.plugins',
@@ -70,15 +89,9 @@ def make_manager(logger=None):
     )
 
 
-class NoNotifications(object):
-    def add_notification(self, notification_class):
-        raise AssertionError('no notifications expected')
-
-    def get_instance(self, notification_class):
-        raise AssertionError('no notifications expected')
-
-
 def test_discovery_defaults_config_and_imports_only_enabled_plugins(tmp_path):
+    group = 'app_' + uuid.uuid4().hex
+    make_entry_point(tmp_path, group, 'external')
     plugin_package, plugins_dir = make_plugin_package(
         tmp_path,
         {
@@ -93,6 +106,7 @@ def test_discovery_defaults_config_and_imports_only_enabled_plugins(tmp_path):
         config,
         'app/plugins',
         ['enabled'],
+        entry_point_group=group,
     )
 
     modules = manager.discover_modules()
@@ -100,91 +114,98 @@ def test_discovery_defaults_config_and_imports_only_enabled_plugins(tmp_path):
     assert set(modules) == {'enabled'}
     assert config.get('app/plugins', 'enabled') is True
     assert config.get('app/plugins', 'disabled') is False
+    assert config.get('app/plugins', 'external') is False
 
 
-def test_instantiate_plugins_uses_saved_settings():
-    class Plugin(object):
-        def __init__(self, initial_settings):
-            self.initial_settings = initial_settings
-
-    manager = PluginManager(
-        'package.plugins',
-        'plugins',
-        None,
-        'app/plugins',
+def test_without_a_config_every_plugin_found_loads(tmp_path):
+    group = 'app_' + uuid.uuid4().hex
+    external = make_entry_point(tmp_path, group, 'external')
+    plugin_package, plugins_dir = make_plugin_package(
+        tmp_path, {'local': 'class Plugin(object):\n    pass\n'}
     )
-    manager.modules = {'plugin': SimpleNamespace(Plugin=Plugin)}
+    manager = PluginManager(
+        plugin_package, str(plugins_dir), entry_point_group=group
+    )
 
-    plugins = manager.instantiate_plugins({'plugin': {'answer': 42}})
+    modules = manager.discover_modules()
 
-    assert plugins['plugin'].initial_settings == {'answer': 42}
+    assert set(modules) == {'local', 'external'}
+    assert modules['external'].__name__ == external
 
 
-def test_event_handlers_run_lowest_priority_first_and_a_raising_plugin_is_skipped():
-    class Slow(object):
+def test_plugin_state_saves_and_restores_through_the_manager():
+    class Stateful(BasePlugin):
+        def __init__(self):
+            self.value = 0
+
+        def get_save_data(self):
+            return {'value': self.value}
+
+        def restore_save_data(self, data):
+            self.value = data.get('value', 0)
+
+    class Broken(BasePlugin):
+        def get_save_data(self):
+            raise RuntimeError('broken')
+
+        def restore_save_data(self, data):
+            raise RuntimeError('broken')
+
+    manager = PluginManager('package.plugins', 'plugins')
+    manager.modules = {
+        'broken': SimpleNamespace(Plugin=Broken),
+        'plain': SimpleNamespace(Plugin=BasePlugin),
+        'stateful': SimpleNamespace(Plugin=Stateful),
+    }
+    plugins = manager.instantiate_plugins()
+    plugins['stateful'].value = 42
+
+    saved = manager.get_save_data()
+    plugins['stateful'].value = 0
+    manager.restore_save_data(saved)
+
+    assert saved == {'stateful': {'value': 42}}
+    assert plugins['stateful'].value == 42
+
+
+def test_an_event_reaches_its_handlers_lowest_priority_first_past_one_that_raises():
+    class Slow(BasePlugin):
         def get_event_handlers(self):
             return {'event': self.on_event}
 
         @callback(priority=20)
-        def on_event(self):
-            pass
+        def on_event(self, value):
+            return ('slow', value)
 
-    class Fast(object):
+    class Fast(BasePlugin):
         def get_event_handlers(self):
             return {'event': self.on_event}
 
         @callback(priority=5)
-        def on_event(self):
-            pass
+        def on_event(self, value):
+            return ('fast', value)
 
-    class Broken(object):
+    class Raising(BasePlugin):
+        def get_event_handlers(self):
+            return {'event': self.on_event}
+
+        @callback(priority=10)
+        def on_event(self, value):
+            raise RuntimeError('raising')
+
+    class Broken(BasePlugin):
         def get_event_handlers(self):
             raise RuntimeError('broken')
 
     manager = make_manager()
     manager.plugins = {
         'slow': Slow(),
+        'raising': Raising(),
         'broken': Broken(),
         'fast': Fast(),
     }
 
-    callbacks = manager.get_event_handlers('event')
-
-    assert [callback.priority for callback in callbacks] == [5, 20]
-
-
-def test_setup_plugins_returns_each_plugins_settings_changed_handler():
-    class Plugin(BasePlugin):
-        def get_setting_classes(self):
-            return []
-
-        def get_notification_classes(self):
-            return []
-
-        def get_menu_class(self):
-            return None
-
-        def set_notification_instances(self, notifications):
-            pass
-
-        def get_event_handlers(self):
-            return {'settings_changed': self.settings_changed}
-
-        @callback(priority=5)
-        def settings_changed(self):
-            pass
-
-    manager = make_manager()
-    manager.plugins = {'plugin': Plugin({})}
-
-    _, settings_callbacks = manager.setup_plugins(
-        data={},
-        notifications=NoNotifications(),
-        menu_builder=MenuBuilder(lambda name: name),
-        menubar=FakeMenu(),
-    )
-
-    assert [callback.priority for callback in settings_callbacks] == [5]
+    assert manager.fire_event('event', 1) == [('fast', 1), ('slow', 1)]
 
 
 class FakeSignal(object):
@@ -196,10 +217,13 @@ class FakeSignal(object):
 
 
 class FakeAction(object):
-    def __init__(self, name, icon=None):
+    def __init__(self, name):
         self.name = name
-        self.icon = icon
+        self.icon = None
         self.triggered = FakeSignal()
+
+    def setIcon(self, icon):
+        self.icon = icon
 
 
 class FakeMenu(object):
@@ -212,11 +236,8 @@ class FakeMenu(object):
         self.items.append(('menu', menu))
         return menu
 
-    def addAction(self, *args):
-        if len(args) == 1:
-            action = FakeAction(args[0])
-        else:
-            action = FakeAction(args[1], icon=args[0])
+    def addAction(self, name):
+        action = FakeAction(name)
         self.items.append(('action', action))
         return action
 
@@ -224,36 +245,17 @@ class FakeMenu(object):
         self.items.append(('separator', None))
 
 
-def test_menu_builder_creates_nested_menus_icons_actions_and_separators():
-    root = FakeMenu()
-    called = []
+def test_a_menu_contributions_icon_comes_from_the_contexts_factory():
+    file_menu = FakeMenu('file')
+    menus = MenuContext(icon_factory=lambda name: 'icon:' + name)
+    menus.register_location('file', file_menu)
+    menus.add('plugin', {'location': 'file', 'name': 'Open', 'icon': 'folder'}, None)
+    menus.add('plugin', {'location': 'file', 'name': 'Quit'}, None)
 
-    def action():
-        called.append(True)
+    menus.render()
 
-    MenuBuilder(icon_factory=lambda name: 'icon:' + name).create_menu(
-        root,
-        {
-            'name': 'Top',
-            'menu_items': [
-                {'name': 'Plain', 'action': action},
-                {'separator': True},
-                {'name': 'Icon', 'icon': 'resource', 'action': action},
-            ],
-        },
-    )
-
-    top = root.items[0][1]
-    plain = top.items[0][1]
-    icon = top.items[2][1]
-
-    assert root.items[0][0] == 'menu'
-    assert plain.name == 'Plain'
-    assert plain.triggered.callbacks == [action]
-    assert top.items[1] == ('separator', None)
-    assert icon.name == 'Icon'
-    assert icon.icon == 'icon:resource'
-    assert icon.triggered.callbacks == [action]
+    icons = {action.name: action.icon for kind, action in file_menu.items}
+    assert icons == {'Open': 'icon:folder', 'Quit': None}
 
 
 class FakeContext(object):
@@ -297,17 +299,10 @@ def test_setup_contexts_routes_ui_and_menu_contributions():
 
 class ServicePlugin(BasePlugin):
     def __init__(self, services):
-        super().__init__({})
         self._services = services
 
     def get_services(self):
         return self._services
-
-
-def test_base_plugin_exposes_no_services_by_default():
-    plugin = BasePlugin({})
-
-    assert plugin.get_services() == {}
 
 
 def test_collect_services_merges_base_and_plugin_services():
@@ -369,7 +364,7 @@ def test_multiple_setup_activities_run_in_priority_order():
             calls.append(('late', setup_data))
 
     manager = make_manager()
-    manager.plugins = {'activity': ActivityPlugin({})}
+    manager.plugins = {'activity': ActivityPlugin()}
 
     manager.setup_complete(data)
 
@@ -381,7 +376,6 @@ def test_equal_priority_setup_activities_run_in_plugin_name_order():
 
     class NamedActivityPlugin(BasePlugin):
         def __init__(self, label):
-            super().__init__({})
             self.label = label
 
         def get_setup_activities(self):
@@ -442,7 +436,7 @@ def test_failing_plugin_setup_complete_is_called_only_once():
             raise RuntimeError('failed after the side effect')
 
     manager = make_manager(logger=logging.getLogger('test.plugins.setup.once'))
-    manager.plugins = {'optional': OptionalArgumentPlugin({})}
+    manager.plugins = {'optional': OptionalArgumentPlugin()}
     data = {'settings': object()}
 
     manager.setup_complete(data)
