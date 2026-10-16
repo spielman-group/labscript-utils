@@ -1,0 +1,52 @@
+#####################################################################
+#                                                                   #
+# /tests/test_application.py                                        #
+#                                                                   #
+# Copyright 2026, JQI                                               #
+# Author: Ian Spielman                                              #
+#                                                                   #
+# This file is part of labscript-utils, in the labscript suite      #
+# (see http://labscriptsuite.org), and is licensed under the        #
+# Simplified BSD License. See the license.txt file in the root of   #
+# the project for the full license.                                 #
+#                                                                   #
+#####################################################################
+"""A main window's geometry, saved with the configuration and restored at start."""
+from qtutils.qt import QtCore, QtWidgets
+
+from labscript_utils.qtwidgets.application import LabscriptGuiApplication
+
+
+_qapplication = None
+
+
+def make_application():
+    global _qapplication
+    if QtWidgets.QApplication.instance() is None:
+        # Held for the life of the process: a QApplication that is garbage
+        # collected takes every widget built under it down with it.
+        _qapplication = QtWidgets.QApplication([])
+    app = LabscriptGuiApplication()
+    app.ui = QtWidgets.QMainWindow()
+    return app
+
+
+def test_a_maximised_window_restores_maximised_and_unmaximises_to_its_saved_size():
+    app = make_application()
+    app.ui.resize(400, 300)
+    app.ui.move(50, 60)
+    app.ui.show()
+    app.ui.showMaximized()
+    QtWidgets.QApplication.processEvents()
+    saved = app.geometry_save_data()
+
+    restarted = make_application()
+    restarted.restore_geometry(saved)
+    restarted.ui.show()
+    QtWidgets.QApplication.processEvents()
+    assert restarted.ui.isMaximized()
+
+    restarted.ui.showNormal()
+    QtWidgets.QApplication.processEvents()
+    assert restarted.ui.size() == QtCore.QSize(400, 300)
+    assert restarted.ui.pos() == QtCore.QPoint(50, 60)

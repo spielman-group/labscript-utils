@@ -21,7 +21,7 @@ import labscript_utils.qtwidgets.file_dialogs as file_dialogs
 
 _Button = QtWidgets.QMessageBox.StandardButton
 # The save-data keys that geometry_save_data() always writes.
-_WINDOW_KEYS = ('window_size', 'window_pos', 'screen_geometry')
+_WINDOW_KEYS = ('window_size', 'window_pos', 'window_maximized', 'screen_geometry')
 
 
 class LabscriptGuiApplication(LabscriptApplication):
@@ -48,8 +48,14 @@ class LabscriptGuiApplication(LabscriptApplication):
         QtWidgets.QMessageBox.warning(self.ui, self.app_name, message)
 
     @inmain_decorator()
-    def question_dialog(self, message):
+    def question_dialog(self, message, default_no=False):
         """Ask the user a Yes/No question, from any thread.
+
+        Parameters
+        ----------
+        message : str
+        default_no : bool
+            If true, No is the default button, the answer Enter gives.
 
         Returns
         -------
@@ -57,7 +63,11 @@ class LabscriptGuiApplication(LabscriptApplication):
             True if the user answers Yes.
         """
         reply = QtWidgets.QMessageBox.question(
-            self.ui, self.app_name, message, _Button.Yes | _Button.No
+            self.ui,
+            self.app_name,
+            message,
+            _Button.Yes | _Button.No,
+            _Button.No if default_no else _Button.NoButton,
         )
         return reply == _Button.Yes
 
@@ -140,12 +150,25 @@ class LabscriptGuiApplication(LabscriptApplication):
         return True
 
     def geometry_save_data(self):
-        """Return the main window's size and position, its splitters' sizes and the
-        screens' geometry, as part of ``get_save_data()``."""
-        size, pos = self.ui.size(), self.ui.pos()
+        """Return the main window's size, position and maximised state, its
+        splitters' sizes and the screens' geometry, as part of ``get_save_data()``.
+
+        A maximised window's size and position are those it returns to when it is
+        no longer maximised.
+        """
+        maximized = self.ui.isMaximized()
+        if maximized:
+            # normalGeometry() excludes the window frame, which pos() and move()
+            # include.
+            normal = self.ui.normalGeometry()
+            frame_offset = self.ui.geometry().topLeft() - self.ui.pos()
+            size, pos = normal.size(), normal.topLeft() - frame_offset
+        else:
+            size, pos = self.ui.size(), self.ui.pos()
         save_data = {
             'window_size': (size.width(), size.height()),
             'window_pos': (pos.x(), pos.y()),
+            'window_maximized': maximized,
             'screen_geometry': _screen_geometry(),
         }
         for name in self.splitters:
@@ -156,7 +179,8 @@ class LabscriptGuiApplication(LabscriptApplication):
         """Restore what ``geometry_save_data()`` put in ``save_data``.
 
         Nothing is restored once the screens have changed, so that the window is
-        not placed off them, nor its splitters sized for another window.
+        not placed off them, nor its splitters sized for another window. Called
+        before the window is first shown, a maximised window is shown maximised.
         """
         saved_screens = save_data.get('screen_geometry')
         if saved_screens is None or [tuple(s) for s in saved_screens] != _screen_geometry():
@@ -165,6 +189,11 @@ class LabscriptGuiApplication(LabscriptApplication):
             self.ui.resize(*save_data['window_size'])
         if 'window_pos' in save_data:
             self.ui.move(*save_data['window_pos'])
+        if 'window_maximized' in save_data:
+            state = self.ui.windowState() & ~QtCore.Qt.WindowState.WindowMaximized
+            if save_data['window_maximized']:
+                state |= QtCore.Qt.WindowState.WindowMaximized
+            self.ui.setWindowState(state)
         for name in self.splitters:
             if name in save_data:
                 getattr(self.ui, name).setSizes(save_data[name])
