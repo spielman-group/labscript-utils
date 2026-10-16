@@ -45,8 +45,25 @@ def test_a_maximised_window_restores_maximised_and_unmaximises_to_its_saved_size
     restarted.ui.show()
     QtWidgets.QApplication.processEvents()
     assert restarted.ui.isMaximized()
+    assert restarted.geometry_save_data() == saved, 'it would creep on each restart'
 
     restarted.ui.showNormal()
     QtWidgets.QApplication.processEvents()
     assert restarted.ui.size() == QtCore.QSize(400, 300)
     assert restarted.ui.pos() == QtCore.QPoint(50, 60)
+
+
+def test_a_full_screen_window_saves_the_size_it_returns_to():
+    app = make_application()
+    app.ui.resize(400, 300)
+    app.ui.move(50, 60)
+    app.ui.show()
+    QtWidgets.QApplication.processEvents()
+    normal = app.geometry_save_data()
+
+    app.ui.showFullScreen()
+    QtWidgets.QApplication.processEvents()
+    full_screen = app.geometry_save_data()
+
+    assert full_screen['window_size'] == normal['window_size'] == (400, 300)
+    assert full_screen['window_pos'] == normal['window_pos']

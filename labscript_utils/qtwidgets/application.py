@@ -53,7 +53,6 @@ class LabscriptGuiApplication(LabscriptApplication):
 
         Parameters
         ----------
-        message : str
         default_no : bool
             If true, No is the default button, the answer Enter gives.
 
@@ -153,22 +152,17 @@ class LabscriptGuiApplication(LabscriptApplication):
         """Return the main window's size, position and maximised state, its
         splitters' sizes and the screens' geometry, as part of ``get_save_data()``.
 
-        A maximised window's size and position are those it returns to when it is
-        no longer maximised.
+        The size and position exclude the window frame. A maximised or
+        full-screen window's are those it returns to when it is neither.
         """
-        maximized = self.ui.isMaximized()
-        if maximized:
-            # normalGeometry() excludes the window frame, which pos() and move()
-            # include.
-            normal = self.ui.normalGeometry()
-            frame_offset = self.ui.geometry().topLeft() - self.ui.pos()
-            size, pos = normal.size(), normal.topLeft() - frame_offset
+        if self.ui.isMaximized() or self.ui.isFullScreen():
+            geometry = self.ui.normalGeometry()
         else:
-            size, pos = self.ui.size(), self.ui.pos()
+            geometry = self.ui.geometry()
         save_data = {
-            'window_size': (size.width(), size.height()),
-            'window_pos': (pos.x(), pos.y()),
-            'window_maximized': maximized,
+            'window_size': (geometry.width(), geometry.height()),
+            'window_pos': (geometry.x(), geometry.y()),
+            'window_maximized': self.ui.isMaximized(),
             'screen_geometry': _screen_geometry(),
         }
         for name in self.splitters:
@@ -185,10 +179,15 @@ class LabscriptGuiApplication(LabscriptApplication):
         saved_screens = save_data.get('screen_geometry')
         if saved_screens is None or [tuple(s) for s in saved_screens] != _screen_geometry():
             return
+        # setGeometry(), not move(): Qt's normal geometry, which a maximised
+        # window returns to, excludes the frame, which Qt does not know before
+        # the window is first shown.
+        geometry = self.ui.geometry()
         if 'window_size' in save_data:
-            self.ui.resize(*save_data['window_size'])
+            geometry.setSize(QtCore.QSize(*save_data['window_size']))
         if 'window_pos' in save_data:
-            self.ui.move(*save_data['window_pos'])
+            geometry.moveTopLeft(QtCore.QPoint(*save_data['window_pos']))
+        self.ui.setGeometry(geometry)
         if 'window_maximized' in save_data:
             state = self.ui.windowState() & ~QtCore.Qt.WindowState.WindowMaximized
             if save_data['window_maximized']:
