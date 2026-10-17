@@ -131,6 +131,9 @@ class LinkIndicator(QtWidgets.QWidget):
                 reachable, answer = True, self._probe()
             except Exception as exc:
                 reachable, answer = False, str(exc)
+            # A probe can outlast shutdown(), by when Qt may be gone.
+            if self.stopped.is_set():
+                break
             inmain_later(self._show_answer, reachable, answer)
             self.stopped.wait(self.interval)
 
