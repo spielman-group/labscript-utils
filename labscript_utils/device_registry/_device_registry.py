@@ -215,7 +215,8 @@ def get_BLACS_tab(name):
     """
     if not BLACS_tab_registry:
         populate_registry()
-    if name in BLACS_tab_registry:
+    # A device registered with BLACS_tab=None falls back too.
+    if BLACS_tab_registry.get(name) is not None:
         return import_class_by_fullname(BLACS_tab_registry[name])
     # Fall back on file naming convention + decorator method:
     return BLACS_tab[name]
@@ -234,7 +235,8 @@ def get_runviewer_parser(name):
     """
     if not runviewer_parser_registry:
         populate_registry()
-    if name in runviewer_parser_registry:
+    # A device registered with runviewer_parser=None falls back too.
+    if runviewer_parser_registry.get(name) is not None:
         return import_class_by_fullname(runviewer_parser_registry[name])
     # Fall back on file naming convention + decorator method:
     return runviewer_parser[name]
