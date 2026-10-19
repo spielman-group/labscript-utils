@@ -17,7 +17,6 @@ import logging
 import labscript_utils.excepthook
 import numpy as np
 import copy
-import ast
 import sys
 from zprocess import raise_exception_in_thread
 from labscript_utils import ensure_str
@@ -81,7 +80,9 @@ class ConnectionTable:
                     pass
 
                 try:
-                    all_connections = [Connection(raw_row) for raw_row in self.raw_table]
+                    all_connections = [
+                        Connection(raw_row, h5file) for raw_row in self.raw_table
+                    ]
                     self.table = {connection.name: connection for connection in all_connections}
                     for name, connection in self.table.items():
                         connection._populate_relatives(self.table)
@@ -211,13 +212,17 @@ class Connection:
         by the `ConnectionTable`.
     parent : Connection or None
         The parent device. Filled in by the `ConnectionTable`.
+    filepath : str or None
+        The file the row was read from, the ``filepath`` argument, named in the
+        warning that a row is in a legacy form.
     """
     _defaults = {'unit conversion class': None,
                 'unit conversion params': {},
                 'BLACS_connection': "",
                 'properties': {}}
 
-    def __init__(self, raw_row):
+    def __init__(self, raw_row, filepath=None):
+        self.filepath = filepath
 
         # Populate a dict with the defaults:
         self._rowdict = self._defaults.copy()
@@ -250,13 +255,9 @@ class Connection:
             if ensure_str(value) == 'None':
                 return None
         elif name in ['unit conversion params', 'properties']:
-            # deserialise a dict that is stored as a string. In older
-            # labscript these were repr() of the dict, in newer they are
-            # stored as JSON.
-            if labscript_utils.properties.is_json(value):
-                return labscript_utils.properties.deserialise(value)
-            else:
-                return ast.literal_eval(ensure_str(value))
+            return labscript_utils.properties._deserialise_column(
+                value, self.filepath or 'A connection table'
+            )
         return ensure_str(value)
 
     def _populate_relatives(self, table):
