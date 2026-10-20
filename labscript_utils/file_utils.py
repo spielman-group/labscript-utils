@@ -14,40 +14,10 @@
 
 import os
 import re
-import threading
-import warnings
 
-_legacy_files = set()
-_legacy_files_lock = threading.Lock()
-
-
-def warn_legacy_file(path, legacy):
-    """Warn that a file is read through a legacy form, once per file.
-
-    Reading the legacy form will be removed, so the file may not be readable in
-    future. The warning is a ``FutureWarning``, given once in a process for each
-    file whatever the warning filters say, and names the first legacy form found
-    in it.
-
-    Parameters
-    ----------
-    path : str or path-like
-        The file.
-    legacy : str
-        What the file does in the legacy form, naming the current one, such as
-        ``"connects its DDSs as 'channel n', not 'dds n'"``.
-    """
-    key = os.path.normcase(os.path.abspath(path))
-    with _legacy_files_lock:
-        if key in _legacy_files:
-            return
-        _legacy_files.add(key)
-    warnings.warn(
-        f'{path} {legacy}. Reading that legacy form will be removed, so the file '
-        'may not be readable in future.',
-        FutureWarning,
-        stacklevel=2,
-    )
+# Exported here with the other file helpers. It is defined in labscript_profile so
+# that the profile's bootstrap can warn without importing labscript_utils.
+from labscript_profile.legacy_files import warn_legacy_file
 
 
 def next_available_indexed_filepath(filepath, suffix_format, start=None):

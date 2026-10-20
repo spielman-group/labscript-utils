@@ -103,8 +103,8 @@ def ensure_labconfig():
     legacy = legacy_labconfig_path()
     if legacy is None or not legacy.exists():
         return labconfig
-    # Imported here: labscript_utils imports this package as it starts.
-    from labscript_utils.file_utils import warn_legacy_file
+    # Imported here, so that interpreter start stays lean.
+    from .legacy_files import warn_legacy_file
 
     warn_legacy_file(legacy, 'is an INI labconfig, not TOML')
     _convert_legacy_labconfig(legacy, labconfig)
