@@ -12,7 +12,6 @@
 #####################################################################
 import configparser
 import os
-import warnings
 from ast import literal_eval
 from pathlib import Path
 
@@ -222,15 +221,22 @@ class LabConfig(TomlConfigParser):
             defaults=defaults,
             interpolation=EnvInterpolation(),
         )
+        # The file that set experiment_name, to name in its warning; a later file
+        # overrides an earlier one.
+        experiment_name_path = None
         for path in config_paths:
+            before = self.get("default", "experiment_name", raw=True, fallback=None)
             self._read_path(path)
+            if self.get("default", "experiment_name", raw=True, fallback=None) != before:
+                experiment_name_path = path
 
         experiment_name = self.get("default", "experiment_name", fallback=None)
+        # LEGACY experiment_name COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
         if experiment_name:
-            msg = """The experiment_name keyword has been renamed apparatus_name in
-                labscript_utils 3.0, and will be removed in a future version. Please
-                update your labconfig to use the apparatus_name keyword."""
-            warnings.warn(dedent(msg), FutureWarning)
+            warn_legacy_file(
+                experiment_name_path or 'The labconfig',
+                'names the apparatus with experiment_name, not apparatus_name',
+            )
             if self.get("default", "apparatus_name", fallback=None):
                 msg = """You have defined both experiment_name and apparatus_name in
                     your labconfig. Please omit the deprecate experiment_name

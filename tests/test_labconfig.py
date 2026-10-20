@@ -12,7 +12,8 @@
 #                                                                   #
 #####################################################################
 """App configs: the name of the file save_appconfig writes, for every name it can
-be given, and a legacy INI config read through load_appconfig.
+be given, and a legacy INI config read through load_appconfig. Labconfigs: a legacy
+experiment_name.
 
 A save panel can hand back a name without the extension it was offered, or with
 one the host chose, so the name save_appconfig receives is not always the name
@@ -23,7 +24,7 @@ import warnings
 
 import pytest
 
-from labscript_utils.labconfig import load_appconfig, save_appconfig
+from labscript_utils.labconfig import LabConfig, load_appconfig, save_appconfig
 
 
 @pytest.mark.parametrize(
@@ -55,3 +56,18 @@ def test_a_legacy_ini_config_is_read_converted_and_warned_of(tmp_path):
     assert (tmp_path / 'app.toml').exists()
     assert [warning.category for warning in caught] == [FutureWarning]
     assert str(ini) in str(caught[0].message)
+
+
+def test_a_legacy_experiment_name_warns_once_naming_its_file(tmp_path):
+    first, second = tmp_path / 'first.toml', tmp_path / 'second.toml'
+    first.write_text("[default]\nuser = 'test'\n")
+    second.write_text("[default]\nexperiment_name = 'old'\n")
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        for _ in range(2):
+            config = LabConfig([str(first), str(second)])
+
+    assert config.get('default', 'apparatus_name') == 'old'
+    assert [warning.category for warning in caught] == [FutureWarning]
+    assert str(second) in str(caught[0].message)
