@@ -261,9 +261,7 @@ class LabConfig(TomlConfigParser):
             return
         # LEGACY INI COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
         if path.suffix.lower() == '.ini':
-            msg = """INI labconfig support is deprecated and slated for removal soon.
-                Convert this file to TOML."""
-            warnings.warn(dedent(msg), FutureWarning)
+            warn_legacy_file(path, 'is an INI labconfig, not TOML')
             self.read(path)
             return
         msg = f"Unsupported labconfig format for {path}. Expected a .toml or .ini file."
