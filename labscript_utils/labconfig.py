@@ -17,6 +17,7 @@ from ast import literal_eval
 from pathlib import Path
 
 from labscript_utils import dedent
+from labscript_utils.file_utils import warn_legacy_file
 from labscript_profile import (
     LABSCRIPT_SUITE_PROFILE,
     default_labconfig_path,
@@ -380,6 +381,7 @@ def load_appconfig(filename, return_save_path=False):
         c = configparser.ConfigParser(interpolation=None)
         c.optionxform = str
         if filename.exists():
+            warn_legacy_file(filename, 'is an INI app config, not TOML')
             c.read(filename)
         data = {
             section_name: {

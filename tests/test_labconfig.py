@@ -11,17 +11,19 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-"""The name of the file save_appconfig writes, for every name it can be given.
+"""App configs: the name of the file save_appconfig writes, for every name it can
+be given, and a legacy INI config read through load_appconfig.
 
 A save panel can hand back a name without the extension it was offered, or with
 one the host chose, so the name save_appconfig receives is not always the name
 asked for.
 """
 import os
+import warnings
 
 import pytest
 
-from labscript_utils.labconfig import save_appconfig
+from labscript_utils.labconfig import load_appconfig, save_appconfig
 
 
 @pytest.mark.parametrize(
@@ -39,3 +41,17 @@ from labscript_utils.labconfig import save_appconfig
 def test_save_appconfig_names_the_file_it_writes(tmp_path, given, written):
     save_appconfig(tmp_path / given, {'state': {'value': 1}})
     assert os.listdir(tmp_path) == [written]
+
+
+def test_a_legacy_ini_config_is_read_converted_and_warned_of(tmp_path):
+    ini = tmp_path / 'app.ini'
+    ini.write_text('[state]\nvalue = 1\n')
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        data = load_appconfig(tmp_path / 'app.toml')
+
+    assert data == {'state': {'value': 1}}
+    assert (tmp_path / 'app.toml').exists()
+    assert [warning.category for warning in caught] == [FutureWarning]
+    assert str(ini) in str(caught[0].message)
