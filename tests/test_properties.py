@@ -38,8 +38,9 @@ def test_an_old_file_reads_and_warns_once(tmp_path):
                 assert properties.get(
                     h5_file, 'device', 'unit_conversion_parameters'
                 ) == {}
+        assert [warning.category for warning in caught] == [FutureWarning]
+        assert str(path) in str(caught[0].message)
+
         # The same file, named another way, in another legacy form:
         warn_legacy_file(tmp_path / '.' / 'old_shot.h5', 'is old in another way')
-
-    assert [warning.category for warning in caught] == [FutureWarning]
-    assert str(path) in str(caught[0].message)
+        assert len(caught) == 1
