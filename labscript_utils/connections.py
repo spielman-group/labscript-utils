@@ -20,6 +20,7 @@ import copy
 import sys
 from zprocess import raise_exception_in_thread
 from labscript_utils import ensure_str
+from labscript_utils.file_utils import warn_legacy_file
 
 
 class ConnectionTable:
@@ -223,6 +224,8 @@ class Connection:
 
     def __init__(self, raw_row, filepath=None):
         self.filepath = filepath
+        # The name a warning about a legacy row gives the file:
+        self._source = filepath or 'A connection table'
 
         # Populate a dict with the defaults:
         self._rowdict = self._defaults.copy()
@@ -230,6 +233,12 @@ class Connection:
         # Put the given values in, overwriting the defaults if applicable:
         deserialised_items = {ensure_str(name): self._deserialise(name, value)
                               for name, value in zip(raw_row.dtype.names, raw_row)}
+        # LEGACY CONNECTION TABLE COMPATIBILITY. DEPRECATED CODE, WILL BE REMOVED.
+        missing = [name for name in self._defaults if name not in deserialised_items]
+        if missing:
+            warn_legacy_file(
+                self._source, f'has a connection table without the columns {missing}'
+            )
 
         self._rowdict.update(deserialised_items)
 
@@ -239,6 +248,13 @@ class Connection:
         self.parent_name = self._rowdict['parent']
         self.parent_port = self._rowdict['parent port']
         self.unit_conversion_class = self._rowdict['unit conversion class']
+        # LEGACY BARE UNIT CONVERSION NAMES. DEPRECATED CODE, WILL BE REMOVED.
+        if self.unit_conversion_class is not None and '.' not in self.unit_conversion_class:
+            warn_legacy_file(
+                self._source,
+                f'names the unit conversion class {self.unit_conversion_class!r} '
+                'without its module',
+            )
         self._unit_conversion_params = self._rowdict['unit conversion params']
         self.BLACS_connection = self._rowdict['BLACS_connection']
         self._properties = self._rowdict['properties']
@@ -255,9 +271,7 @@ class Connection:
             if ensure_str(value) == 'None':
                 return None
         elif name in ['unit conversion params', 'properties']:
-            return labscript_utils.properties._deserialise_column(
-                value, self.filepath or 'A connection table'
-            )
+            return labscript_utils.properties._deserialise_column(value, self._source)
         return ensure_str(value)
 
     def _populate_relatives(self, table):

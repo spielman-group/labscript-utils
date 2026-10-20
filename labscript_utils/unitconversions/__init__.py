@@ -62,6 +62,8 @@ def get_unit_conversion_class(fullname):
     ImportError, AttributeError
         If a full name's module cannot be imported, or does not define the class.
     """
+    # LEGACY BARE UNIT CONVERSION NAMES. DEPRECATED CODE, WILL BE REMOVED.
+    # connections.Connection warns of a file that names one.
     if '.' not in fullname:
         if __all__.__all__ is None:
             __all__._import_all()
