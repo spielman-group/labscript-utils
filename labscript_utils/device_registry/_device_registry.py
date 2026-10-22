@@ -62,6 +62,19 @@ def _get_device_dirs():
 LABSCRIPT_DEVICES_DIRS = _get_device_dirs()
 
 
+class _NotRegistered(ValueError): pass
+
+
+class _NoTracesParser:
+    """The runviewer parser of a device that has none: it draws nothing."""
+
+    def __init__(self, path, device):
+        pass
+
+    def get_traces(self, add_trace, clock=None):
+        return {}
+
+
 class ClassRegister:
     """A register of classes by the name of the module that defines them.
 
@@ -130,7 +143,7 @@ class ClassRegister:
             return self.registered_classes[name]
         except KeyError:
             # No? No such class is defined then, or maybe the user forgot to decorate it.
-            raise ValueError(f'No class decorated as a {self.instancename} found in module labscript_devices.{name}, '
+            raise _NotRegistered(f'No class decorated as a {self.instancename} found in module labscript_devices.{name}, '
                              f'Did you forget to decorate the class definition with @{self.instancename}?')
 
 
@@ -226,12 +239,14 @@ def get_runviewer_parser(name):
     """Return the runviewer parser class of a labscript device.
 
     The class is the one named in a `register_classes` call for the device, or
-    else the one decorated with `runviewer_parser` in labscript_devices/<name>.py.
+    else the one decorated with `runviewer_parser` in labscript_devices/<name>.py,
+    or else, for a device with neither, a parser that draws nothing.
 
     Raises
     ------
-    ImportError, ValueError
-        If neither method finds the class, as for indexing a `ClassRegister`.
+    ImportError
+        If the device has no registered parser and its module labscript_devices.<name>
+        cannot be imported.
     """
     if not runviewer_parser_registry:
         populate_registry()
@@ -239,7 +254,10 @@ def get_runviewer_parser(name):
     if runviewer_parser_registry.get(name) is not None:
         return import_class_by_fullname(runviewer_parser_registry[name])
     # Fall back on file naming convention + decorator method:
-    return runviewer_parser[name]
+    try:
+        return runviewer_parser[name]
+    except _NotRegistered:
+        return _NoTracesParser
 
 
 def register_classes(labscript_device_name, BLACS_tab=None, runviewer_parser=None):
