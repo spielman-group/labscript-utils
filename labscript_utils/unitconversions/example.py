@@ -127,3 +127,36 @@ class example3(UnitConversion):
     def W_from_base(self, vpp):
         watts = self.parameters['grad']*vpp + self.parameters['int']
         return watts
+
+
+class example4(UnitConversion):
+    """Example conversion from a DDS's arbitrary amplitude to watts.
+
+    Parameters
+    ----------
+    calibration_parameters : dict, optional
+        Missing keys are filled in place with their defaults.
+
+        - ``'grad'``: watts per unit of amplitude (default 2).
+        - ``'int'``: watts at zero amplitude (default 0).
+    """
+
+    base_unit = 'Arb'
+
+    def __init__(self, calibration_parameters=None):
+        if calibration_parameters is None:
+            calibration_parameters = {}
+        self.parameters = calibration_parameters
+
+        self.derived_units = ['W']
+
+        self.parameters.setdefault('grad', 2)
+        self.parameters.setdefault('int', 0)
+
+        super().__init__(self.parameters)
+
+    def W_to_base(self, watts):
+        return (watts - self.parameters['int']) / self.parameters['grad']
+
+    def W_from_base(self, amplitude):
+        return self.parameters['grad'] * amplitude + self.parameters['int']
