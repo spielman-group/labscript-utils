@@ -63,7 +63,7 @@ def _get_device_dirs():
 
 LABSCRIPT_DEVICES_DIRS = _get_device_dirs()
 
-# The device classes given _NoTracesParser, each logged once:
+# The device modules that define no runviewer parser, each warned of once:
 _parserless_devices = set()
 
 
@@ -245,8 +245,9 @@ def get_runviewer_parser(name, logger=None):
 
     The class is the one named in a `register_classes` call for the device, or
     else the one decorated with `runviewer_parser` in labscript_devices/<name>.py.
-    A device with neither, registered with ``runviewer_parser=None`` or with no
-    such module, gets a parser that draws nothing, with a warning logged once.
+    Any other device gets a parser that draws nothing: silently if it is registered
+    with ``runviewer_parser=None`` or has no such module, and with a warning logged
+    once if its module defines no parser, where one was expected.
 
     Parameters
     ----------
@@ -269,12 +270,12 @@ def get_runviewer_parser(name, logger=None):
         try:
             return runviewer_parser[name]
         except _NotRegistered:
-            pass
-    if name not in _parserless_devices:
-        _parserless_devices.add(name)
-        (logger or logging.getLogger(__name__)).warning(
-            f'{name} has no runviewer parser, so nothing is drawn for it.'
-        )
+            if name not in _parserless_devices:
+                _parserless_devices.add(name)
+                (logger or logging.getLogger(__name__)).warning(
+                    f'labscript_devices.{name} defines no runviewer parser, so nothing '
+                    'is drawn for it.'
+                )
     return _NoTracesParser
 
 
