@@ -12,6 +12,8 @@ labscript_devices, whose classes are decorated with @BLACS_tab or @runviewer_par
 """
 
 import importlib.machinery
+import importlib.util
+import logging
 import os
 import importlib
 import warnings
@@ -60,6 +62,10 @@ def _get_device_dirs():
 
 
 LABSCRIPT_DEVICES_DIRS = _get_device_dirs()
+
+logger = logging.getLogger(__name__)
+# The device classes given _NoTracesParser, each logged once:
+_parserless_devices = set()
 
 
 class _NotRegistered(ValueError): pass
@@ -239,25 +245,31 @@ def get_runviewer_parser(name):
     """Return the runviewer parser class of a labscript device.
 
     The class is the one named in a `register_classes` call for the device, or
-    else the one decorated with `runviewer_parser` in labscript_devices/<name>.py,
-    or else, for a device with neither, a parser that draws nothing.
+    else the one decorated with `runviewer_parser` in labscript_devices/<name>.py.
+    A device with neither, registered with ``runviewer_parser=None`` or with no
+    such module, gets a parser that draws nothing, with a warning logged once.
 
     Raises
     ------
     ImportError
-        If the device has no registered parser and its module labscript_devices.<name>
+        If the registered class, or the module labscript_devices.<name>, exists but
         cannot be imported.
     """
     if not runviewer_parser_registry:
         populate_registry()
-    # A device registered with runviewer_parser=None falls back too.
-    if runviewer_parser_registry.get(name) is not None:
-        return import_class_by_fullname(runviewer_parser_registry[name])
-    # Fall back on file naming convention + decorator method:
-    try:
-        return runviewer_parser[name]
-    except _NotRegistered:
-        return _NoTracesParser
+    if name in runviewer_parser_registry:
+        if runviewer_parser_registry[name] is not None:
+            return import_class_by_fullname(runviewer_parser_registry[name])
+    elif importlib.util.find_spec(f'labscript_devices.{name}') is not None:
+        # Fall back on file naming convention + decorator method:
+        try:
+            return runviewer_parser[name]
+        except _NotRegistered:
+            pass
+    if name not in _parserless_devices:
+        _parserless_devices.add(name)
+        logger.warning(f'{name} has no runviewer parser, so nothing is drawn for it.')
+    return _NoTracesParser
 
 
 def register_classes(labscript_device_name, BLACS_tab=None, runviewer_parser=None):
