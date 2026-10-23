@@ -225,6 +225,15 @@ class FakeAction(object):
     def setIcon(self, icon):
         self.icon = icon
 
+    def setShortcut(self, shortcut):
+        pass
+
+    def setCheckable(self, checkable):
+        pass
+
+    def setEnabled(self, enabled):
+        pass
+
 
 class FakeMenu(object):
     def __init__(self, name='root'):

@@ -56,8 +56,8 @@ Contribution menu skeleton with MenuContext
 * ``name``: action text
 * ``action``: callable connected to the action's ``triggered`` signal
 * ``icon``: an icon, or what the context's ``icon_factory`` turns into one
-* ``shortcut``, ``checkable``, and ``enabled``: optional action properties
-  applied when the concrete action object supports them
+* ``shortcut``, ``checkable`` and ``enabled``: optional action properties,
+  unchecked and enabled by default
 
 ``enabled`` may also be a zero-argument callable, for a contribution whose
 availability depends on live application state rather than on a flag known when
@@ -417,12 +417,10 @@ class MenuContext(object):
                     action.setIcon(icon)
 
                 shortcut = contribution.get('shortcut', None)
-                if shortcut is not None and hasattr(action, 'setShortcut'):
+                if shortcut is not None:
                     action.setShortcut(shortcut)
 
-                checkable = contribution.get('checkable', False)
-                if hasattr(action, 'setCheckable'):
-                    action.setCheckable(checkable)
+                action.setCheckable(contribution.get('checkable', False))
 
                 # Resolved into a local: the contribution keeps the callable, so a
                 # render after it is added again evaluates the precondition afresh.
@@ -442,8 +440,7 @@ class MenuContext(object):
                             "while resolving its 'enabled' callable. Disabling "
                             "the action." % (name, plugin_name)
                         )
-                if hasattr(action, 'setEnabled'):
-                    action.setEnabled(enabled)
+                action.setEnabled(enabled)
 
 
 class PluginManager:
