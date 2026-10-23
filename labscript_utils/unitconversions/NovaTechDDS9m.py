@@ -29,10 +29,7 @@ class NovaTechDDS9mFreqConversion(UnitConversion):
 
     def __init__(self, calibration_parameters=None):
         self.parameters = calibration_parameters
-        if hasattr(self, 'derived_units'):
-            self.derived_units = self.derived_units + ['MHz']
-        else:
-            self.derived_units = ['MHz']
+        self.derived_units = [*self.derived_units, 'MHz']
         super().__init__(self.parameters)
 
     def MHz_to_base(self, MHz):
@@ -62,10 +59,7 @@ class NovaTechDDS9mAmpConversion(UnitConversion):
     def __init__(self, calibration_parameters=None):
         self.parameters = calibration_parameters
 
-        if hasattr(self, 'derived_units'):
-            self.derived_units = self.derived_units + ['hardware']
-        else:
-            self.derived_units = ['hardware']
+        self.derived_units = [*self.derived_units, 'hardware']
 
         super().__init__(self.parameters)
 

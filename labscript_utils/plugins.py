@@ -208,9 +208,7 @@ class callback:
 class BasePlugin:
     """The plugin interface, every hook a no-op.
 
-    A plugin subclasses it and overrides the hooks it needs. It may also define
-    ``plugin_setup_complete(data)`` or ``get_setup_activities()``, which
-    :meth:`PluginManager.setup_complete` calls.
+    A plugin subclasses it and overrides the hooks it needs.
     """
 
     def get_event_handlers(self):
@@ -247,6 +245,24 @@ class BasePlugin:
 
     def close(self):
         """Release what the plugin holds, at application shutdown."""
+
+    def plugin_setup_complete(self, data):
+        """Act on the application's setup data once it has started."""
+
+    def get_setup_activities(self):
+        """Return the plugin's setup activities, for `PluginManager.setup_complete`.
+
+        Each is a dict with ``name``, ``priority`` and ``action``, called with the
+        setup data. The default is ``plugin_setup_complete``, at
+        ``DEFAULT_SETUP_PRIORITY``.
+        """
+        return [
+            {
+                'name': 'plugin_setup_complete',
+                'priority': DEFAULT_SETUP_PRIORITY,
+                'action': self.plugin_setup_complete,
+            },
+        ]
 
 
 class MenuContext(object):
@@ -395,7 +411,7 @@ class MenuContext(object):
                     action.triggered.connect(callback)
 
                 icon = contribution.get('icon', None)
-                if icon is not None and hasattr(action, 'setIcon'):
+                if icon is not None:
                     if self.icon_factory is not None:
                         icon = self.icon_factory(icon)
                     action.setIcon(icon)
@@ -644,10 +660,8 @@ class PluginManager:
     def setup_complete(self, data):
         """Run plugin setup activities after application startup.
 
-        ``get_setup_activities()`` returns records with ``name``, ``priority``
-        and ``action``; a plugin without it contributes
-        ``plugin_setup_complete`` as one activity at ``DEFAULT_SETUP_PRIORITY``.
-        Activities from all plugins run lowest priority first, ties in plugin
+        Each plugin's ``get_setup_activities()`` returns records with ``name``,
+        ``priority`` and ``action``. Activities from all plugins run lowest priority first, ties in plugin
         name order, each action called with ``data``. A failing action is
         logged and the rest still run; a plugin whose records are malformed is
         skipped whole.
@@ -656,18 +670,7 @@ class PluginManager:
 
         for module_name, plugin in self.plugins.items():
             try:
-                if hasattr(plugin, 'get_setup_activities'):
-                    plugin_activities = plugin.get_setup_activities()
-                elif hasattr(plugin, 'plugin_setup_complete'):
-                    plugin_activities = [
-                        {
-                            'name': 'plugin_setup_complete',
-                            'priority': DEFAULT_SETUP_PRIORITY,
-                            'action': plugin.plugin_setup_complete,
-                        },
-                    ]
-                else:
-                    continue
+                plugin_activities = plugin.get_setup_activities()
 
                 # Built in full before it is added, so a bad record skips the
                 # whole plugin rather than leaving it half set up.

@@ -53,7 +53,9 @@ class UnitConversion:
     A subclass sets the class attribute ``base_unit``, which must match the default
     hardware unit of the channel in its BLACS tab, and lists the units it converts to
     and from in ``derived_units``, either as a class attribute or on the instance
-    before calling this constructor. For each derived unit ``<unit>`` it defines
+    before calling this constructor. A subclass that adds units to a parent's builds
+    a new list, ``[*self.derived_units, ...]``, rather than appending to the shared
+    one. For each derived unit ``<unit>`` it defines
     ``<unit>_to_base(self, value)`` and ``<unit>_from_base(self, value)``.
 
     Parameters
@@ -77,6 +79,8 @@ class UnitConversion:
     KeyError
         If ``params['magnitudes']`` contains an unsupported prefix.
     """
+
+    derived_units = ()
 
     _magnitude_list = {'p': 1e-12, 'n': 1e-9, 'u': 1e-6, 'm': 1e-3,
                        'k': 1e3, 'M': 1e6, 'G': 1e9, 'T': 1e12}
