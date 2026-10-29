@@ -12,6 +12,7 @@
 #                                                                   #
 #####################################################################
 """A tool's client reaching its server through the shared request protocol."""
+import socket
 import sys
 import threading
 
@@ -23,6 +24,8 @@ from labscript_utils.ls_zprocess import ZMQClient, ZMQServer
 
 
 class ShotServer(ZMQServer):
+    server = 'shots'
+
     def handle_add(self, a, b=0):
         return a + b
 
@@ -38,23 +41,28 @@ class ShotClient(ZMQClient):
 
 @pytest.fixture
 def client(monkeypatch, tmp_path):
+    # The security settings still come from the machine's labconfig:
+    ls_zprocess.get_config()
+    with socket.socket() as free:
+        free.bind(('localhost', 0))
+        port = free.getsockname()[1]
+    # A real labconfig, naming the test server, stands in for the machine's own.
+    labconfig = tmp_path / 'labconfig.toml'
+    labconfig.write_text(
+        f"[servers]\nshots = 'localhost'\n\n[ports]\nshots = {port}\n\n"
+        "[timeouts]\ncommunication_timeout = 5\n"
+    )
+    monkeypatch.setattr(
+        ls_zprocess, 'LabConfig', lambda: LabConfig(config_path=labconfig)
+    )
     server = ShotServer()
     try:
-        # A real labconfig, naming the test server, stands in for the machine's own.
-        labconfig = tmp_path / 'labconfig.toml'
-        labconfig.write_text(
-            f"[servers]\nshots = 'localhost'\n\n[ports]\nshots = {server.port}\n\n"
-            "[timeouts]\ncommunication_timeout = 5\n"
-        )
-        monkeypatch.setattr(
-            ls_zprocess, 'LabConfig', lambda: LabConfig(config_path=labconfig)
-        )
         yield ShotClient()
     finally:
         server.shutdown()
 
 
-def test_a_bound_client_reaches_its_servers_handler(client):
+def test_a_bound_client_reaches_its_bound_servers_handler(client):
     assert client.request('add', 2, b=3) == 5
 
 

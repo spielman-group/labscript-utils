@@ -179,7 +179,14 @@ class ZMQServer(zprocess.ZMQServer):
     It takes the arguments of ``zprocess.ZMQServer`` except ``shared_secret`` and
     ``allow_insecure``, which come from LabConfig; passing either raises
     ``ValueError``.
+
+    A subclass binds to its port by setting ``server``, its name in the labconfig,
+    and ``default_port``, as a bound :class:`ZMQClient` does. Its ``port`` then
+    defaults to the labconfig's ``ports/<server>``, else ``default_port``.
     """
+
+    server = None
+    default_port = None
 
     def __init__(
         self,
@@ -197,6 +204,9 @@ class ZMQServer(zprocess.ZMQServer):
                     zprocess.ZMQServer instead of
                     labscript_utils.ls_zprocess.ZMQServer"""
                 raise ValueError(dedent(msg))
+
+        if port is None and self.server is not None:
+            port = LabConfig().getint('ports', self.server, fallback=self.default_port)
 
         config = get_config()
         shared_secret = config['shared_secret']
