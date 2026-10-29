@@ -18,7 +18,7 @@ import threading
 # Imported for its side effect of registering the :/qtutils/fugue icons.
 import qtutils.icons
 from qtutils import inmain_decorator, inmain_later
-from qtutils.qt import QtCore, QtGui, QtWidgets
+from qtutils.qt import QtCore, QtWidgets
 
 from labscript_utils.ls_zprocess import ZMQClient
 from labscript_utils.qtwidgets.elide_label import elide_label
@@ -161,7 +161,7 @@ class LinkIndicator(QtWidgets.QWidget):
             icon = ':/qtutils/fugue/exclamation'
             text = 'Not responding'
             lines = [f'{self.name} is not responding', host_line, self.reason]
-        self.icon_label.setPixmap(QtGui.QIcon(icon).pixmap(QtCore.QSize(16, 16)))
+        self.icon_label.setPixmap(qtutils.icons.Icon(icon).pixmap(QtCore.QSize(16, 16)))
         self.icon_label.setToolTip('\n'.join(lines))
         # elide_label shows one line, so a multi-line state is joined into one.
         self.text_label.setText(' '.join(text.splitlines()))

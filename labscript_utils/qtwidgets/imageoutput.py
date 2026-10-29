@@ -13,6 +13,7 @@
 import base64
 import os
 
+from qtutils.icons import Icon
 from qtutils.qt import QtCore, QtGui, QtWidgets
 from qtutils.qt.QtCore import pyqtSignal as Signal
 
@@ -100,7 +101,7 @@ class ImageOutput(LockableOutput, QtWidgets.QWidget):
         header_layout.addWidget(self._label)
 
         self._browse_button = BrowseButton(self, 'Select Image')
-        self._browse_button.setIcon(QtGui.QIcon(':/qtutils/fugue/image-import'))
+        self._browse_button.setIcon(Icon(':/qtutils/fugue/image-import'))
         self._lock_target = self._browse_button
         header_layout.addWidget(self._browse_button)
 
