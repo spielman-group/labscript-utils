@@ -42,7 +42,6 @@ class l:
 
 
 child_processes = []
-_original_showwarning = warnings.showwarning
 
 
 def install_thread_excepthook():
@@ -114,13 +113,12 @@ def tkhandler(exceptclass, exception, exec_info, reraise=True):
 
 
 def logwarning(message, category, filename, lineno, file=None, line=None):
-    """Log a warning with ``l.logger``, then show it as Python normally does.
+    """Log a warning with ``l.logger``, instead of printing it.
 
     This replaces ``warnings.showwarning`` once :func:`set_logger` is called.
     """
     logmessage = warnings.formatwarning(message, category, filename, lineno, line)
     l.logger.warning(logmessage)
-    _original_showwarning(message, category, filename, lineno, file, line)
 
 
 def set_logger(logger):
