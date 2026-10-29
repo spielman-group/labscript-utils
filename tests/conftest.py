@@ -33,7 +33,7 @@ assigning that takes effect immediately, while changing the environment
 afterwards does nothing:
 
     import labscript_utils.excepthook as excepthook
-    excepthook.NO_ERROR_DIALOG = False
+    excepthook._show_windows = True
 
 ``tests/test_excepthook.py`` covers both, and stubs the subprocess module so it
 cannot spawn a window while checking that it would have.

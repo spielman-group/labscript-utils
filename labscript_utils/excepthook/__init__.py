@@ -12,8 +12,9 @@
 #####################################################################
 """Show unhandled exceptions, including those in threads, in an error window.
 
-Importing this module installs ``tkhandler`` as ``sys.excepthook`` and routes
-exceptions in threads to it. ``set_logger`` makes it log them too.
+:func:`install` sets ``tkhandler`` as ``sys.excepthook`` and routes exceptions in
+threads to it. Importing this module still calls it. ``set_logger`` makes it log them
+too.
 """
 
 import logging
@@ -28,12 +29,9 @@ import warnings
 # errors, and no others until some are closed:
 MAX_WINDOWS = 10
 
-# LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK, set to anything but '' or '0', stops error
-# windows, as upstream's does; exceptions are still logged and printed. It is read
-# once, here, so a test of the dialog assigns this global instead.
-NO_ERROR_DIALOG = os.environ.get(
-    'LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK', ''
-) not in ('', '0')
+# If this environment variable is set to a value other than '' or '0', exceptions are
+# printed to stderr instead of being shown in a window:
+DISABLE_ENV_VAR = 'LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK'
 
 subprocess_script_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'tk_exception.py'
@@ -45,6 +43,9 @@ class l:
 
 
 child_processes = []
+_installed = False
+# Set by install(), so a test of the window assigns it instead:
+_show_windows = False
 _original_showwarning = warnings.showwarning
 
 
@@ -76,12 +77,11 @@ def install_thread_excepthook():
 def tkhandler(exceptclass, exception, exec_info, reraise=True):
     """Log an exception and show it in a graphical error window.
 
-    This is installed as ``sys.excepthook``. The window is a subprocess running
-    ``tk_exception.py``. It is not shown if ``NO_ERROR_DIALOG`` is true, or if tkinter
-    is missing, when the exception is always printed. Once ``MAX_WINDOWS`` windows are
+    :func:`install` sets it as ``sys.excepthook``. The window is a subprocess running
+    ``tk_exception.py``. It is not shown if ``DISABLE_ENV_VAR`` is set or tkinter is
+    missing, when the exception is always printed. Once ``MAX_WINDOWS`` windows are
     open, one more says that further errors will not be shown graphically until some
-    are closed. ``KeyboardInterrupt`` and
-    ``SystemExit`` are not shown in a window.
+    are closed. ``KeyboardInterrupt`` and ``SystemExit`` are not shown in a window.
 
     Parameters
     ----------
@@ -100,9 +100,9 @@ def tkhandler(exceptclass, exception, exec_info, reraise=True):
     if exceptclass in [KeyboardInterrupt, SystemExit]:
         sys.__excepthook__(exceptclass, exception, exec_info)
     else:
-        if tkinter is None:
+        if not _show_windows:
             reraise = True
-        elif not NO_ERROR_DIALOG:
+        else:
             for previous_process in child_processes[:]:
                 if previous_process.poll() is not None:
                     child_processes.remove(previous_process)
@@ -141,14 +141,35 @@ def set_logger(logger):
         warnings.showwarning = _original_showwarning
 
 
-# tkinter is a separate package on Debian and Ubuntu, so it may be missing:
-try:
-    import tkinter
-except ImportError:
-    tkinter = None
-    warnings.warn(
-        "tkinter is not installed, so exceptions will be printed to stderr instead of "
-        "being shown in a window. Install the python3-tk package for the error windows."
-    )
-sys.excepthook = tkhandler
-install_thread_excepthook()
+def install():
+    """Set ``sys.excepthook`` to :func:`tkhandler`, and send uncaught exceptions in
+    threads to it.
+
+    Exceptions are printed instead of shown in a window if tkinter is not installed,
+    or if the environment variable ``LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK`` is set to
+    a value other than '' or '0'. Calls after the first do nothing.
+    """
+    global _installed, _show_windows
+    if _installed:
+        return
+    _installed = True
+    if os.environ.get(DISABLE_ENV_VAR, '') in ('', '0'):
+        # tkinter is part of the standard library but is a separate package on Debian
+        # and Ubuntu, so it may be missing:
+        try:
+            import tkinter
+        except ImportError:
+            warnings.warn(
+                "tkinter is not installed, so exceptions will be printed to stderr "
+                "instead of being shown in a window. Install the python3-tk package for "
+                "the error windows."
+            )
+        else:
+            _show_windows = True
+    sys.excepthook = tkhandler
+    install_thread_excepthook()
+
+
+# TODO: remove this call in a future release, so that importing this module does not
+# install the handler. Programs that use the handler call install() themselves.
+install()
