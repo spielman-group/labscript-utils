@@ -250,9 +250,13 @@ class LabConfig(TomlConfigParser):
                 for option in options:
                     self.get(section, option)
         except (configparser.NoOptionError, configparser.NoSectionError):
-            msg = f"""The experiment configuration file located at {config_path} does
-                not have the required keys. Make sure the config file contains the
-                following structure:\n{self.file_format}"""
+            if any(path is not None and Path(path).exists() for path in config_paths):
+                msg = f"""The experiment configuration file located at {config_path} does
+                    not have the required keys. Make sure the config file contains the
+                    following structure:\n{self.file_format}"""
+            else:
+                msg = f"""No experiment configuration file was found at {config_path}.
+                    Create one containing the following structure:\n{self.file_format}"""
             raise ValueError(dedent(msg))
 
     def _read_path(self, path):
