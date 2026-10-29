@@ -172,18 +172,29 @@ def create_profile_cli():
 
 
 def create_profile(apparatus_name=None, compile_table=False):
-    """Create a labscript profile from the default profile.
+    """Create the labscript suite profile directory, `~/labscript-suite`.
+
+    Copies the contents of `labscript_profile/default_profile` into the profile
+    directory, writes the labconfig file of this computer from `example.toml` with a
+    new shared secret in a key file next to it, and writes the runmanager
+    configuration file that the labconfig file names as `autoload_config_file`.
 
     Parameters
     ----------
     apparatus_name : str, optional
-        Apparatus name to define in the config. If None, the default config file's
-        name, example_apparatus, is kept.
+        The apparatus name to set in the labconfig file. The `example_apparatus`
+        directories of the profile are renamed to it. If None, the apparatus name is
+        `example_apparatus`.
+    compile_table : bool, optional
+        Whether to compile the example connection table to the `connection_table_h5`
+        path of the labconfig file. The table is compiled only if runmanager is
+        installed. Default is False.
 
     Raises
     ------
     FileExistsError
-        If the profile directory already contains any item of the default profile.
+        Before anything is copied, if the profile directory already contains
+        `labconfig`, `userlib` or `app_saved_configs`.
     ValueError
         If ``apparatus_name`` is not a Python identifier, or is a keyword.
     zprocess.security.CurveNotSupported
