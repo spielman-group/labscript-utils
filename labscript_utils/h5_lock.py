@@ -47,39 +47,45 @@ _File = h5py.File
 
 
 class File(_File):
-    """An ``h5py.File`` that holds a zlock on its path, and the kill lock, while open.
+    """An ``h5py.File`` that holds a zlock on its path while open, and the kill lock
+    while open for writing.
 
     The locks are not taken when ``name`` is an h5py object ID rather than a path.
     The zlock is read-only if ``mode`` is 'r'.
     """
 
-    def __init__(self, name, mode=None, driver=None, libver=None, **kwds):
+    def __init__(self, name, mode='r', driver=None, libver=None, **kwds):
         try:
             if not isinstance(name, h5py._objects.ObjectID):
                 kwargs = {}
                 if mode == 'r':
                     kwargs['read_only'] = True
-                # Do not terminate upon SIGTERM while the file is open:
-                kill_lock.acquire()
-                self.kill_lock = kill_lock
+                else:
+                    # Do not terminate upon SIGTERM while the file is open for writing.
+                    # Ending a process that is only reading a file does not harm it.
+                    kill_lock.acquire()
+                    self.kill_lock = kill_lock
                 # Ask other zlock users not to open the file while we have it open:
                 zlock = Lock(path_to_agnostic(name), **kwargs)
                 zlock.acquire()
                 self.zlock = zlock
             super().__init__(name, mode, driver, libver, **kwds)
         except:
-            if hasattr(self, 'zlock'):
-                self.zlock.release()
-            if hasattr(self, 'kill_lock'):
-                self.kill_lock.release()
+            self._release_locks()
             raise
+
+    def _release_locks(self):
+        # Popped, so that a second close() does not release them again:
+        zlock = self.__dict__.pop('zlock', None)
+        if zlock is not None:
+            zlock.release()
+        kill_lock = self.__dict__.pop('kill_lock', None)
+        if kill_lock is not None:
+            kill_lock.release()
 
     def close(self):
         super().close()
-        if hasattr(self, 'zlock'):
-            self.zlock.release()
-        if hasattr(self, 'kill_lock'):
-            self.kill_lock.release()
+        self._release_locks()
 
     # __exit__ is overridden so as not to hold h5py's library-wide lock ("phil"):
     # close() would take kill_lock._lock under phil, while a garbage collection in a
