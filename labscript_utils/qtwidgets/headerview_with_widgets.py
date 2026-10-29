@@ -92,14 +92,14 @@ class HorizontalHeaderViewWithWidgets(QtWidgets.QHeaderView):
         if self.length():
             last_section_size = self.sectionSize(self.logicalIndexAt(end - 1))
             option.rect = QtCore.QRect(end - last_section_size, 0, last_section_size, height)
-            separator_width = self._separator_width(option)
+            separator_width = self.separator_width(option)
             if separator_width:
                 option.position = QtWidgets.QStyleOptionHeader.SectionPosition.Middle
                 painter.setClipRect(end - separator_width, 0, separator_width, height)
                 self.style().drawControl(QtWidgets.QStyle.ControlElement.CE_HeaderSection, option, painter, self)
         painter.end()
 
-    def _separator_width(self, option):
+    def separator_width(self, option):
         """Width of the strip at the right edge of a section of ``option.rect``'s size
         that the style draws differently for a middle section than for the last one."""
         size = option.rect.size()
