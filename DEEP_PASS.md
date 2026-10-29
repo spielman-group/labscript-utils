@@ -5,20 +5,36 @@ file goes once these are done or recorded elsewhere.
 
 ## Upstream stage
 
-CodeHealth carries, ported by hand, every row of upstream master 22616a7..a2c4901
-that the review marked adopt, and the floors Python 3.13, qtutils 4.4.1 and
-zprocess 3.0.1. Open:
-- `setup_application` (upstream a98a8d7, c63b50d, 2588393, 27cc95a, 36d1dd5) is
-  held. Folding it into `configure_qapplication` conflicts with lyse, which sets
-  an application style sheet after `get_qapplication` has configured it, and with
-  hyde, which forces Fusion and its own light palette. The fork also gives Fusion
-  to macOS only, by design. Ian decides.
-- Ian's call, not adopted: the labconfig logging level (516e254), lazy logging
-  arguments (9c0a161), and opening files in the OS default program (4db2e74).
-- Each consumer's `tests/conftest.py` must set
-  `LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK`, which replaced
-  `LABSCRIPT_NO_ERROR_DIALOG`; lyse must shut its output box down on
-  `aboutToQuit`, since `exec_qapplication` now deletes the windows.
+CodeHealth carries upstream master 22616a7..a2c4901, ported by hand in upstream's
+form, with the floors Python 3.13, qtutils 4.4.1 and zprocess 3.0.1.
+
+Not possible, the fork's code having drifted:
+- 1ca6f16 (ToolPaletteGroup's linked widths), c2ae695 (AnalogInput's plot
+  window) and ba04ee1 (CameraServer): step 4 removed that code, on Ian's word.
+- 3df0276's connection-table diff message: step 4 removed `assert_superset`. Its
+  other two parts the fork already has.
+- 9c10631's runviewer half: a device with no parser draws nothing, which
+  runviewer depends on, where upstream raises.
+- 2e96b30's quad_driver text: step 2 made quad_driver and quad_monitor one class.
+  The behaviour is upstream's.
+
+Adapted to the TOML labconfig and app configs: 3d100b9, 701389e, 12f86ac with
+0f6bf4f, 126c8c5, 516e254, and `programs.open_file`'s TOML array arguments.
+
+Open:
+- 05560c1 and 8788417, runmanager's `globals_namespace` and `pylab_namespace`
+  keys, wait for runmanager to have them (upstream runmanager #163).
+- `excepthook.install()`: importing the module still calls it, as upstream does,
+  until every program calls it.
+- `text_editor.open_in_editor` goes once its callers use `programs.open_file`,
+  upstream's form.
+- Fork-only, on top of upstream: `shot_utils.get_group_globals` (lyse's
+  `Run.get_globals`; upstream lyse keeps a private copy), the port-in-use
+  `OSError` from `ZMQServer`, and `exec_qapplication`'s window deletion and
+  `on_interrupt`.
+- hyde forces Fusion and a light palette before `configure_qapplication`, whose
+  `setup_application` then sets `FusionStyle` and derives item views' alternate
+  row colour from that palette. hyde's owner decides what it keeps.
 
 ## Waiting on a zprocess release
 
