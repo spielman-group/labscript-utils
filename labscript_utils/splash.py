@@ -116,16 +116,10 @@ class Splash(QtWidgets.QFrame):
             application_name=application_name, icon_path=icon_path
         )
         super().__init__()
-        self.icon = QtGui.QPixmap()
-        self.icon.load(icon_path)
+        # Rendered by QIcon at the display's device pixel ratio, so sharp on HiDPI:
+        self.icon = QtGui.QIcon(icon_path).pixmap(QtCore.QSize(self.imwidth, self.imheight))
         if self.icon.isNull():
             raise ValueError(f"Invalid image file: {icon_path}.\n")
-        self.icon = self.icon.scaled(
-            self.imwidth,
-            self.imheight,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
         self.text = 'Loading'
         self.setWindowFlags(Qt.WindowType.SplashScreen)
         self.setWindowOpacity(self.alpha)
