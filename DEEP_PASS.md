@@ -33,6 +33,28 @@ Open:
   `setup_application` then sets `FusionStyle` and derives item views' alternate
   row colour from that palette. hyde's owner decides what it keeps.
 
+## Compatibility audit
+
+Every compatibility path on CodeHealth is upstream's own form or one Ian kept,
+but for the two below.
+- Upstream's: `experiment_name` read as `apparatus_name`, dragdroptab's `tab_bar`,
+  `setup_logging`'s ignored `maxBytes` and `backupCount`, `UnitConversion`'s
+  `unit_list` and `units`, FileWatcher's two-argument callbacks, the device
+  registry's deprecated decorators and `deprecated_import_alias`, bare unit
+  conversion names, a connection table's missing columns read through defaults,
+  `np.str_` globals, and the excepthook installed on import.
+- Ian's: the INI labconfig and app-config conversion with its FutureWarning (step
+  1 entries 1, 3 and 8; step 5 entry 14), and the unit conversions' full-name
+  globals (step 5 entry 5).
+- Goes once runmanager, lyse and labscript-devices import it from
+  `labscript_profile.legacy_files`: `labscript_utils.file_utils`'s re-export of
+  `warn_legacy_file`.
+- For Ian: the FutureWarnings the fork added on reading an old connection table
+  (`connections.py`, its missing columns and bare unit-conversion names;
+  `properties.py`, its `repr()` dicts). Upstream reads all three silently. The
+  reading keeps old shot files working; the warnings and their "will be removed"
+  markers announce dropping it.
+
 ## Waiting on a zprocess release
 
 labscript-utils requires `zprocess>=3.0.1`.
