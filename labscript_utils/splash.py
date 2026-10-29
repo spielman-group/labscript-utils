@@ -26,6 +26,8 @@ except ImportError as e:
         raise ImportError(dedent(msg))
     raise
 
+from labscript_utils.qtwidgets.application import setup_application
+
 Qt = QtCore.Qt
 
 # Importing this module creates no QApplication; only constructing Splash, or
@@ -36,9 +38,11 @@ Qt = QtCore.Qt
 def configure_qapplication(qapplication):
     """Apply labscript-wide QApplication configuration.
 
-    On macOS this also sets the window icon from the application's
-    ``_labscript_icon_path`` property, and, once per application, the Fusion style
-    with the application's own palette.
+    Once per application, this gives it the suite's style and font with
+    :func:`~labscript_utils.qtwidgets.application.setup_application`. An application
+    that then sets an application style sheet calls ``setup_application`` again. On
+    macOS this also sets the window icon from the application's
+    ``_labscript_icon_path`` property.
 
     Returns
     -------
@@ -50,14 +54,9 @@ def configure_qapplication(qapplication):
         icon_path = qapplication.property('_labscript_icon_path')
         if icon_path:
             qapplication.setWindowIcon(QtGui.QIcon(icon_path))
-        if not qapplication.property('_labscript_qapplication_configured'):
-            # Native macOS styling looks inconsistent with the rest of the
-            # suite. Use Qt's own style, keeping the palette so dark or light
-            # appearance still follows the theme.
-            palette = QtGui.QPalette(qapplication.palette())
-            qapplication.setStyle('Fusion')
-            qapplication.setPalette(palette)
-            qapplication.setProperty('_labscript_qapplication_configured', True)
+    if not qapplication.property('_labscript_qapplication_configured'):
+        setup_application(qapplication)
+        qapplication.setProperty('_labscript_qapplication_configured', True)
     return qapplication
 
 
