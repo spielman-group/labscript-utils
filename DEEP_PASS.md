@@ -26,10 +26,8 @@ Open:
   until every program calls it.
 - `text_editor.open_in_editor` goes once its callers use `programs.open_file`,
   upstream's form.
-- Fork-only, on top of upstream: `shot_utils.get_group_globals` (lyse's
-  `Run.get_globals`; upstream lyse keeps a private copy), the port-in-use
-  `OSError` from `ZMQServer`, and `exec_qapplication`'s window deletion and
-  `on_interrupt`.
+- Fork-only, on top of upstream: the port-in-use `OSError` from `ZMQServer`, and
+  `exec_qapplication`'s window deletion and `on_interrupt`.
 - hyde forces Fusion and a light palette before `configure_qapplication`, whose
   `setup_application` then sets `FusionStyle` and derives item views' alternate
   row colour from that palette. hyde's owner decides what it keeps.
