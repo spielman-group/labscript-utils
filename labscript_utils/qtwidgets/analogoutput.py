@@ -125,7 +125,8 @@ class AnalogOutput(LockableOutput, QtWidgets.QWidget):
             # delete it once it is hidden.
             menu.aboutToHide.connect(lambda menu=menu: delete_menu(menu))
 
-            menu.popup(self.mapToGlobal(pos))
+            # pos is in the line edit's coordinates, which sent the signal:
+            menu.popup(self._spin_widget.lineEdit().mapToGlobal(pos))
 
         self._spin_widget.lineEdit().setContextMenuPolicy(
             QtCore.Qt.ContextMenuPolicy.CustomContextMenu

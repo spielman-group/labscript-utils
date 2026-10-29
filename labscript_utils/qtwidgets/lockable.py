@@ -34,6 +34,8 @@ class LockableOutput:
         menu = QtWidgets.QMenu(source)
         menu.addAction("Unlock" if self.lock_state else "Lock")
         menu.triggered.connect(self._menu_triggered)
+        # Parented to source, so it would otherwise live as long as the widget:
+        menu.aboutToHide.connect(menu.deleteLater)
         menu.popup(source.mapToGlobal(pos))
 
     def eventFilter(self, obj, event):
