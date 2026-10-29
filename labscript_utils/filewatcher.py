@@ -10,7 +10,7 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-from inspect import Parameter, signature
+from inspect import signature
 from queue import Queue, Empty
 import threading
 import os
@@ -33,9 +33,9 @@ class FileWatcher:
         ``'created'``, ``'restored'`` or ``'original'``. The 'original' event,
         with `name` ``'all'``, reports a state change that results in the
         original file info at instantiation.
-    files : iterable of str, optional
+    files : str or iterable of str, optional
         Specific files to watch.
-    folders : iterable of str, optional
+    folders : str or iterable of str, optional
         Specific folders to watch. If a file is created or deleted in any
         watched folder, it is added to or removed from the `files` attribute.
     clean_modified_info : dict, optional
@@ -56,11 +56,7 @@ class FileWatcher:
 
     def __init__(self, callback, files=None, folders=None, clean_modified_info=None,
                  hashable_types=None, interval=1, **kwargs):
-        positional = [
-            p for p in signature(callback).parameters.values()
-            if p.kind in (Parameter.POSITIONAL_ONLY, Parameter.POSITIONAL_OR_KEYWORD)
-        ]
-        if len(positional) > 2:
+        if len(signature(callback).parameters) > 2:
             # For backwards compatability, allow callback to have only two args
             self.callback = callback
         else:
@@ -261,7 +257,7 @@ class FileWatcher:
 
         Parameters
         ----------
-        files : iterable of str
+        files : str or iterable of str
             The files to add.
         clean_modified_info : dict, optional
             Modified info to detect modification and restoration of these
@@ -270,6 +266,8 @@ class FileWatcher:
         """
         if clean_modified_info is None:
             clean_modified_info = {}
+        if isinstance(files, str):
+            files = [files]
         with self.lock:
             self.files = self.files.union(set(files))
             self._set_clean_modified_info(files, clean_modified_info)
@@ -281,6 +279,8 @@ class FileWatcher:
         """
         if clean_modified_info is None:
             clean_modified_info = {}
+        if isinstance(folders, str):
+            folders = [folders]
         with self.lock:
             self.folders = self.folders.union(set(folders))
             initial_files = self.files.copy()
