@@ -20,11 +20,16 @@ from .toml_config import (
 # anywhere. Keep this module lean, side-effect free and bomb-proof.
 
 
-# This construction instead of simply Path.home() ensures we get the users home
-# directory instead of /root if we are running with sudo (such as at install time for a
-# system-wide install).
+# The profile directory is ~/labscript-suite, or the directory named by the environment
+# variable LABSCRIPT_SUITE_PROFILE if it is set.
 try:
-    LABSCRIPT_SUITE_PROFILE = Path("~" + getuser()).expanduser() / 'labscript-suite'
+    if os.environ.get('LABSCRIPT_SUITE_PROFILE'):
+        LABSCRIPT_SUITE_PROFILE = Path(os.environ['LABSCRIPT_SUITE_PROFILE']).expanduser()
+    else:
+        # This construction instead of simply Path.home() ensures we get the users home
+        # directory instead of /root if we are running with sudo (such as at install
+        # time for a system-wide install).
+        LABSCRIPT_SUITE_PROFILE = Path("~" + getuser()).expanduser() / 'labscript-suite'
 except Exception:
     # Python starting up in some funky environment? Not our problem, be silent.
     LABSCRIPT_SUITE_PROFILE = None
