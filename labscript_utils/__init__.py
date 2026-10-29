@@ -21,15 +21,6 @@ __version__ = package_version(__package__)
 
 from labscript_profile import LABSCRIPT_SUITE_PROFILE
 
-if LABSCRIPT_SUITE_PROFILE is not None and not os.path.exists(LABSCRIPT_SUITE_PROFILE):
-    from labscript_profile.create import create_profile
-    create_profile()
-    # This would normally run at interpreter startup but didn't since the profile didn't
-    # exist:
-    import labscript_profile
-    labscript_profile.add_userlib_and_pythonlib()
-
-
 labscript_utils_dir = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -82,6 +73,16 @@ def dedent(s):
 def ensure_str(s):
     """Return ``s`` as a ``str``, decoding it if it is ``bytes``."""
     return s.decode() if isinstance(s, bytes) else str(s)
+
+
+# Below dedent and ensure_str, which create_profile imports through labconfig:
+if LABSCRIPT_SUITE_PROFILE is not None and not os.path.exists(LABSCRIPT_SUITE_PROFILE):
+    from labscript_profile.create import create_profile
+    create_profile()
+    # This would normally run at interpreter startup but didn't since the profile didn't
+    # exist:
+    import labscript_profile
+    labscript_profile.add_userlib_and_pythonlib()
 
 
 # Enforce that the same file can't be imported under multiple names, to help
