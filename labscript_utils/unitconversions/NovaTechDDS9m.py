@@ -28,6 +28,8 @@ class NovaTechDDS9mFreqConversion(UnitConversion):
     base_unit = 'Hz'
 
     def __init__(self, calibration_parameters=None):
+        if calibration_parameters is None:
+            calibration_parameters = {}
         self.parameters = calibration_parameters
         self.derived_units = [*self.derived_units, 'MHz']
         super().__init__(self.parameters)
@@ -57,6 +59,8 @@ class NovaTechDDS9mAmpConversion(UnitConversion):
     base_unit = 'Arb'
 
     def __init__(self, calibration_parameters=None):
+        if calibration_parameters is None:
+            calibration_parameters = {}
         self.parameters = calibration_parameters
 
         self.derived_units = [*self.derived_units, 'hardware']

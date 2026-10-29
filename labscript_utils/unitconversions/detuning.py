@@ -36,6 +36,8 @@ class detuning(UnitConversion):
     derived_units = ['MHz', 'd_MHz', 'linewidths']
 
     def __init__(self, calibration_parameters=None):
+        if calibration_parameters is None:
+            calibration_parameters = {}
         self.parameters = calibration_parameters
 
         self.parameters.setdefault('pass', 1)

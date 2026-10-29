@@ -37,6 +37,8 @@ class SineAom(NovaTechDDS9mAmpConversion):
     base_unit = "Arb"
 
     def __init__(self, calibration_parameters=None):
+        if calibration_parameters is None:
+            calibration_parameters = {}
         self.parameters = calibration_parameters
         self.derived_units = ["Power", "fraction"]
         self.parameters.setdefault('A', 1.969)

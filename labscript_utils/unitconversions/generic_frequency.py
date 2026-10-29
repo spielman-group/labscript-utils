@@ -28,6 +28,8 @@ class FreqConversion(UnitConversion):
     base_unit = 'Hz'
 
     def __init__(self, calibration_parameters=None):
+        if calibration_parameters is None:
+            calibration_parameters = {}
         self.parameters = calibration_parameters
         self.derived_units = [*self.derived_units, 'kHz', 'MHz', 'GHz']
         super().__init__(self.parameters)

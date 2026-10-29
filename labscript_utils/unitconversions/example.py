@@ -34,6 +34,8 @@ class example1(UnitConversion):
     # the base class generates the prefixed conversions of each derived unit.
 
     def __init__(self, calibration_parameters=None):
+        if calibration_parameters is None:
+            calibration_parameters = {}
         self.parameters = calibration_parameters
 
         self.derived_units = ['A', 'Gauss']
@@ -77,6 +79,8 @@ class example2(UnitConversion):
     base_unit = 'MHz'
 
     def __init__(self, calibration_parameters=None):
+        if calibration_parameters is None:
+            calibration_parameters = {}
         self.parameters = calibration_parameters
 
         self.derived_units = ['detuned_MHz']
@@ -110,6 +114,8 @@ class example3(UnitConversion):
     base_unit = 'Vpp'
 
     def __init__(self, calibration_parameters=None):
+        if calibration_parameters is None:
+            calibration_parameters = {}
         self.parameters = calibration_parameters
 
         self.derived_units = ['W']

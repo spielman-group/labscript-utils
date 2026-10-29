@@ -10,7 +10,7 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-from numpy import exp, abs
+from numpy import exp, abs, minimum, maximum
 from scipy.special import lambertw
 from .UnitConversionBase import *
 
@@ -36,6 +36,8 @@ class OptotuneLens(UnitConversion):
     derived_units = ['distance', 'I']
 
     def __init__(self, calibration_parameters=None):
+        if calibration_parameters is None:
+            calibration_parameters = {}
         self.parameters = calibration_parameters
 
         self.parameters.setdefault('current_cal', 0.05)
@@ -65,7 +67,7 @@ class OptotuneLens(UnitConversion):
         return (volts > 0) * abs(volts)
 
     def distance_from_base(self, volts):
-        amps = max(min(self.parameters['current_cal'] * volts, self.parameters['I_Max']), 0)
+        amps = maximum(minimum(self.parameters['current_cal'] * volts, self.parameters['I_Max']), 0)
 
         percentage = (self.parameters['a'] * exp(self.parameters['b'] * amps)
                       + self.parameters['c'] * amps - self.parameters['a'])
