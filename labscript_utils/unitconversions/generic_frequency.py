@@ -31,7 +31,7 @@ class FreqConversion(UnitConversion):
         if calibration_parameters is None:
             calibration_parameters = {}
         self.parameters = calibration_parameters
-        self.derived_units = [*self.derived_units, 'kHz', 'MHz', 'GHz']
+        self.derived_units = list(getattr(self, 'derived_units', [])) + ['kHz', 'MHz', 'GHz']
         super().__init__(self.parameters)
 
     def kHz_to_base(self, kHz):

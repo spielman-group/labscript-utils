@@ -10,7 +10,7 @@
 # for the full license.                                             #
 #                                                                   #
 #####################################################################
-from numpy import arccos, cos, pi
+from numpy import pi, cos, arccos
 from .UnitConversionBase import *
 from .NovaTechDDS9m import NovaTechDDS9mAmpConversion
 
