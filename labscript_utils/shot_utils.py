@@ -11,10 +11,41 @@
 #                                                                   #
 #####################################################################
 
-from contextlib import nullcontext
-
 import h5py
 import numpy as np
+
+
+def get_group_globals(group):
+    """Return the evaluated globals held as the attributes of a shot file's group.
+
+    Parameters
+    ----------
+    group : h5py.Group
+        The ``globals`` group, which holds every global, or one of its subgroups,
+        which holds one globals group's.
+
+    Returns
+    -------
+    dict
+        Global names and values. Numpy bools and strings become Python ones,
+        null HDF5 references become None, and bytes are decoded to str.
+    """
+    params = {}
+    for name, value in group.attrs.items():
+        # Convert numpy bools to normal bools:
+        if isinstance(value, np.bool_):
+            value = bool(value)
+        # Convert null HDF references to None:
+        if isinstance(value, h5py.Reference) and not value:
+            value = None
+        # Convert numpy strings to Python ones.
+        # DEPRECATED, for backward compat with old files.
+        if isinstance(value, np.str_):
+            value = str(value)
+        if isinstance(value, bytes):
+            value = value.decode()
+        params[name] = value
+    return params
 
 
 def get_shot_globals(filepath):
@@ -28,27 +59,9 @@ def get_shot_globals(filepath):
     Returns
     -------
     dict
-        Global names and values. Numpy bools and strings become Python ones,
-        null HDF5 references become None, and bytes are decoded to str.
+        Global names and values, converted as by :func:`get_group_globals`.
     """
     if isinstance(filepath, h5py.File):
-        file_context = nullcontext(filepath)
-    else:
-        file_context = h5py.File(filepath, 'r')
-    params = {}
-    with file_context as f:
-        for name, value in f['globals'].attrs.items():
-            # Convert numpy bools to normal bools:
-            if isinstance(value, np.bool_):
-                value = bool(value)
-            # Convert null HDF references to None:
-            if isinstance(value, h5py.Reference) and not value:
-                value = None
-            # Convert numpy strings to Python ones.
-            # DEPRECATED, for backward compat with old files.
-            if isinstance(value, np.str_):
-                value = str(value)
-            if isinstance(value, bytes):
-                value = value.decode()
-            params[name] = value
-    return params
+        return get_group_globals(filepath['globals'])
+    with h5py.File(filepath, 'r') as f:
+        return get_group_globals(f['globals'])
