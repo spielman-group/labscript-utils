@@ -15,14 +15,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import labscript_utils.excepthook as excepthook
 
 
-def test_labscript_no_error_dialog_1_suppresses_the_dialog_and_unset_does_not():
+def test_the_disable_variable_suppresses_the_dialog_and_unset_does_not():
     # The variable is read once, when excepthook imports, so each case needs a
     # fresh process.
     for value, suppressed in [('1', 'True'), (None, 'False')]:
         environ = dict(os.environ)
-        environ.pop('LABSCRIPT_NO_ERROR_DIALOG', None)
+        environ.pop('LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK', None)
         if value is not None:
-            environ['LABSCRIPT_NO_ERROR_DIALOG'] = value
+            environ['LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK'] = value
         result = subprocess.run(
             [
                 sys.executable,

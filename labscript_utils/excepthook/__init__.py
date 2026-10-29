@@ -27,10 +27,12 @@ import warnings
 # errors, and no others until some are closed:
 MAX_WINDOWS = 10
 
-# LABSCRIPT_NO_ERROR_DIALOG=1 stops exceptions spawning graphical error windows;
-# they are still logged and printed. It is read once, here, so a test of the
-# dialog assigns this global instead of setting the variable.
-NO_ERROR_DIALOG = os.environ.get('LABSCRIPT_NO_ERROR_DIALOG') == '1'
+# LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK, set to anything but '' or '0', stops error
+# windows, as upstream's does; exceptions are still logged and printed. It is read
+# once, here, so a test of the dialog assigns this global instead.
+NO_ERROR_DIALOG = os.environ.get(
+    'LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK', ''
+) not in ('', '0')
 
 subprocess_script_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'tk_exception.py'
