@@ -11,6 +11,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import copy
+import datetime
 import os
 from pathlib import Path
 from jinja2 import FileSystemLoader, Environment
@@ -19,7 +20,7 @@ import importlib.metadata
 # -- Project information (unique to each project) -------------------------------------
 
 project = "labscript-utils"
-copyright = "2020, labscript suite"
+copyright = f"2013–{datetime.date.today().year}, labscript suite contributors"
 author = "labscript suite contributors"
 
 # The full version, including alpha/beta/rc tags
@@ -69,6 +70,17 @@ del __name
 del __rval
 del __fn
 
+# Importing labscript_utils.h5_lock connects to a zlock server and starts one on
+# localhost if none is running. The docs build does not use the server.
+import labscript_utils.ls_zprocess
+labscript_utils.ls_zprocess.connect_to_zlock_server = lambda: None
+
+# labscript_utils.unitconversions.__all__ is an object that imports every unit
+# conversion module when `from labscript_utils.unitconversions import *` reads it.
+# Autodoc requires a list of strings, and autosummary does not use __all__.
+import labscript_utils.unitconversions
+del labscript_utils.unitconversions.__all__
+
 # Prefix each autosectionlabel with the name of the document it is in and a colon
 autosectionlabel_prefix_document = True
 myst_heading_anchors = 2
@@ -98,13 +110,9 @@ intersphinx_mapping = {
     'scipy': ('https://docs.scipy.org/doc/scipy/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'qtutils': ('https://qtutils.readthedocs.io/en/stable/', None),
-    'pyqtgraph': (
-        'https://pyqtgraph.readthedocs.io/en/latest/',
-        None,
-    ),
+    'pyqtgraph': ('https://pyqtgraph.readthedocs.io/en/latest/', None),
     'matplotlib': ('https://matplotlib.org/stable/', None),
     'h5py': ('https://docs.h5py.org/en/stable/', None),
-    'pydaqmx': ('https://pythonhosted.org/PyDAQmx/', None),
     'qt': (
         'https://www.riverbankcomputing.com/static/Docs/PyQt6/',
         'pyqt6-modified-objects.inv',
@@ -195,7 +203,7 @@ default_role = 'code'
 html_theme = "sphinx_rtd_theme"
 html_title = "labscript suite | {project}".format(
     project=project
-    if project != "labscript-suite"
+    if project != "the labscript suite"
     else "experiment control and automation"
 )
 html_short_title = "labscript suite"
