@@ -13,8 +13,6 @@ Not possible, the fork's code having drifted:
   window) and ba04ee1 (CameraServer): step 4 removed that code, on Ian's word.
 - 3df0276's connection-table diff message: step 4 removed `assert_superset`. Its
   other two parts the fork already has.
-- 9c10631's runviewer half: a device with no parser draws nothing, which
-  runviewer depends on, where upstream raises.
 - 2e96b30's quad_driver text: step 2 made quad_driver and quad_monitor one class.
   The behaviour is upstream's.
 
