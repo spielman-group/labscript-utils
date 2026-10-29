@@ -12,8 +12,8 @@
 #                                                                   #
 #####################################################################
 """App configs: the name of the file save_appconfig writes, for every name it can
-be given, and a legacy INI config read through load_appconfig. Labconfigs: a legacy
-experiment_name.
+be given, a save cut short, and a legacy INI config read through load_appconfig.
+Labconfigs: a legacy experiment_name.
 
 A save panel can hand back a name without the extension it was offered, or with
 one the host chose, so the name save_appconfig receives is not always the name
@@ -42,6 +42,21 @@ from labscript_utils.labconfig import LabConfig, load_appconfig, save_appconfig
 def test_save_appconfig_names_the_file_it_writes(tmp_path, given, written):
     save_appconfig(tmp_path / given, {'state': {'value': 1}})
     assert os.listdir(tmp_path) == [written]
+
+
+def test_a_save_cut_short_leaves_the_old_config(tmp_path, monkeypatch):
+    path = save_appconfig(tmp_path / 'app', {'state': {'value': 1}})
+
+    def interrupt(*args):
+        raise KeyboardInterrupt
+
+    # The last step of a save, by which point a write in place has truncated it:
+    monkeypatch.setattr(os, 'replace', interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        save_appconfig(path, {'state': {'value': 2}})
+
+    assert load_appconfig(path) == {'state': {'value': 1}}
+    assert os.listdir(tmp_path) == ['app.toml']
 
 
 def test_a_legacy_ini_config_is_read_converted_and_warned_of(tmp_path):

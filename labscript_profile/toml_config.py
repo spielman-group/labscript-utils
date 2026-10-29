@@ -13,7 +13,11 @@
 #####################################################################
 
 import configparser
+import contextlib
+import os
 import tomllib
+import uuid
+from pathlib import Path
 
 import tomli_w
 
@@ -45,12 +49,27 @@ def load_toml_file(filename):
 def dump_toml_file(filename, data):
     """Write the dict ``data`` to ``filename`` as TOML.
 
-    The file is left intact if ``data`` cannot be serialised.
+    The file is replaced whole, keeping its permissions, so it is left intact if
+    ``data`` cannot be serialised or the write is interrupted.
     """
-    # Serialise before opening, so data TOML cannot hold leaves the file intact.
     text = tomli_w.dumps(data)
-    with open(filename, 'wb') as f:
-        f.write(text.encode('utf-8'))
+    # Resolved, so that a symlinked file is replaced and not its link:
+    filename = Path(filename).resolve()
+    # Unique per write, so that two threads writing at once never share one:
+    temp_filename = filename.with_name(f'{filename.name}.{uuid.uuid4().hex}.tmp')
+    try:
+        with open(temp_filename, 'xb') as f:
+            f.write(text.encode('utf-8'))
+            f.flush()
+            os.fsync(f.fileno())
+        # A config on a shared drive must keep its group's access:
+        with contextlib.suppress(OSError):
+            os.chmod(temp_filename, filename.stat().st_mode & 0o777)
+        os.replace(temp_filename, filename)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.remove(temp_filename)
+        raise
 
 
 class TomlBasicInterpolation(configparser.BasicInterpolation):
