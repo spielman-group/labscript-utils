@@ -73,9 +73,10 @@ def tkhandler(exceptclass, exception, exec_info, reraise=True):
     """Log an exception and show it in a graphical error window.
 
     This is installed as ``sys.excepthook``. The window is a subprocess running
-    ``tk_exception.py``, and is not shown if ``NO_ERROR_DIALOG`` is true. Once
-    ``MAX_WINDOWS`` windows are open, one more says that further errors will not be
-    shown graphically until some are closed. ``KeyboardInterrupt`` and
+    ``tk_exception.py``. It is not shown if ``NO_ERROR_DIALOG`` is true, or if tkinter
+    is missing, when the exception is always printed. Once ``MAX_WINDOWS`` windows are
+    open, one more says that further errors will not be shown graphically until some
+    are closed. ``KeyboardInterrupt`` and
     ``SystemExit`` are not shown in a window.
 
     Parameters
@@ -95,7 +96,9 @@ def tkhandler(exceptclass, exception, exec_info, reraise=True):
     if exceptclass in [KeyboardInterrupt, SystemExit]:
         sys.__excepthook__(exceptclass, exception, exec_info)
     else:
-        if not NO_ERROR_DIALOG:
+        if tkinter is None:
+            reraise = True
+        elif not NO_ERROR_DIALOG:
             for previous_process in child_processes[:]:
                 if previous_process.poll() is not None:
                     child_processes.remove(previous_process)
@@ -127,7 +130,14 @@ def set_logger(logger):
     warnings.showwarning = logwarning
 
 
-# Fail at import, not later, if tkinter is missing: some Debian Pythons omit it.
-import tkinter
+# tkinter is a separate package on Debian and Ubuntu, so it may be missing:
+try:
+    import tkinter
+except ImportError:
+    tkinter = None
+    warnings.warn(
+        "tkinter is not installed, so exceptions will be printed to stderr instead of "
+        "being shown in a window. Install the python3-tk package for the error windows."
+    )
 sys.excepthook = tkhandler
 install_thread_excepthook()
