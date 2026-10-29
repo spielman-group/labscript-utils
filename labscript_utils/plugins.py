@@ -322,19 +322,19 @@ class MenuContext(object):
             if not isinstance(contribution, dict):
                 self.logger.error(
                     "Menu contribution from plugin '%s' is not a dictionary. "
-                    "Skipping." % plugin_name
+                    "Skipping.", plugin_name
                 )
                 continue
             if 'location' not in contribution:
                 self.logger.error(
                     "Menu contribution from plugin '%s' missing location. "
-                    "Skipping." % plugin_name
+                    "Skipping.", plugin_name
                 )
                 continue
             if 'name' not in contribution:
                 self.logger.error(
                     "Menu contribution from plugin '%s' missing name. "
-                    "Skipping." % plugin_name
+                    "Skipping.", plugin_name
                 )
                 continue
 
@@ -342,7 +342,7 @@ class MenuContext(object):
             if location not in self.locations:
                 self.logger.error(
                     "Menu contribution from plugin '%s' requested unknown "
-                    "location '%s'. Skipping." % (plugin_name, location)
+                    "location '%s'. Skipping.", plugin_name, location
                 )
                 continue
 
@@ -438,7 +438,7 @@ class MenuContext(object):
                         self.logger.exception(
                             "Menu contribution '%s' from plugin '%s' raised "
                             "while resolving its 'enabled' callable. Disabling "
-                            "the action." % (name, plugin_name)
+                            "the action.", name, plugin_name
                         )
                 action.setEnabled(enabled)
 
@@ -543,7 +543,7 @@ class PluginManager:
             try:
                 modules[name] = importlib.import_module(module_name)
             except Exception:
-                self.logger.exception(f"Could not import plugin '{name}'. Skipping.")
+                self.logger.exception("Could not import plugin '%s'. Skipping.", name)
 
         self.modules = modules
         return modules
@@ -560,7 +560,7 @@ class PluginManager:
                 plugins[module_name] = module.Plugin()
             except Exception:
                 self.logger.exception(
-                    f"Could not instantiate plugin '{module_name}'. Skipping"
+                    "Could not instantiate plugin '%s'. Skipping", module_name
                 )
 
         self.plugins = plugins
@@ -581,8 +581,8 @@ class PluginManager:
             return list(hook() or ())
         except Exception:
             self.logger.exception(
-                f"Error getting {label} contributions from plugin '{module_name}'. "
-                "Skipping."
+                "Error getting %s contributions from plugin '%s'. "
+                "Skipping.", label, module_name
             )
             return []
 
@@ -604,8 +604,8 @@ class PluginManager:
                     )
                 except Exception:
                     self.logger.exception(
-                        f"Error adding UI contribution from plugin '{module_name}'. "
-                        "Skipping."
+                        "Error adding UI contribution from plugin '%s'. "
+                        "Skipping.", module_name
                     )
 
             menu_contributions = self._get_contributions(
@@ -617,8 +617,8 @@ class PluginManager:
                     self.contexts['menus'].add(module_name, contribution, data)
                 except Exception:
                     self.logger.exception(
-                        f"Error adding menu contribution from plugin '{module_name}'. "
-                        "Skipping."
+                        "Error adding menu contribution from plugin '%s'. "
+                        "Skipping.", module_name
                     )
 
     def collect_services(self, base_services=None):
@@ -639,7 +639,7 @@ class PluginManager:
                 plugin_services = dict(plugin.get_services())
             except Exception:
                 self.logger.exception(
-                    f"Error getting services from plugin '{module_name}'. Skipping."
+                    "Error getting services from plugin '%s'. Skipping.", module_name
                 )
                 continue
 
@@ -682,8 +682,8 @@ class PluginManager:
                 ])
             except Exception:
                 self.logger.exception(
-                    f"Error getting setup activities from plugin '{module_name}'. "
-                    "Skipping."
+                    "Error getting setup activities from plugin '%s'. "
+                    "Skipping.", module_name
                 )
 
         setup_activities.sort(
@@ -698,8 +698,8 @@ class PluginManager:
                 action(data)
             except Exception:
                 self.logger.exception(
-                    f"Error in setup activity '{activity_name!s}' for plugin "
-                    f"'{module_name}'. Plugin may not be functional."
+                    "Error in setup activity '%s' for plugin "
+                    "'%s'. Plugin may not be functional.", activity_name, module_name
                 )
 
     def get_event_handlers(self, name):
@@ -712,7 +712,7 @@ class PluginManager:
                 if plugin_callbacks and name in plugin_callbacks:
                     callbacks.append(plugin_callbacks[name])
             except Exception:
-                self.logger.exception(f'Error getting callbacks from {plugin!s}.')
+                self.logger.exception('Error getting callbacks from %s.', plugin)
 
         callbacks.sort(
             key=lambda callback: getattr(callback, 'priority', DEFAULT_PRIORITY)
@@ -752,7 +752,7 @@ class PluginManager:
                 data = plugin.get_save_data()
             except Exception:
                 self.logger.exception(
-                    f"Could not get save data from plugin '{module_name}'. Skipping."
+                    "Could not get save data from plugin '%s'. Skipping.", module_name
                 )
                 continue
             if data:
@@ -770,7 +770,7 @@ class PluginManager:
                 plugin.restore_save_data(saved.get(module_name, {}))
             except Exception:
                 self.logger.exception(
-                    f"Could not restore the saved data of plugin '{module_name}'."
+                    "Could not restore the saved data of plugin '%s'.", module_name
                 )
 
     def close_plugins(self):
@@ -780,5 +780,5 @@ class PluginManager:
                 plugin.close()
             except Exception as e:
                 self.logger.error(
-                    f'Could not close plugin {module_name}. Error was: {e!s}'
+                    'Could not close plugin %s. Error was: %s', module_name, e
                 )

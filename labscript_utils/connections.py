@@ -58,7 +58,7 @@ class ConnectionTable:
         self.logger = None
         if logging_prefix is not None:
             self.logger = logging.getLogger(f'{logging_prefix}.ConnectionTable')
-            self.logger.debug(f'Parsing connection table from {self.filepath}')
+            self.logger.debug('Parsing connection table from %s', self.filepath)
 
         self.toplevel_children = {}
         self.table = {}
@@ -74,8 +74,11 @@ class ConnectionTable:
                 try:
                     dataset = hdf5_file['connection table']
                 except Exception:
-                    msg = f'could not open connection table dataset in {self.filepath}'
-                    if self.logger: self.logger.error(msg)
+                    if self.logger:
+                        self.logger.error(
+                            'could not open connection table dataset in %s',
+                            self.filepath,
+                        )
                     if exceptions_in_thread:
                         raise_exception_in_thread(sys.exc_info())
                     else:
@@ -98,16 +101,20 @@ class ConnectionTable:
                         if connection.parent_port is None:
                             self.toplevel_children[name] = connection
                 except Exception:
-                    msg = f'Could not parse connection table in {self.filepath}'
-                    if self.logger: self.logger.error(msg)
+                    if self.logger:
+                        self.logger.error(
+                            'Could not parse connection table in %s', self.filepath
+                        )
                     if exceptions_in_thread:
                         raise_exception_in_thread(sys.exc_info())
                     else:
                         raise
 
         except Exception:
-            msg = f'Could not open connection table file {self.filepath}'
-            if self.logger: self.logger.exception(msg)
+            if self.logger:
+                self.logger.exception(
+                    'Could not open connection table file %s', self.filepath
+                )
             if exceptions_in_thread:
                 raise_exception_in_thread(sys.exc_info())
             else:
@@ -135,7 +142,7 @@ class ConnectionTable:
         # Check if top level children in other table are a subset of self.
         for name, connection in other.toplevel_children.items():
             if not name in self.toplevel_children:
-                if self.logger: self.logger.error(f'missing: {name} ')
+                if self.logger: self.logger.error('missing: %s ', name)
                 if "children_missing" not in error:
                     error["children_missing"] = {}
                 error["children_missing"][name] = True

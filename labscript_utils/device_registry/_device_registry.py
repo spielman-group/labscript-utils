@@ -273,8 +273,8 @@ def get_runviewer_parser(name, logger=None):
             if name not in _parserless_devices:
                 _parserless_devices.add(name)
                 (logger or logging.getLogger(__name__)).warning(
-                    f'labscript_devices.{name} defines no runviewer parser, so nothing '
-                    'is drawn for it.'
+                    'labscript_devices.%s defines no runviewer parser, so nothing '
+                    'is drawn for it.', name
                 )
     return _NoTracesParser
 

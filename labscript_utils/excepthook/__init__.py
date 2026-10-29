@@ -96,7 +96,7 @@ def tkhandler(exceptclass, exception, exec_info, reraise=True):
     shortmessage = f'{exceptclass.__name__}: {exception}'
     longmessage = ''.join(traceback.format_exception(exceptclass, exception, exec_info))
     if l.logger:
-        l.logger.error(f'Got an exception:\n{longmessage}')
+        l.logger.error('Got an exception:\n%s', longmessage)
     if exceptclass in [KeyboardInterrupt, SystemExit]:
         sys.__excepthook__(exceptclass, exception, exec_info)
     else:
