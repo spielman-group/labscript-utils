@@ -16,7 +16,7 @@ from ast import literal_eval
 from pathlib import Path
 
 from labscript_utils import dedent
-from labscript_utils.file_utils import warn_legacy_file
+from labscript_profile.legacy_files import warn_legacy_file
 from labscript_profile import (
     LABSCRIPT_SUITE_PROFILE,
     default_labconfig_path,

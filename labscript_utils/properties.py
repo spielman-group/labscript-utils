@@ -5,7 +5,7 @@ from collections.abc import Iterable, Mapping
 import numpy as np
 
 from labscript_utils import ensure_str
-from labscript_utils.file_utils import warn_legacy_file
+from labscript_profile.legacy_files import warn_legacy_file
 
 
 JSON_IDENTIFIER = 'Content-Type: application/json '
