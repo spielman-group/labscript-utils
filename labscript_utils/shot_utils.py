@@ -11,6 +11,8 @@
 #                                                                   #
 #####################################################################
 
+from contextlib import nullcontext
+
 import h5py
 import numpy as np
 
@@ -18,14 +20,23 @@ import numpy as np
 def get_shot_globals(filepath):
     """Return the evaluated globals of a shot, for use by labscript or lyse.
 
+    Parameters
+    ----------
+    filepath : str or h5py.File
+        The shot file's path, or the open file, which is left open.
+
     Returns
     -------
     dict
         Global names and values. Numpy bools and strings become Python ones,
         null HDF5 references become None, and bytes are decoded to str.
     """
+    if isinstance(filepath, h5py.File):
+        file_context = nullcontext(filepath)
+    else:
+        file_context = h5py.File(filepath, 'r')
     params = {}
-    with h5py.File(filepath, 'r') as f:
+    with file_context as f:
         for name, value in f['globals'].attrs.items():
             # Convert numpy bools to normal bools:
             if isinstance(value, np.bool_):
