@@ -50,8 +50,7 @@ def dump_toml_file(filename, data):
     """Write the dict ``data`` to ``filename`` as TOML.
 
     The file is replaced whole, so it is left intact if ``data`` cannot be
-    serialised or the write is interrupted. An existing file keeps its mode bits,
-    its group and owner as far as the user may set them, and on Windows its ACLs.
+    serialised or the write is interrupted. An existing file keeps its mode bits.
     """
     text = tomli_w.dumps(data)
     # Resolved, so that a symlinked file is replaced and not its link:
@@ -59,41 +58,24 @@ def dump_toml_file(filename, data):
     # Unique per write, so that two threads writing at once never share one:
     temp_filename = filename.with_name(f'{filename.name}.{uuid.uuid4().hex}.tmp')
     try:
-        original = filename.stat()
+        original_mode = filename.stat().st_mode & 0o777
     except FileNotFoundError:
-        original = None
-    # A replacement starts private, and takes the original's access before any of
+        original_mode = None
+    # A replacement starts private, and takes the original's mode before any of
     # the data is written:
-    mode = 0o666 if original is None else 0o600
+    mode = 0o666 if original_mode is None else 0o600
     try:
         with open(
             temp_filename, 'xb', opener=lambda path, flags: os.open(path, flags, mode)
         ) as f:
-            if original is not None:
-                # A config on a shared drive must keep its group's access. Any member
-                # may set the group; only root may set the owner.
-                if os.name != 'nt':
-                    with contextlib.suppress(OSError):
-                        os.chown(temp_filename, -1, original.st_gid)
-                    with contextlib.suppress(OSError):
-                        os.chown(temp_filename, original.st_uid, -1)
+            if original_mode is not None:
+                # A config on a shared drive must keep its group's access:
                 with contextlib.suppress(OSError):
-                    os.chmod(temp_filename, original.st_mode & 0o777)
+                    os.chmod(temp_filename, original_mode)
             f.write(text.encode('utf-8'))
             f.flush()
             os.fsync(f.fileno())
-        if os.name == 'nt' and original is not None:
-            # os.replace gives the file the folder's ACLs; ReplaceFileW keeps its own.
-            # ctypes is imported here, as this module loads at every interpreter start.
-            import ctypes
-
-            kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
-            if not kernel32.ReplaceFileW(
-                str(filename), str(temp_filename), None, 0, None, None
-            ):
-                raise ctypes.WinError(ctypes.get_last_error())
-        else:
-            os.replace(temp_filename, filename)
+        os.replace(temp_filename, filename)
     except BaseException:
         with contextlib.suppress(OSError):
             os.remove(temp_filename)
