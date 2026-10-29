@@ -16,6 +16,7 @@ Importing this module installs ``tkhandler`` as ``sys.excepthook`` and routes
 exceptions in threads to it. ``set_logger`` makes it log them too.
 """
 
+import logging
 import sys
 import os
 import threading
@@ -44,6 +45,7 @@ class l:
 
 
 child_processes = []
+_original_showwarning = warnings.showwarning
 
 
 def install_thread_excepthook():
@@ -127,9 +129,16 @@ def logwarning(message, category, filename, lineno, file=None, line=None):
 
 
 def set_logger(logger):
-    """Log exceptions and warnings with ``logger``."""
+    """Log exceptions with ``logger``, and warnings too if it logs WARNING.
+
+    A logger that does not, as with logging off in the labconfig, leaves warnings
+    printed as Python normally does.
+    """
     l.logger = logger
-    warnings.showwarning = logwarning
+    if logger.isEnabledFor(logging.WARNING):
+        warnings.showwarning = logwarning
+    else:
+        warnings.showwarning = _original_showwarning
 
 
 # tkinter is a separate package on Debian and Ubuntu, so it may be missing:

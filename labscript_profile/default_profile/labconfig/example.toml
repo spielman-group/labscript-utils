@@ -32,6 +32,7 @@ zprocess_remote = 7341
 communication_timeout = 60
 
 [logging]
+level = 'DEBUG'
 maxBytes = 52428800
 backupCount = 1
 

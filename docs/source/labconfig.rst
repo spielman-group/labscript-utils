@@ -281,6 +281,12 @@ The section name and the two `connection_table.` keys contain characters that TO
 `[logging]`
 ^^^^^^^^^^^
 
+`level`
+    The level of the log messages that the applications and their subprocesses record: `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`, or `off`.
+    With `off`, the applications record no log messages, to the log files or to the terminal, and start no zlog server, and the zlock and zprocess remote servers that `labscript_utils.zlock` and `labscript_utils.remote` start log nothing.
+    Warnings are then printed as Python normally does.
+    The default is `DEBUG`.
+
 `maxBytes`
     The size, in bytes, at which the zlog server starts a new log file.
     The default is 52428800, which is 50 MiB.

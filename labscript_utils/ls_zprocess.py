@@ -19,6 +19,7 @@ instantiate the zprocess class directly. ``Lock``, ``Event``, ``Handler``,
 ``RemoteProcessClient`` and the ``zmq_get*`` and ``zmq_push*`` functions use the
 shared ``ProcessTree`` and ``ZMQClient`` instances.
 """
+import logging
 import os
 import pickle
 import subprocess
@@ -128,6 +129,19 @@ def get_config():
     config['logging_backupCount'] = labconfig.getint(
         'logging', 'backupCount', fallback=1
     )
+    # The level of the suite's loggers, or None if logging is off:
+    level = labconfig.get('logging', 'level', fallback='DEBUG')
+    if level.lower() == 'off':
+        config['logging_level'] = None
+    else:
+        try:
+            config['logging_level'] = logging.getLevelNamesMapping()[level.upper()]
+        except KeyError:
+            msg = (
+                f"Invalid logging level in labconfig: {level}. "
+                "It must be a level name, or off."
+            )
+            raise ValueError(msg) from None
     _cached_config = config
     return config
 
@@ -474,9 +488,13 @@ def run_server(module, port, *extra_args, tui=False):
 
     config = get_config()
     cmd = [
-        sys.executable, '-m', f'zprocess.{module}', '--port', str(port),
-        *extra_args, '-l', LOG_PATH,
+        sys.executable, '-m', f'zprocess.{module}', '--port', str(port), *extra_args
     ]
+    # With logging off, the zlock and remote servers log nothing. zlog is the log.
+    if config['logging_level'] is None and module != 'zlog':
+        cmd += ['--silent']
+    else:
+        cmd += ['-l', LOG_PATH]
     if config['shared_secret_file'] is not None:
         cmd += ['--shared-secret-file', config['shared_secret_file']]
     elif config['allow_insecure']:
