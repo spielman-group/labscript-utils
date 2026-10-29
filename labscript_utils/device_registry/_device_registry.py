@@ -13,7 +13,6 @@ labscript_devices, whose classes are decorated with @BLACS_tab or @runviewer_par
 
 import importlib.machinery
 import importlib.util
-import logging
 import os
 import importlib
 import warnings
@@ -62,23 +61,6 @@ def _get_device_dirs():
 
 
 LABSCRIPT_DEVICES_DIRS = _get_device_dirs()
-
-# The device modules that define no runviewer parser, each warned of once:
-_parserless_devices = set()
-
-
-class _NotRegistered(ValueError): pass
-
-
-class _NoTracesParser:
-    """The runviewer parser of a device that has none: it draws nothing."""
-
-    def __init__(self, path, device):
-        pass
-
-    def get_traces(self, add_trace, clock=None):
-        return {}
-
 
 class ClassRegister:
     """A register of classes by the name of the module that defines them.
@@ -148,7 +130,7 @@ class ClassRegister:
             return self.registered_classes[name]
         except KeyError:
             # No? No such class is defined then, or maybe the user forgot to decorate it.
-            raise _NotRegistered(f'No class decorated as a {self.instancename} found in module labscript_devices.{name}, '
+            raise ValueError(f'No class decorated as a {self.instancename} found in module labscript_devices.{name}, '
                              f'Did you forget to decorate the class definition with @{self.instancename}?')
 
 
@@ -250,43 +232,25 @@ def get_BLACS_tab(name):
     return BLACS_tab[name]
 
 
-def get_runviewer_parser(name, logger=None):
+def get_runviewer_parser(name):
     """Return the runviewer parser class of a labscript device.
 
     The class is the one named in a `register_classes` call for the device, or
     else the one decorated with `runviewer_parser` in labscript_devices/<name>.py.
-    Any other device gets a parser that draws nothing: silently if it is registered
-    with ``runviewer_parser=None`` or has no such module, and with a warning logged
-    once if its module defines no parser, where one was expected.
-
-    Parameters
-    ----------
-    logger : logging.Logger, optional
-        The logger for that warning; this module's own if not given.
 
     Raises
     ------
-    ImportError
-        If the registered class, or the module labscript_devices.<name>, exists but
-        cannot be imported.
+    ValueError
+        If the device's `register_classes` call passes ``runviewer_parser=None``.
+    ImportError, ValueError
+        If neither method finds the class, as for indexing a `ClassRegister`.
     """
     if not runviewer_parser_registry:
         populate_registry()
     if name in runviewer_parser_registry:
-        if runviewer_parser_registry[name] is not None:
-            return import_class_by_fullname(runviewer_parser_registry[name])
-    elif importlib.util.find_spec(f'labscript_devices.{name}') is not None:
-        # Fall back on file naming convention + decorator method:
-        try:
-            return runviewer_parser[name]
-        except _NotRegistered:
-            if name not in _parserless_devices:
-                _parserless_devices.add(name)
-                (logger or logging.getLogger(__name__)).warning(
-                    'labscript_devices.%s defines no runviewer parser, so nothing '
-                    'is drawn for it.', name
-                )
-    return _NoTracesParser
+        return _import_registered_class(runviewer_parser_registry, 'runviewer_parser', name)
+    # Fall back on file naming convention + decorator method:
+    return runviewer_parser[name]
 
 
 def register_classes(labscript_device_name, BLACS_tab=None, runviewer_parser=None):
