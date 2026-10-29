@@ -190,15 +190,19 @@ Keys
     The program that opens the experiment script in runmanager, the analysis routines in lyse and the connection table script in BLACS, and its arguments.
     The arguments are separated by spaces in a string, or are a TOML array, and the argument `{file}` is replaced by the path of the file.
     If no argument contains `{file}`, the path is the first argument.
-    If `text_editor` is missing or cannot be started, the application shows a dialog that says so.
+    If `text_editor` is empty, the file is opened for editing in the operating system's default program: on Windows, the program of the "Edit" action of the file type, or Notepad if the file type has none; on macOS, the default text editor; on Linux, the default program of the file type, with `xdg-open`.
+    New profiles have the path of VS Code from its user installer on Windows, `%%LOCALAPPDATA%%\Programs\Microsoft VS Code\Code.exe`, and an empty `text_editor` on Linux and macOS.
+    The system installer of VS Code puts it in `%%PROGRAMFILES%%\Microsoft VS Code\Code.exe`.
+    If the program cannot be started, the application shows a dialog that says so.
 
 `hdf5_viewer`, `hdf5_viewer_arguments`
     The program that opens shot files from lyse, and its arguments, in the same form as `text_editor_arguments`.
-    If `hdf5_viewer` is missing or cannot be started, lyse shows a dialog that says so.
+    If `hdf5_viewer` is empty, the file is opened in the operating system's default program for `.h5` files.
+    New profiles have the path of HDFView from its Windows installer, `%%LOCALAPPDATA%%\HDFView\HDFView.exe`, on Windows, and an empty `hdf5_viewer` on Linux and macOS.
+    `HDFView <https://github.com/HDFGroup/hdfview/releases>`_, from The HDF Group, is a viewer for HDF5 files.
+    On Windows, its installer also makes it the default program for `.h5` files.
+    If the program cannot be started, lyse shows a dialog that says so.
 
-The default labconfig holds the Windows values.
-When `labscript-profile-create` writes your labconfig, on Linux it sets `text_editor` to `gedit`, and on macOS it sets `text_editor` to `open` and `text_editor_arguments` to `-a TextEdit {file}`.
-On both it sets `hdf5_viewer` to `hdfview`.
 
 `[labscript]`
 ^^^^^^^^^^^^^

@@ -68,13 +68,10 @@ def make_labconfig_file(shared_secret, apparatus_name=None):
     config = load_toml_file(source_path)
     if os.path.sep != '\\':
         config = _replace_backslashes(config)
-    if sys.platform == 'linux':
-        config['programs']['text_editor'] = 'gedit'
-    elif sys.platform == 'darwin':
-        config['programs']['text_editor'] = 'open'
-        config['programs']['text_editor_arguments'] = '-a TextEdit {file}'
     if sys.platform != 'win32':
-        config['programs']['hdf5_viewer'] = 'hdfview'
+        # Empty, so that the operating system's default programs open the files:
+        config['programs']['text_editor'] = ''
+        config['programs']['hdf5_viewer'] = ''
         config['default']['shared_drive'] = '$HOME/labscript_shared'
     target_path.parent.mkdir(parents=True, exist_ok=True)
     shared_secret_path = write_shared_secret(shared_secret, target_path.parent)
