@@ -76,10 +76,13 @@ class ModuleWatcher:
         for name, module in sys.modules.copy().items():
             if name not in self.whitelist:
                 # Only consider modules with a non-None __file__ that are .py or .pyc
-                # files on disk, outside the package directories. Others are
-                # whitelisted so later calls skip them.
+                # files on disk, outside the package directories. Others, but for a
+                # user's namespace package, are whitelisted so later calls skip them.
                 if getattr(module, '__file__', None) is None:
-                    self.whitelist.add(name)
+                    # A user's namespace package is unloaded with its modules, since
+                    # its __path__ refers to its parent package, which is unloaded:
+                    if not self._is_user_namespace_package(module):
+                        self.whitelist.add(name)
                     continue
                 module_file = module.__file__
                 if module_file.endswith('.pyc'):
@@ -105,6 +108,22 @@ class ModuleWatcher:
                     )
                     sys.stderr.write(message)
         return unload_required
+
+    @staticmethod
+    def _is_user_namespace_package(module):
+        """Whether module is a namespace package with a path entry outside PKGDIRS"""
+        path = getattr(module, '__path__', None)
+        if path is None:
+            return False
+        try:
+            entries = list(path)
+        except Exception:
+            # The path refers to a parent package that is no longer in sys.modules
+            return True
+        return any(
+            not any(entry.startswith(s + os.path.sep) for s in PKGDIRS)
+            for entry in entries
+        )
 
     def unload(self):
         if self.debug:
