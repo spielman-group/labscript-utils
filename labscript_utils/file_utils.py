@@ -20,12 +20,13 @@ import re
 from labscript_profile.legacy_files import warn_legacy_file
 
 
-def next_available_indexed_filepath(filepath, suffix_format, start=None):
+def next_available_indexed_filepath(
+    filepath, suffix_format, start=None, strip_suffix=True
+):
     """Return the first non-existent filepath created by appending a formatted suffix.
 
-    The suffix goes between the filepath's stem and its extension. If filepath
-    already ends with a suffix matching ``suffix_format``, that suffix is
-    stripped first. Returns the filepath and the index used to build it.
+    The suffix goes between the filepath's stem and its extension. Returns the
+    filepath and the index used to build it.
 
     Parameters
     ----------
@@ -33,7 +34,11 @@ def next_available_indexed_filepath(filepath, suffix_format, start=None):
         Format string with a single ``index`` field, such as ``'_{index:03d}'``.
     start : int, optional
         First index to try. If ``None``, the search begins one past the index of
-        an existing suffix on ``filepath``, or at 0 if it has none.
+        a suffix stripped from ``filepath``, else at 0.
+    strip_suffix : bool, optional
+        Whether a suffix matching ``suffix_format`` that ``filepath`` already ends
+        with is replaced. True by default; False keeps it as part of the name, as
+        for a file named after a script that ends in digits.
     """
     basename, ext = os.path.splitext(filepath)
     suffix_pattern = re.escape(suffix_format)
@@ -42,11 +47,12 @@ def next_available_indexed_filepath(filepath, suffix_format, start=None):
         lambda match: r'(?P<index>\d+)',
         suffix_pattern,
     )
-    match = re.search(suffix_pattern + r'$', basename)
-    if match is not None:
-        basename = basename[:match.start()]
-        if start is None:
-            start = int(match.group('index')) + 1
+    if strip_suffix:
+        match = re.search(suffix_pattern + r'$', basename)
+        if match is not None:
+            basename = basename[:match.start()]
+            if start is None:
+                start = int(match.group('index')) + 1
     if start is None:
         start = 0
     index = start
