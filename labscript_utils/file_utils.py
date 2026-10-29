@@ -15,10 +15,6 @@
 import os
 import re
 
-# Exported here with the other file helpers. It is defined in labscript_profile so
-# that the profile's bootstrap can warn without importing labscript_utils.
-from labscript_profile.legacy_files import warn_legacy_file
-
 
 def next_available_indexed_filepath(
     filepath, suffix_format, start=None, strip_suffix=True

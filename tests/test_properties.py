@@ -18,7 +18,7 @@ import h5py
 import numpy as np
 
 from labscript_utils import properties
-from labscript_utils.file_utils import warn_legacy_file
+from labscript_profile.legacy_files import warn_legacy_file
 
 
 def test_an_old_file_reads_and_warns_once(tmp_path):
