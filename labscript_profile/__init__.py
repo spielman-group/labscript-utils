@@ -79,14 +79,19 @@ def add_userlib_and_pythonlib():
     if not labconfig.exists():
         return
     config = TomlConfigParser(defaults={'labscript_suite': str(LABSCRIPT_SUITE_PROFILE)})
-    config.read_toml(labconfig)
+    try:
+        config.read_toml(labconfig)
+    except (OSError, ValueError, TypeError, configparser.Error):
+        # A malformed labconfig must not print a traceback here either; the apps
+        # report it. tomllib's decode error is a ValueError.
+        return
     for option in ['userlib', 'pythonlib']:
         try:
             paths = config.get('default', option)
-        except (configparser.NoSectionError, configparser.NoOptionError):
+        except configparser.Error:
             paths = ''
         for path in as_config_list(paths):
-            site.addsitedir(path)
+            site.addsitedir(os.path.expandvars(path))
 
 
 def ensure_labconfig():
