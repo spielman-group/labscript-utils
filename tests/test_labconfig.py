@@ -12,8 +12,8 @@
 #                                                                   #
 #####################################################################
 """App configs: the name of the file save_appconfig writes, for every name it can
-be given, a save cut short, and a legacy INI config read through load_appconfig.
-Labconfigs: a legacy experiment_name.
+be given, a save cut short, the access a saved one keeps, and a legacy INI config
+read through load_appconfig. Labconfigs: a legacy experiment_name.
 
 A save panel can hand back a name without the extension it was offered, or with
 one the host chose, so the name save_appconfig receives is not always the name
@@ -57,6 +57,19 @@ def test_a_save_cut_short_leaves_the_old_config(tmp_path, monkeypatch):
 
     assert load_appconfig(path) == {'state': {'value': 1}}
     assert os.listdir(tmp_path) == ['app.toml']
+
+
+@pytest.mark.skipif(os.name == 'nt', reason='POSIX groups')
+def test_a_saved_config_keeps_its_group_and_mode(tmp_path):
+    path = save_appconfig(tmp_path / 'app', {'state': {'value': 1}})
+    # A group of the user's that a new file does not get, as on a shared drive:
+    group = next(gid for gid in os.getgroups() if gid != os.stat(path).st_gid)
+    os.chown(path, -1, group)
+    os.chmod(path, 0o640)
+
+    save_appconfig(path, {'state': {'value': 2}})
+
+    assert (os.stat(path).st_gid, os.stat(path).st_mode & 0o777) == (group, 0o640)
 
 
 def test_a_legacy_ini_config_is_read_converted_and_warned_of(tmp_path):
