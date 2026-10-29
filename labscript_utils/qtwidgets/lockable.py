@@ -11,15 +11,15 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-from qtutils.qt import QtCore, QtGui, QtWidgets
+from qtutils.qt import QtCore, QtWidgets
 
 
 class LockableOutput:
     """Mixin for an output widget that a right-click menu locks and unlocks.
 
     List it before the widget's Qt base class. The widget installs itself as its
-    own event filter, so that the menu opens while its target is disabled and a
-    disabled widget passes scroll-wheel events to its parent. A subclass must set
+    own event filter, so that the menu opens while its target is disabled. A
+    subclass must set
     ``_lock_target``, the widget that locking disables, and ``_output``, its BLACS
     output or None.
     """
@@ -42,18 +42,6 @@ class LockableOutput:
         if (event.type() == QtCore.QEvent.Type.MouseButtonRelease
                 and event.button() == QtCore.Qt.MouseButton.RightButton):
             self.popup_lock_menu(self, event.pos())
-        # Pass scroll-wheel events of a disabled widget to its parent. Adapted from
-        # http://www.qtforum.org/article/28540/disabled-widgets-and-wheel-events.html
-        elif obj and not obj.isEnabled() and event.type() == QtCore.QEvent.Type.Wheel:
-            new_event = QtGui.QWheelEvent(
-                QtCore.QPointF(obj.mapToParent(event.position().toPoint())),
-                event.globalPosition(),
-                event.pixelDelta(), event.angleDelta(),
-                event.buttons(), event.modifiers(),
-                event.phase(), event.inverted(),
-            )
-            QtWidgets.QApplication.instance().postEvent(obj.parent(), new_event)
-            return True
         return super().eventFilter(obj, event)
 
     def _menu_triggered(self, action):
