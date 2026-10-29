@@ -513,6 +513,15 @@ def run_server(module, port, *extra_args, tui=False):
             pass
 
 
+def _start_server(module):
+    """Run `python -m <module> --daemon`, which starts a server in the background and
+    exits, and wait for it to exit."""
+    kwargs = {}
+    if os.name == 'nt':
+        kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+    subprocess.run([sys.executable, '-m', module, '--daemon'], check=True, **kwargs)
+
+
 def _ping_starting_locally(client, module):
     """Ping a server, starting a local one that does not answer."""
     if gethostbyname(client.host) == gethostbyname('localhost'):
@@ -523,9 +532,7 @@ def _ping_starting_locally(client, module):
             # Not running. Start it, to run forever even after this program exits,
             # since other programs may use it. Then try again, with a longer
             # timeout to give it time to start up:
-            zprocess.start_daemon(
-                [sys.executable, '-m', f'labscript_utils.{module}', '--daemon']
-            )
+            _start_server(f'labscript_utils.{module}')
             client.ping(timeout=15)
     else:
         client.ping()
