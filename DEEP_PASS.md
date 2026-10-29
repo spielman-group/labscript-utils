@@ -11,6 +11,8 @@ form, with the floors Python 3.13, qtutils 4.4.1 and zprocess 3.0.1.
 Not possible, the fork's code having drifted:
 - 1ca6f16 (ToolPaletteGroup's linked widths), c2ae695 (AnalogInput's plot
   window) and ba04ee1 (CameraServer): step 4 removed that code, on Ian's word.
+  It stays removed, and the removals are offered upstream when packaging starts
+  (Ian, U2).
 - 3df0276's connection-table diff message: step 4 removed `assert_superset`. Its
   other two parts the fork already has.
 - 2e96b30's quad_driver text: step 2 made quad_driver and quad_monitor one class.
@@ -25,8 +27,7 @@ Open:
 - Offered upstream, on UpstreamBugFixes: `text_editor.open_in_editor`
   (de8754d), `assert_superset` and `Connection.diff`'s removal (2f50183), and the
   quad conversions' shared base (d35f39c).
-- Ian decides whether step 4's removals behind 1ca6f16, c2ae695 and ba04ee1 are
-  restored or offered upstream, and whether the window-geometry pair is offered.
+- Ian decides whether the window-geometry pair is offered upstream.
 - Fork-only, on top of upstream: the port-in-use `OSError` from `ZMQServer`, and
   `exec_qapplication`'s window deletion and `on_interrupt`.
 - hyde forces Fusion and a light palette before `configure_qapplication`, whose
