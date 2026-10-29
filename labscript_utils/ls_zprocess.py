@@ -180,6 +180,9 @@ class ZMQServer(zprocess.ZMQServer):
     A subclass binds to its port by setting ``server``, its name in the labconfig,
     and ``default_port``, as a bound :class:`ZMQClient` does. Its ``port`` then
     defaults to the labconfig's ``ports/<server>``, else ``default_port``.
+
+    If the port is in use, as when another copy of the application is running,
+    constructing it raises ``OSError`` naming the server and the port.
     """
 
     server = None
@@ -209,16 +212,24 @@ class ZMQServer(zprocess.ZMQServer):
         shared_secret = config['shared_secret']
         allow_insecure = config['allow_insecure']
 
-        super().__init__(
-            port=port,
-            dtype=dtype,
-            pull_only=pull_only,
-            bind_address=bind_address,
-            shared_secret=shared_secret,
-            allow_insecure=allow_insecure,
-            timeout_interval=timeout_interval,
-            **kwargs
-        )
+        try:
+            super().__init__(
+                port=port,
+                dtype=dtype,
+                pull_only=pull_only,
+                bind_address=bind_address,
+                shared_secret=shared_secret,
+                allow_insecure=allow_insecure,
+                timeout_interval=timeout_interval,
+                **kwargs
+            )
+        except zmq.ZMQError as e:
+            if e.errno != zmq.EADDRINUSE:
+                raise
+            name = self.server or type(self).__name__
+            msg = f"""{name} cannot start because port {port} is in use. Another copy
+                of {name} is probably running."""
+            raise OSError(dedent(msg)) from None
 
     def handler(self, request_data):
         """Answer ``[command, args, kwargs]`` by calling ``handle_<command>``.

@@ -78,3 +78,8 @@ def test_a_handler_exception_reaches_the_client_and_the_server_goes_on(
     assert 'handle_status' in raised.value.__notes__[-1]
     assert client.request('status', 'shot_42') == 'done'
     assert hook_calls == []
+
+
+def test_a_second_server_on_a_port_in_use_names_it(client):
+    with pytest.raises(OSError, match=r'shots cannot start because port \d+ is in use'):
+        ShotServer()
