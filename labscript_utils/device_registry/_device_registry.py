@@ -220,6 +220,15 @@ runviewer_parser_registry = {}
 # The script files that registered each device, for use in error messages:
 _register_classes_script_files = {}
 
+def _import_registered_class(registry, kind, name):
+    fullname = registry[name]
+    if fullname is None:
+        script = _register_classes_script_files[name]
+        msg = f"No {kind} registered for the device {name}: {script} passes {kind}=None"
+        raise ValueError(msg)
+    return import_class_by_fullname(fullname)
+
+
 def get_BLACS_tab(name):
     """Return the BLACS tab class of a labscript device.
 
@@ -228,14 +237,15 @@ def get_BLACS_tab(name):
 
     Raises
     ------
+    ValueError
+        If the device's `register_classes` call passes ``BLACS_tab=None``.
     ImportError, ValueError
         If neither method finds the class, as for indexing a `ClassRegister`.
     """
     if not BLACS_tab_registry:
         populate_registry()
-    # A device registered with BLACS_tab=None falls back too.
-    if BLACS_tab_registry.get(name) is not None:
-        return import_class_by_fullname(BLACS_tab_registry[name])
+    if name in BLACS_tab_registry:
+        return _import_registered_class(BLACS_tab_registry, 'BLACS_tab', name)
     # Fall back on file naming convention + decorator method:
     return BLACS_tab[name]
 
