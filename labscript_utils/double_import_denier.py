@@ -42,6 +42,10 @@ class DoubleImportDenier:
                 self.tracebacks[path] = [UNKNOWN, '']
 
         self.stack = set()
+        self._uncaught_error = None
+        self._orig_excepthook = None
+        # One bound method, since each attribute access makes a new one and `is` fails:
+        self._hook = self._excepthook
 
     def find_spec(self, fullname, path=None, target=None):
         # Prevent recursion. If importlib.util.find_spec was called by us and is looking
@@ -52,13 +56,13 @@ class DoubleImportDenier:
             return
         self.stack.add(dict_key)
         try:
-            spec = importlib.util.find_spec(fullname, path)
+            spec = importlib.util.find_spec(fullname)
         except Exception:
             return
         finally:
             self.stack.remove(dict_key)
 
-        if spec is not None and spec.origin is not None and spec.origin != "built-in":
+        if spec is not None and spec.origin not in (None, "built-in", "frozen"):
             path = os.path.realpath(spec.origin)
             tb = traceback.format_stack()
             other_name = self.names_by_filepath.get(path, None)
@@ -81,19 +85,25 @@ class DoubleImportDenier:
                                 or 'load_package' in frame))]
         return ''.join(frames)
 
-    def _restore_tracebacklimit_after_exception(self):
-        orig_excepthook = sys.excepthook
+    def _excepthook(self, exc_type, exc_value, exc_tb):
+        """Print the error `_raise_error` raised with ``sys.tracebacklimit`` at 2, which
+        hides the import-machinery frames, and pass any other exception on unchanged."""
+        if sys.excepthook is self._hook:
+            sys.excepthook = self._orig_excepthook
+        error, self._uncaught_error = self._uncaught_error, None
+        if exc_value is not error:
+            self._orig_excepthook(exc_type, exc_value, exc_tb)
+            return
         exists = hasattr(sys, 'tracebacklimit')
         orig_tracebacklimit = getattr(sys, 'tracebacklimit', None)
-
-        def excepthook(*args, **kwargs):
-            orig_excepthook(*args, **kwargs)
+        sys.tracebacklimit = 2
+        try:
+            self._orig_excepthook(exc_type, exc_value, exc_tb)
+        finally:
             if exists:
                 sys.tracebacklimit = orig_tracebacklimit
             else:
                 del sys.tracebacklimit
-            sys.excepthook = orig_excepthook
-        sys.excepthook = excepthook
 
     def _raise_error(self, path, name, tb, other_name, other_tb):
         msg = """Double import! The same file has been imported under two
@@ -113,13 +123,14 @@ class DoubleImportDenier:
         msg += f"Traceback (second time imported, as {name}):\n"
         msg += f"------------\n{tb}------------"
 
-        # Limit the traceback, hiding import-machinery frames. A finally: block cannot
-        # restore the limit, as it runs before the exception is printed, so a
-        # temporary excepthook does.
-        self._restore_tracebacklimit_after_exception()
-
-        sys.tracebacklimit = 2
-        raise RuntimeError(msg) from None
+        # The limit is set only while the hook prints this error, so that an error
+        # caught by the caller leaves it unchanged:
+        error = RuntimeError(msg)
+        self._uncaught_error = error
+        if sys.excepthook is not self._hook:
+            self._orig_excepthook = sys.excepthook
+            sys.excepthook = self._hook
+        raise error from None
 
 
 _denier = None
