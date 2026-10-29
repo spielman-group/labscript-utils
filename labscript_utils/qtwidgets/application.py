@@ -11,10 +11,11 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
+import importlib
 import signal
 
 from qtutils import inmain_decorator
-from qtutils.qt import QtCore, QtWidgets
+from qtutils.qt import PYQT_LIBS, QT_ENV, QtCore, QtWidgets
 
 from labscript_utils.labconfig import LabscriptApplication
 import labscript_utils.qtwidgets.file_dialogs as file_dialogs
@@ -248,11 +249,31 @@ def _screen_geometry():
 
 
 def exec_qapplication(qapplication):
-    """Run the event loop until it ends, or until Ctrl-C in the terminal."""
+    """Run the event loop until it ends, or until Ctrl-C in the terminal.
+
+    The top-level windows are then deleted, so code that must use them at exit runs
+    on ``qapplication.aboutToQuit``.
+
+    Returns
+    -------
+    int
+        The event loop's exit code.
+    """
     # Python runs signal handlers, Ctrl-C's or zprocess's SIGTERM, only when the
     # interpreter runs, which the timer makes happen every 500 ms.
     timer = QtCore.QTimer()
     timer.start(500)
     timer.timeout.connect(lambda: None)
     signal.signal(signal.SIGINT, lambda *args: qapplication.exit())
-    return qapplication.exec()
+    exit_code = qapplication.exec()
+    # Deleted now, not in PyQt's cleanup at exit, where Python code that makes or
+    # destroys Qt objects can crash the interpreter (Python-SIP/sip#121). It can go
+    # once PyQt6-sip has that fix.
+    if QT_ENV in PYQT_LIBS:
+        sip = importlib.import_module(f'{QT_ENV}.sip')
+        for widget in qapplication.topLevelWidgets():
+            # The others are owned by C++ objects, which delete them:
+            if sip.ispyowned(widget):
+                widget.deleteLater()
+        qapplication.sendPostedEvents(None, QtCore.QEvent.Type.DeferredDelete)
+    return exit_code
