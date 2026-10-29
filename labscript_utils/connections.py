@@ -11,6 +11,8 @@
 #                                                                   #
 #####################################################################
 
+import contextlib
+
 import labscript_utils.h5_lock, h5py
 import labscript_utils.properties
 import logging
@@ -27,6 +29,8 @@ class ConnectionTable:
 
     Parameters
     ----------
+    h5file : str or h5py.File
+        The file's path, or the open file, which is left open.
     logging_prefix : str, optional
         If given, log to the logger ``<logging_prefix>.ConnectionTable``.
     exceptions_in_thread : bool, optional
@@ -49,11 +53,12 @@ class ConnectionTable:
     """
 
     def __init__(self, h5file, logging_prefix=None, exceptions_in_thread=False):
-        self.filepath = h5file
+        is_open = isinstance(h5file, h5py.File)
+        self.filepath = h5file.filename if is_open else h5file
         self.logger = None
         if logging_prefix is not None:
             self.logger = logging.getLogger(f'{logging_prefix}.ConnectionTable')
-            self.logger.debug(f'Parsing connection table from {h5file}')
+            self.logger.debug(f'Parsing connection table from {self.filepath}')
 
         self.toplevel_children = {}
         self.table = {}
@@ -61,11 +66,15 @@ class ConnectionTable:
         self.raw_table = np.empty(0)
 
         try:
-            with h5py.File(h5file,'r') as hdf5_file:
+            if is_open:
+                file_context = contextlib.nullcontext(h5file)
+            else:
+                file_context = h5py.File(h5file, 'r')
+            with file_context as hdf5_file:
                 try:
                     dataset = hdf5_file['connection table']
                 except Exception:
-                    msg = f'could not open connection table dataset in {h5file}'
+                    msg = f'could not open connection table dataset in {self.filepath}'
                     if self.logger: self.logger.error(msg)
                     if exceptions_in_thread:
                         raise_exception_in_thread(sys.exc_info())
@@ -81,7 +90,7 @@ class ConnectionTable:
 
                 try:
                     all_connections = [
-                        Connection(raw_row, h5file) for raw_row in self.raw_table
+                        Connection(raw_row, self.filepath) for raw_row in self.raw_table
                     ]
                     self.table = {connection.name: connection for connection in all_connections}
                     for name, connection in self.table.items():
@@ -89,7 +98,7 @@ class ConnectionTable:
                         if connection.parent_port is None:
                             self.toplevel_children[name] = connection
                 except Exception:
-                    msg = f'Could not parse connection table in {h5file}'
+                    msg = f'Could not parse connection table in {self.filepath}'
                     if self.logger: self.logger.error(msg)
                     if exceptions_in_thread:
                         raise_exception_in_thread(sys.exc_info())
@@ -97,7 +106,7 @@ class ConnectionTable:
                         raise
 
         except Exception:
-            msg = f'Could not open connection table file {h5file}'
+            msg = f'Could not open connection table file {self.filepath}'
             if self.logger: self.logger.exception(msg)
             if exceptions_in_thread:
                 raise_exception_in_thread(sys.exc_info())
