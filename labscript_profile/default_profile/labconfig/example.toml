@@ -64,6 +64,7 @@ integer_indexing = false
 autoload_config_file = '%(app_saved_configs)s\runmanager\runmanager.toml'
 output_folder_format = '%%Y\%%m\%%d\{sequence_index:04d}'
 filename_prefix_format = '%%Y-%%m-%%d_{sequence_index:04d}_{script_basename}'
+pylab_namespace = false
 
 [security]
 shared_secret = '%(labscript_suite)s\labconfig\zpsecret-b810f83f.key'

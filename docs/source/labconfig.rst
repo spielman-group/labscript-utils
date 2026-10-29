@@ -269,6 +269,17 @@ The section name and the two `connection_table.` keys contain characters that TO
     runmanager adds the run number and `.h5` to it.
     If the key is missing, the format is `{sequence_timestamp}_{script_basename}`.
 
+`globals_namespace`
+    A Python file that runmanager runs each time it evaluates globals.
+    The names in the file's `__all__`, or if it has none, the names that do not start with an underscore, are available to the expressions of the globals.
+    If the file cannot be run, every global holds the error.
+    By default, there is no such file.
+
+`pylab_namespace`
+    Whether the names of `from pylab import *` are available to the expressions of the globals.
+    Runmanager will stop providing these names in a future version, and warns about each global that uses them.
+    The default is `true`; new profiles set it to `false`.
+
 `[security]`
 ^^^^^^^^^^^^
 

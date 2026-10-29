@@ -20,8 +20,6 @@ Adapted to the TOML labconfig and app configs: 3d100b9, 701389e, 12f86ac with
 0f6bf4f, 126c8c5, 516e254, and `programs.open_file`'s TOML array arguments.
 
 Open:
-- 05560c1 and 8788417, runmanager's `globals_namespace` and `pylab_namespace`
-  keys, wait for runmanager to have them (upstream runmanager #163).
 - `excepthook.install()`: importing the module still calls it, as upstream does,
   until every program calls it.
 - `text_editor.open_in_editor` goes once its callers use `programs.open_file`,
