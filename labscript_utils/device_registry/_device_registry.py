@@ -297,16 +297,17 @@ def register_classes(labscript_device_name, BLACS_tab=None, runviewer_parser=Non
     Raises
     ------
     ValueError
-        If a device of this name has already been registered.
+        If another script has already registered a device of this name.
     """
-    if labscript_device_name in _register_classes_script_files:
-        other_script =_register_classes_script_files[labscript_device_name]
+    script_filename = os.path.abspath(inspect.stack()[1][0].f_code.co_filename)
+    other_script = _register_classes_script_files.get(labscript_device_name)
+    # The same script runs again when populate_registry is retried after a failure:
+    if other_script is not None and other_script != script_filename:
         msg = """A device named %s has already been registered by the script %s.
             Labscript devices must have unique names."""
         raise ValueError(dedent(msg) % (labscript_device_name, other_script))
     BLACS_tab_registry[labscript_device_name] = BLACS_tab
     runviewer_parser_registry[labscript_device_name] = runviewer_parser
-    script_filename = os.path.abspath(inspect.stack()[1][0].f_code.co_filename)
     _register_classes_script_files[labscript_device_name] = script_filename
 
 
