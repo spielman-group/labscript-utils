@@ -22,8 +22,11 @@ Adapted to the TOML labconfig and app configs: 3d100b9, 701389e, 12f86ac with
 Open:
 - `excepthook.install()`: importing the module still calls it, as upstream does,
   until every program calls it.
-- `text_editor.open_in_editor` goes once its callers use `programs.open_file`,
-  upstream's form.
+- Offered upstream, on UpstreamBugFixes: `text_editor.open_in_editor`
+  (de8754d), `assert_superset` and `Connection.diff`'s removal (2f50183), and the
+  quad conversions' shared base (d35f39c).
+- Ian decides whether step 4's removals behind 1ca6f16, c2ae695 and ba04ee1 are
+  restored or offered upstream, and whether the window-geometry pair is offered.
 - Fork-only, on top of upstream: the port-in-use `OSError` from `ZMQServer`, and
   `exec_qapplication`'s window deletion and `on_interrupt`.
 - hyde forces Fusion and a light palette before `configure_qapplication`, whose
