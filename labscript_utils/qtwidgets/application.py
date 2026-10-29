@@ -248,11 +248,18 @@ def _screen_geometry():
     ]
 
 
-def exec_qapplication(qapplication):
+def exec_qapplication(qapplication, on_interrupt=None):
     """Run the event loop until it ends, or until Ctrl-C in the terminal.
 
     The top-level windows are then deleted, so code that must use them at exit runs
     on ``qapplication.aboutToQuit``.
+
+    Parameters
+    ----------
+    on_interrupt : callable, optional
+        Called with no arguments on Ctrl-C, such as the main window's ``close``, so
+        that the application's own close sequence runs. By default Ctrl-C ends the
+        event loop.
 
     Returns
     -------
@@ -264,7 +271,9 @@ def exec_qapplication(qapplication):
     timer = QtCore.QTimer()
     timer.start(500)
     timer.timeout.connect(lambda: None)
-    signal.signal(signal.SIGINT, lambda *args: qapplication.exit())
+    if on_interrupt is None:
+        on_interrupt = qapplication.exit
+    signal.signal(signal.SIGINT, lambda *args: on_interrupt())
     exit_code = qapplication.exec()
     # Deleted now, not in PyQt's cleanup at exit, where Python code that makes or
     # destroys Qt objects can crash the interpreter (Python-SIP/sip#121). It can go
