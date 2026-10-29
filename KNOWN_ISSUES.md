@@ -7,3 +7,4 @@
 - `qtwidgets/dragdroptab.py`: every `DragDropTabWidget` built with `group_id=None` joins the same group, so a tab can be dragged between widgets that have nothing to do with each other.
 - `labscript_profile` sets the profile path to None when `getuser()` fails; then `setup_logging` raises TypeError at import, and `LabConfig` puts the string 'None' in for `%(labscript_suite)s`.
 - `labconfig.py`: `load_appconfig` silently drops a top-level scalar from a hand-edited app config, since it keeps only the tables (`isinstance(section, dict)`).
+- `labscript_profile/toml_config.py`: potential, unconfirmed: on Windows, `dump_toml_file` cannot replace a config that another process holds open without FILE_SHARE_DELETE, so the save raises and the old file is kept. Not tested on Windows or on the lab's network share.
