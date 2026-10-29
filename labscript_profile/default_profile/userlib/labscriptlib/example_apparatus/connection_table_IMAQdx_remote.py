@@ -1,7 +1,7 @@
 from labscript import start, stop, add_time_marker, Trigger
 from labscript.remote import RemoteBLACS
 from labscript_devices.DummyPseudoclock.labscript_devices import DummyPseudoclock
-from labscript_devices.DummyIntermediateDevice import DummyIntermediateDevice
+from labscript_devices.DummyIntermediateDevice.labscript_devices import DummyIntermediateDevice
 from labscript_devices.IMAQdxCamera.labscript_devices import IMAQdxCamera
 
 # Use a virtual ('dummy') device for the psuedoclock
