@@ -23,11 +23,14 @@ from . import file_dialogs
 from .lockable import LockableOutput
 
 
-class BrowseButton(QtWidgets.QPushButton):
+class BrowseButton(QtWidgets.QToolButton):
     """A button that asks for an image file and sets it as ``image_output``'s value."""
 
-    def __init__(self, image_output, *args, **kwargs):
+    def __init__(self, image_output, text, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.setText(text)
+        self.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.setAutoRaise(True)
         self.image_output = image_output
         self.installEventFilter(self)
         self.clicked.connect(self.browse)
