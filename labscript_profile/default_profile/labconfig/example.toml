@@ -59,6 +59,7 @@ theme = true
 
 [gui]
 color_scheme = 'system'
+qt_binding = 'PySide6'
 
 [lyse]
 autoload_config_file = '%(app_saved_configs)s\lyse\lyse.toml'
