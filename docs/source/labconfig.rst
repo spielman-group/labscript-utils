@@ -244,13 +244,14 @@ The section name and the two `connection_table.` keys contain characters that TO
 `color_scheme`
     The colour scheme of BLACS, lyse, runmanager and runviewer: `system`, `light` or `dark`.
     With `system`, the applications use the colour scheme of the operating system.
-    The key applies with PySide6 and PyQt6, with Qt 6.8 or later, and is ignored with PyQt5.
+    The key applies with Qt 6.8 or later.
     On Linux, `light` and `dark` take effect only with a Qt platform theme that supports them, such as the GTK platform theme.
     The default is `system`.
 
 `qt_binding`
-    The Qt binding of BLACS, lyse, runmanager and runviewer: `PySide6`, `PyQt6` or `PyQt5`.
-    The `pyqt` extra of the labscript-suite package installs PyQt6. To use PySide6 or PyQt5, install it in the Python environment of the labscript suite yourself.
+    The Qt binding of BLACS, lyse, runmanager and runviewer: `PySide6` or `PyQt6`.
+    The `pyqt` extra of the labscript-suite package installs PyQt6. To use PySide6, install it in the Python environment of the labscript suite yourself.
+    PyQt5 is not supported.
     If the environment variable `QT_ENV` is set, it takes precedence over this key.
     The default is `PyQt6`.
 

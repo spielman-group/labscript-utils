@@ -33,7 +33,7 @@ from labscript_profile.toml_config import (
 
 default_config_path = default_labconfig_path()
 
-QT_BINDINGS = ['PySide6', 'PyQt6', 'PyQt5']
+QT_BINDINGS = ['PySide6', 'PyQt6']
 
 
 def format_path_for_display(path):
@@ -345,7 +345,7 @@ def _load_legacy_appconfig_value(value):
 
 def set_qt_binding():
     """Set the environment variable QT_ENV, which selects the Qt binding of qtutils, to
-    the value of the labconfig key [gui] qt_binding, which is PySide6, PyQt6 or PyQt5.
+    the value of the labconfig key [gui] qt_binding, which is PySide6 or PyQt6.
     The default is PyQt6. Call this before importing qtutils.qt. If QT_ENV is already
     set, or a Qt binding has already been imported, do nothing."""
     if 'QT_ENV' in os.environ:
