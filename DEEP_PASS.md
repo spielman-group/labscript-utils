@@ -27,6 +27,7 @@ inventory.
 
 Fork commits on top of upstream's, on Ian's word:
 - edcf752: `[gui] qt_binding` defaults to PyQt6, and PySide6 is not required.
+- 708e3e0: `[gui] qt_binding` refuses PyQt5, since the fork's code is Qt6 only.
 - b4d1aff: `exec_qapplication` relies on the timer that `setup_application` starts
   since 8f07c1a, and starts none of its own.
 
