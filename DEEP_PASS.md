@@ -5,12 +5,14 @@ file goes once these are done or recorded elsewhere.
 
 ## Upstream stage
 
-CodeHealth carries upstream master 22616a7..a2c4901, ported by hand in upstream's
-form, with the floors Python 3.13, qtutils 4.4.1 and zprocess 3.0.1.
+CodeHealth carries upstream master 22616a7..f77ac19, with the floors Python 3.13,
+qtutils 4.4.3 and zprocess 3.0.1. Up to a2c4901 it was ported by hand in upstream's
+form; a2c4901..f77ac19 is cherry-picked with -x, as 4a51a29..afe96f2.
 
 Not possible, the fork's code having drifted:
 - 1ca6f16 (ToolPaletteGroup's linked widths), c2ae695 (AnalogInput's plot
-  window) and ba04ee1 (CameraServer): step 4 removed that code, on Ian's word.
+  window), ba04ee1 (CameraServer), 44205a5 (AnalogInput's plot button tooltip)
+  and 05b4301's AnalogInput part: step 4 removed that code, on Ian's word.
   It stays removed, and the removals are offered upstream when packaging starts
   (Ian, U2).
 - 3df0276's connection-table diff message: step 4 removed `assert_superset`. Its
@@ -19,7 +21,14 @@ Not possible, the fork's code having drifted:
   The behaviour is upstream's.
 
 Adapted to the TOML labconfig and app configs: 3d100b9, 701389e, 12f86ac with
-0f6bf4f, 126c8c5, 516e254, and `programs.open_file`'s TOML array arguments.
+0f6bf4f, 126c8c5, 516e254, 53c2544, d2d7fea, 1dcbc53, 2b100b5, and
+`programs.open_file`'s TOML array arguments. 37a7450 keeps the fork's PyQt6 docs
+inventory.
+
+Fork commits on top of upstream's, on Ian's word:
+- edcf752: `[gui] qt_binding` defaults to PyQt6, and PySide6 is not required.
+- b4d1aff: `exec_qapplication` relies on the timer that `setup_application` starts
+  since 8f07c1a, and starts none of its own.
 
 Open:
 - `excepthook.install()`: importing the module still calls it, as upstream does,
@@ -89,3 +98,5 @@ has, so they merge together. Among them:
 - `ZMQServer`'s `server` and `default_port`: runmanager cf7cfb8, runviewer
   82ac827.
 - `next_available_indexed_filepath`'s `strip_suffix`: runmanager 3f569c1.
+- blacs's `tracelog` command-line argument imports `labscript_utils.tracelog`,
+  which d3f06cb removed; upstream blacs 0a29fff removes the argument.
