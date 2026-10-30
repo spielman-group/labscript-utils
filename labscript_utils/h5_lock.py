@@ -94,6 +94,30 @@ class File(_File):
         self.close()
 
 
+def delete_shot_file(path):
+    """Delete a shot file once no one else has it open.
+
+    The file is deleted under an exclusive zlock on its path, the lock that
+    :class:`File` holds while the file is open, so the deletion waits until other
+    threads and processes have closed it. A thread that already holds the lock, not
+    read-only, may call this, since the lock is re-entrant.
+
+    Parameters
+    ----------
+    path : str or os.PathLike
+        The file's path on this computer.
+
+    Raises
+    ------
+    OSError
+        If the file cannot be deleted, as when it is already gone, or the lock is not
+        acquired in time. Nothing is logged: the caller says what a failure means.
+    """
+    path = os.fspath(path)
+    with Lock(path_to_agnostic(path)):
+        os.unlink(path)
+
+
 def hack_locks_onto_h5py():
     """Replace ``h5py.File`` with the locking :class:`File`."""
     h5py.File = File
