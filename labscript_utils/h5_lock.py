@@ -110,8 +110,10 @@ def delete_shot_file(path):
     Raises
     ------
     OSError
-        If the file cannot be deleted, as when it is already gone, or the lock is not
-        acquired in time. Nothing is logged: the caller says what a failure means.
+        If the file cannot be deleted, as when it is already gone. Nothing is logged:
+        the caller says what a failure means.
+    zmq.ZMQError
+        If the zlock server does not answer.
     """
     path = os.fspath(path)
     with Lock(path_to_agnostic(path)):
