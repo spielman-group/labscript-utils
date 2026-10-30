@@ -307,7 +307,8 @@ def exec_qapplication(qapplication, on_interrupt=None):
     """Run the event loop until it ends, or until Ctrl-C in the terminal.
 
     The top-level windows are then deleted, so code that must use them at exit runs
-    on ``qapplication.aboutToQuit``.
+    on ``qapplication.aboutToQuit``. Ctrl-C is handled during the event loop through
+    the timer that :func:`setup_application` starts, which must have run first.
 
     Parameters
     ----------
@@ -321,11 +322,6 @@ def exec_qapplication(qapplication, on_interrupt=None):
     int
         The event loop's exit code.
     """
-    # Python runs signal handlers, Ctrl-C's or zprocess's SIGTERM, only when the
-    # interpreter runs, which the timer makes happen every 500 ms.
-    timer = QtCore.QTimer()
-    timer.start(500)
-    timer.timeout.connect(lambda: None)
     if on_interrupt is None:
         on_interrupt = qapplication.exit
     signal.signal(signal.SIGINT, lambda *args: on_interrupt())
