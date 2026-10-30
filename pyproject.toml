@@ -38,7 +38,7 @@ dependencies = [
     "numpy>=1.15",
     "packaging>=20.4",
     "pyqtgraph>=0.13.0",
-    "qtutils>=4.4.1",
+    "qtutils>=4.4.3",
     "scipy",
     "zprocess>=3.0.1",
     "setuptools_scm>=10",
