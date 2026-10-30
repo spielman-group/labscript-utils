@@ -346,13 +346,13 @@ def _load_legacy_appconfig_value(value):
 def set_qt_binding():
     """Set the environment variable QT_ENV, which selects the Qt binding of qtutils, to
     the value of the labconfig key [gui] qt_binding, which is PySide6, PyQt6 or PyQt5.
-    The default is PySide6. Call this before importing qtutils.qt. If QT_ENV is already
+    The default is PyQt6. Call this before importing qtutils.qt. If QT_ENV is already
     set, or a Qt binding has already been imported, do nothing."""
     if 'QT_ENV' in os.environ:
         return
     if any(f'{binding}.QtCore' in sys.modules for binding in QT_BINDINGS):
         return
-    qt_binding = LabConfig().get('gui', 'qt_binding', fallback='PySide6')
+    qt_binding = LabConfig().get('gui', 'qt_binding', fallback='PyQt6')
     bindings = {binding.lower(): binding for binding in QT_BINDINGS}
     try:
         os.environ['QT_ENV'] = bindings[qt_binding.lower()]

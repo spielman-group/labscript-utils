@@ -250,9 +250,9 @@ The section name and the two `connection_table.` keys contain characters that TO
 
 `qt_binding`
     The Qt binding of BLACS, lyse, runmanager and runviewer: `PySide6`, `PyQt6` or `PyQt5`.
-    The labscript suite installs PySide6. To use PyQt6 or PyQt5, install it in the Python environment of the labscript suite yourself.
+    The `pyqt` extra of the labscript-suite package installs PyQt6. To use PySide6 or PyQt5, install it in the Python environment of the labscript suite yourself.
     If the environment variable `QT_ENV` is set, it takes precedence over this key.
-    The default is `PySide6`.
+    The default is `PyQt6`.
 
 `[lyse]`
 ^^^^^^^^
