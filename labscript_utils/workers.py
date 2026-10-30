@@ -268,6 +268,9 @@ class _WorkerRecord:
 
 # Guards every WorkersMixin's records, and their reasons and job queues:
 _records_lock = threading.Lock()
+# Set in the workers' job threads, where futures' callbacks run, so that ending a
+# worker there, which waits for its job thread, is refused:
+_job_thread = threading.local()
 
 
 class WorkersMixin:
@@ -279,7 +282,8 @@ class WorkersMixin:
     they are submitted, one at a time; one thread per worker sends them and completes
     their futures. When a worker exits, ends or restarts, its running and queued jobs
     fail. Keep the output box open until :meth:`end_workers` returns, so that it shows
-    what the workers print as they quit.
+    what the workers print as they quit. A future's callbacks run in its worker's job
+    thread, so they must not call :meth:`restart_worker` or :meth:`end_workers`.
     """
 
     app_name = None
@@ -291,6 +295,11 @@ class WorkersMixin:
 
     def _ending_lock(self):
         # Held while workers end, so that a second end or restart waits for the first:
+        if getattr(_job_thread, 'active', False):
+            raise RuntimeError(
+                "Workers cannot be ended or restarted in a job thread, where futures' "
+                "callbacks run"
+            )
         return vars(self).setdefault('_workers_ending', threading.Lock())
 
     def create_worker(self, name, WorkerClass, workerargs=None):
@@ -331,16 +340,17 @@ class WorkersMixin:
         else:
             process = WorkerClass(ProcessTree.instance(), **kwargs)
         record = _WorkerRecord(process, WorkerClass, workerargs)
+        future = Future()
+        record.jobs.put((future, 'init', (), {}))
+        record.thread = threading.Thread(
+            target=self._run_jobs, args=(name, record), daemon=True
+        )
         with _records_lock:
             records = self._worker_records()
             if name in records:
                 raise ValueError(f'There is already a worker called {name}')
+            record.thread.start()
             records[name] = record
-        future = self.submit_job(name, 'init')
-        record.thread = threading.Thread(
-            target=self._run_jobs, args=(name, record), daemon=True
-        )
-        record.thread.start()
         return future
 
     def submit_job(self, worker_name, method_name, *args, **kwargs):
@@ -391,6 +401,8 @@ class WorkersMixin:
         ------
         ValueError
             If this object has no worker called ``name``.
+        RuntimeError
+            If called in a job thread, as from a future's callback.
         """
         with self._ending_lock():
             with _records_lock:
@@ -409,7 +421,8 @@ class WorkersMixin:
         writing, or after WORKER_KILL_LOCK_TIMEOUT seconds. A worker that has not
         finished starting up is killed at once. Their running and queued jobs fail.
         Returns once every worker has exited, so call it from a thread that may wait. A
-        second call waits for the first.
+        second call waits for the first. Raises RuntimeError if called in a job thread,
+        as from a future's callback.
         """
         with self._ending_lock():
             with _records_lock:
@@ -470,6 +483,7 @@ class WorkersMixin:
     def _run_jobs(self, name, record):
         """Start the worker, then send it its jobs in order and complete their futures,
         until it ends. Runs in the worker's job thread."""
+        _job_thread.active = True
         process = record.process
         # Whether this thread ended the worker, and so must quit its process:
         must_quit = False
@@ -483,6 +497,8 @@ class WorkersMixin:
                 break
             future, method_name, args, kwargs = job
             if not future.set_running_or_notify_cancel():
+                if method_name == 'init':
+                    must_quit |= self._mark_ended(record, 'had its init() cancelled')
                 continue
             if record.reason is not None:
                 future.set_exception(WorkerError(f'The worker {name} {record.reason}'))
@@ -492,9 +508,13 @@ class WorkersMixin:
             except WorkerError as e:
                 future.set_exception(e)
                 if method_name == 'init':
-                    must_quit = self._mark_ended(record, 'failed in init()')
+                    must_quit |= self._mark_ended(record, 'failed in init()')
             except (Interrupted, ProcessExited):
                 self._mark_ended(record, 'exited')
+                future.set_exception(WorkerError(f'The worker {name} {record.reason}'))
+            except Exception as e:
+                logging.getLogger(self.app_name).exception('Error in the job thread of %s', name)
+                must_quit |= self._mark_ended(record, f'failed: {e!r}')
                 future.set_exception(WorkerError(f'The worker {name} {record.reason}'))
         if must_quit:
             self._quit_processes([record])
