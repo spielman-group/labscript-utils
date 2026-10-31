@@ -66,7 +66,7 @@ autoload_config_file = '%(app_saved_configs)s\lyse\lyse.toml'
 integer_indexing = false
 
 ["lyse/plugins"]
-delete_default_and_repeated_shots = false
+delete_repeated_shots = false
 
 [runmanager]
 autoload_config_file = '%(app_saved_configs)s\runmanager\runmanager.toml'

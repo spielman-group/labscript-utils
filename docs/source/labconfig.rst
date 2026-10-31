@@ -273,7 +273,7 @@ The section name and the two `connection_table.` keys contain characters that TO
 
 The section name contains a character that TOML does not allow in a bare key, so it is written in quotes.
 
-`delete_default_and_repeated_shots`
+`delete_repeated_shots`
     Whether to load the lyse plugin of the same name.
     The default is `false`.
     A package can register further plugins in the `lyse.plugins` entry point group, and a key of the same kind switches each of them on or off.
