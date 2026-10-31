@@ -236,6 +236,11 @@ class BasePlugin:
         """Return a mapping of service names to objects this plugin exposes."""
         return {}
 
+    def get_remote_handler(self):
+        """Return an object whose ``handle_<command>`` methods the application mounts
+        on its server under the plugin's name, or None for no remote commands."""
+        return None
+
     def get_save_data(self):
         """Return the plugin's state to save, as data TOML can hold."""
         return {}
