@@ -19,6 +19,7 @@ instantiate the zprocess class directly. ``Lock``, ``Event``, ``Handler``,
 ``RemoteProcessClient`` and the ``zmq_get*`` and ``zmq_push*`` functions use the
 shared ``ProcessTree`` and ``ZMQClient`` instances.
 """
+import inspect
 import logging
 import os
 import pickle
@@ -184,7 +185,55 @@ class ProcessTree(zprocess.ProcessTree):
         return cls._instance
 
 
-class ZMQServer(zprocess.ZMQServer):
+class CommandHandler:
+    """A command handler: an object whose ``handle_<command>`` methods answer commands,
+    and which can mount other command handlers, each answering ``<name>.<command>``.
+
+    A mounted command handler needs only ``handle_`` methods; it subclasses this class
+    to mount command handlers of its own.
+    """
+
+    def mount(self, name, handler):
+        """Answer the commands ``<name>.<command>`` with ``handler.handle_<command>``."""
+        mounted = vars(self).setdefault('_mounted', {})
+        if name in mounted:
+            raise ValueError(f'A command handler is already mounted as {name}')
+        mounted[name] = handler
+
+    def unmount(self, name):
+        """Stop answering the commands of the command handler mounted as ``name``."""
+        if vars(self).get('_mounted', {}).pop(name, None) is None:
+            raise ValueError(f'No command handler is mounted as {name}')
+
+
+def _find_command(handler, path):
+    *names, command = path.split('.')
+    for name in names:
+        handler = getattr(handler, '_mounted', {}).get(name)
+    method = getattr(handler, 'handle_' + command, None)
+    if method is None:
+        raise ValueError(f'Unknown command {path}')
+    return method
+
+
+def _describe(handler):
+    commands = {}
+    for attr in dir(handler):
+        method = getattr(handler, attr) if attr.startswith('handle_') else None
+        # Its own docstring only: a method that does not say what it does is not shown.
+        if method is not None and method.__doc__:
+            commands[attr.removeprefix('handle_')] = {
+                'signature': str(inspect.signature(method)),
+                'description': inspect.cleandoc(method.__doc__),
+            }
+    mounted = dict(getattr(handler, '_mounted', {}))
+    return {
+        'commands': commands,
+        'children': {name: _describe(child) for name, child in mounted.items()},
+    }
+
+
+class ZMQServer(CommandHandler, zprocess.ZMQServer):
     """A ``zprocess.ZMQServer`` configured with security settings from LabConfig.
 
     It takes the arguments of ``zprocess.ZMQServer`` except ``shared_secret`` and
@@ -197,6 +246,11 @@ class ZMQServer(zprocess.ZMQServer):
 
     If the port is in use, as when another copy of the application is running,
     constructing it raises ``OSError`` naming the server and the port.
+
+    A ``handle_`` method's docstring is for agents, which read it through ``describe``:
+    a line or two saying what the command does and when to use it. A method without
+    one can be called but is not described. A client's methods keep full NumPy
+    docstrings, for people.
     """
 
     server = None
@@ -246,7 +300,9 @@ class ZMQServer(zprocess.ZMQServer):
             raise OSError(dedent(msg)) from None
 
     def handler(self, request_data):
-        """Answer ``[command, args, kwargs]`` by calling ``handle_<command>``.
+        """Answer ``[command, args, kwargs]`` by calling ``handle_<command>``, or a
+        mounted command handler's for a dotted command such as ``'optimizer.start'``.
+        An unknown command raises ``ValueError`` naming it.
 
         A subclass defines ``handle_`` methods rather than overriding this one. An
         exception is returned, not raised, so the client raises it and this server
@@ -255,7 +311,7 @@ class ZMQServer(zprocess.ZMQServer):
         """
         try:
             command, args, kwargs = request_data
-            return getattr(self, 'handle_' + command)(*args, **kwargs)
+            return _find_command(self, command)(*args, **kwargs)
         except BaseException as e:
             note = f'{type(self).__name__} traceback:\n{traceback.format_exc()}'
             # zprocess's client raises only an Exception it can unpickle, and its
@@ -279,6 +335,12 @@ class ZMQServer(zprocess.ZMQServer):
     def handle_hello(self):
         """Answer ``'hello'``, so a client can check that this server is up."""
         return 'hello'
+
+    def handle_describe(self):
+        """Return every described command, with its signature and description, and
+        those of each mounted command handler under its name. Call it first to learn
+        what this server can do."""
+        return _describe(self)
 
 
 class ZMQClient(zprocess.ZMQClient):
