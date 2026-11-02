@@ -105,6 +105,8 @@ def test_a_second_server_on_a_port_in_use_names_it(client):
 def test_describe_gives_the_documented_commands_of_the_server_and_its_mounted_handlers(
     server, client
 ):
+    with pytest.raises(ValueError, match=r"must not contain '\.'"):
+        server.mount('optimizer.history', History())
     optimizer = Optimizer()
     server.mount('optimizer', optimizer)
     optimizer.mount('history', History())

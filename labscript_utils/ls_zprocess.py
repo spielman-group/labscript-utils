@@ -194,7 +194,12 @@ class CommandHandler:
     """
 
     def mount(self, name, handler):
-        """Answer the commands ``<name>.<command>`` with ``handler.handle_<command>``."""
+        """Answer the commands ``<name>.<command>`` with ``handler.handle_<command>``.
+
+        The name is one path component; a name containing '.' raises ValueError.
+        """
+        if '.' in name:
+            raise ValueError(f"A mount name must not contain '.': {name}")
         mounted = vars(self).setdefault('_mounted', {})
         if name in mounted:
             raise ValueError(f'A command handler is already mounted as {name}')
