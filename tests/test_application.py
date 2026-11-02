@@ -11,10 +11,12 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-"""A main window's geometry, saved with the configuration and restored at start."""
-from qtutils.qt import QtCore, QtWidgets
+"""Application setup and a main window's saved geometry."""
+from qtutils.qt import PYQT_LIBS, QT_ENV, QtCore, QtGui, QtWidgets
 
-from labscript_utils.qtwidgets.application import LabscriptGuiApplication
+from labscript_utils.qtwidgets.application import (
+    FONT_PIXEL_SIZE, LabscriptGuiApplication, setup_application,
+)
 
 
 _qapplication = None
@@ -67,3 +69,20 @@ def test_a_full_screen_window_saves_the_size_it_returns_to():
 
     assert full_screen['window_size'] == normal['window_size'] == (400, 300)
     assert full_screen['window_pos'] == normal['window_pos']
+
+
+def test_repeated_setup_restyles_without_adding_event_sources():
+    make_application()
+    app = QtWidgets.QApplication.instance()
+    setup_application(app)
+    timers = app.findChildren(QtCore.QTimer)
+    palette_changed = (
+        app.paletteChanged if QT_ENV in PYQT_LIBS
+        else QtCore.SIGNAL('paletteChanged(QPalette)')
+    )
+    connections = app.receivers(palette_changed)
+    app.setFont(QtGui.QFont('Ubuntu', 8))
+    setup_application(app)
+    assert app.findChildren(QtCore.QTimer) == timers
+    assert app.receivers(palette_changed) == connections
+    assert app.font().pixelSize() == FONT_PIXEL_SIZE

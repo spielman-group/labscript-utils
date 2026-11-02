@@ -569,19 +569,21 @@ def setup_application(qapplication):
     SIGNAL_TIMER_INTERVAL_MS, so that Python signal handlers, such as the SIGTERM handler
     of the zprocess kill lock and the SIGINT handler of an application, run while the
     main thread is in a Qt event loop. Python runs a signal handler only when the main
-    thread next executes Python code."""
-    timer = QtCore.QTimer(qapplication)
-    timer.timeout.connect(lambda: None)
-    timer.start(SIGNAL_TIMER_INTERVAL_MS)
+    thread next executes Python code. The timer and palette-change connection are
+    installed once per application; later calls reapply its style and font."""
     load_fonts()
     _set_color_scheme(qapplication)
     qapplication.setStyle(FusionStyle())
     _set_class_palettes(qapplication)
-    # When the application palette changes, Qt sets the palettes of the platform theme
-    # for each widget class after emitting paletteChanged:
-    qapplication.paletteChanged.connect(
-        lambda: QtCore.QTimer.singleShot(0, lambda: _set_class_palettes(qapplication))
-    )
+    if not qapplication.property('_labscript_application_initialized'):
+        timer = QtCore.QTimer(qapplication)
+        timer.timeout.connect(lambda: None)
+        timer.start(SIGNAL_TIMER_INTERVAL_MS)
+        # Qt resets the widget classes' palettes after emitting paletteChanged:
+        qapplication.paletteChanged.connect(
+            lambda: QtCore.QTimer.singleShot(0, lambda: _set_class_palettes(qapplication))
+        )
+        qapplication.setProperty('_labscript_application_initialized', True)
     font = QtGui.QFont(FONT_FAMILY)
     font.setPixelSize(FONT_PIXEL_SIZE)
     qapplication.setFont(font)
