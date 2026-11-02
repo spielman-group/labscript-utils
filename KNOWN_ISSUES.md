@@ -1,5 +1,9 @@
 # Known issues
 
+- `connections.py`, `ConnectionTable.remove_device`: deleting a device from the lookup table leaves its parent's child_list unchanged, so compatibility comparisons can still include a failed device (source review).
+- `properties.py`, `serialise`: validation consumes generator values before the encoding traversal, serializing their contents as empty lists (source review).
+- `labscript_profile/create.py`, connection-table compilation: the compile callback ignores failure and creation reports output written even after unsuccessful compilation (source review; not executed).
+
 - `settings.py`: `Settings.load` reads each saved setting with `eval` on the HDF5 attribute text, so a hostile settings file runs code, and a malformed one loses every setting with only a print.
 - `unitconversions/optotunelens.py`: with its default fit coefficients (`a`, `b`, `c` all 0), `OptotuneLens.distance_to_base` divides by zero.
 - `ls_zprocess.py`: `Lock` drops `read_only` unless `connect_to_zlock_server()` has run in the process, so a process that never calls it takes an exclusive lock where it asked for a shared one.
