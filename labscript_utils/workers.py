@@ -2,6 +2,7 @@
 #                                                                   #
 # /labscript_utils/workers.py                                       #
 #                                                                   #
+# Copyright 2013, Monash University                                 #
 # Copyright 2026, JQI                                               #
 # Author: Ian Spielman                                              #
 #                                                                   #
@@ -11,13 +12,13 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-"""Worker processes that run jobs for a parent, after BLACS's device tab workers.
+"""Worker processes that run jobs for a parent, with BLACS's generator-based parent.
 
 A :class:`Worker` runs in a process of its own and does the jobs its parent sends,
 one at a time, in its main thread. A :class:`WorkersMixin` gives a class in the parent,
-such as a lyse plugin, workers that it starts, sends jobs, restarts and ends.
+such as a lyse plugin, workers controlled by generator states in the GUI thread.
 """
-from concurrent.futures import Future
+from bisect import insort
 import logging
 import pickle
 import queue
@@ -26,8 +27,11 @@ import sys
 import threading
 import time
 import traceback
+from types import GeneratorType
 import warnings
 
+from qtutils import inmain_decorator, inmain_later, inthread
+from qtutils.qt.QtCore import QTimer
 from zprocess import Interrupted, Interruptor, Process, ProcessExited, interrupt_main_thread
 
 from labscript_utils import dedent
@@ -51,8 +55,488 @@ WORKER_QUIT_TIMEOUT = (
 _EXIT_CHECK_INTERVAL = 1
 
 
-class WorkerError(RuntimeError):
-    """A job failed: it raised, its method is missing, or its worker is gone."""
+class Counter(object):
+    """A class with a single method that
+    returns a different integer each time it's called."""
+    def __init__(self):
+        self.i = 0
+    def get(self):
+        self.i += 1
+        return self.i
+
+
+get_unique_id = Counter().get
+
+
+class StateQueue(object):
+    """The queued states of a host, in order of priority and then of insertion. Only the
+    main thread accesses the queue; put() called from another thread runs in the main
+    thread."""
+
+    def __init__(self, log_name, on_put):
+        self.logger = logging.getLogger(log_name)
+        self.logging_enabled = False
+        if self.logging_enabled:
+            self.logger.debug("started")
+
+        self.list_of_states = []
+        self._on_put = on_put
+
+    def log_current_states(self):
+        if self.logging_enabled:
+            self.logger.debug('Current items in the state queue: %s', self.list_of_states)
+
+    @inmain_decorator(True)
+    def put(self, allowed_states, queue_state_indefinitely, delete_stale_states, data, priority=0):
+        """Add a state to the queue. Lower number for priority indicates the state will
+        be executed before any states with higher numbers for their priority"""
+        # State data starts with priority, and then with a unique id that monotonically
+        # increases. This way, sorting the queue will sort first by priority and then by
+        # order added.
+        state_data = [priority, get_unique_id(), allowed_states, queue_state_indefinitely, delete_stale_states,data]
+        # Insert the task into the queue, retaining sort order first by priority and then by order added:
+        insort(self.list_of_states, state_data)
+        if self.logging_enabled:
+            if not isinstance(data[0],str):
+                self.logger.debug('New state queued up. Allowed modes: %d, queue state indefinitely: %s, delete stale states: %s, function: %s', allowed_states, queue_state_indefinitely, delete_stale_states, data[0].__name__)
+        self.log_current_states()
+        self._on_put()
+
+    def get(self, state):
+        """Remove and return the data of the first state that is allowed in the given
+        mode, or None if there is none. States that are not queued indefinitely and come
+        before it are removed."""
+        # traverse the list
+        delete_index_list = []
+        success = False
+        for i,item in enumerate(self.list_of_states):
+            priority, unique_id, allowed_states, queue_state_indefinitely, delete_stale_states, data = item
+            if self.logging_enabled:
+                self.logger.debug('iterating over states in queue')
+            if allowed_states&state:
+                # We have found one! Remove it from the list
+                delete_index_list.append(i)
+
+                if self.logging_enabled:
+                    self.logger.debug('requested state found in queue')
+
+                # If we are to delete stale states, see if the next state is the same statefunction.
+                # If it is, use that one, or whichever is the latest entry without encountering a different statefunction,
+                # and delete the rest
+                if delete_stale_states:
+                    state_function = data[0]
+                    i+=1
+                    while i < len(self.list_of_states) and state_function == self.list_of_states[i][5][0]:
+                        if self.logging_enabled:
+                            self.logger.debug('requesting deletion of stale state')
+                        priority, unique_id, allowed_states, queue_state_indefinitely, delete_stale_states, data = self.list_of_states[i]
+                        delete_index_list.append(i)
+                        i+=1
+
+                success = True
+                break
+            elif not queue_state_indefinitely:
+                if self.logging_enabled:
+                    self.logger.debug('state should not be queued indefinitely')
+                delete_index_list.append(i)
+
+        # do this in reverse order so that the first delete operation doesn't mess up the indices of subsequent ones
+        for index in reversed(sorted(delete_index_list)):
+            if self.logging_enabled:
+                self.logger.debug('deleting state')
+            del self.list_of_states[index]
+
+        if not success:
+            data = None
+        return data
+
+
+class StateMachine(object):
+    """Runs the queued states of a host in the main thread, one at a time. A state
+    function that is a generator yields jobs for the workers. A job thread sends each
+    job to its worker and waits for the result, and the result is sent into the
+    generator in the main thread."""
+
+    def __init__(self, host):
+        self.host = host
+        self.logger = logging.getLogger(f'{host._worker_log_name}.mainloop')
+        self.event_queue = StateQueue(f'{host._worker_log_name}.state_queue', self.schedule)
+        self.workers = host.workers
+        self.closed = False
+        self.failed = False
+        self._scheduled = False
+        self._state_name = None
+        self._generator = None
+        self._job = None
+        self._job_success = True
+        self._jobs = queue.Queue()
+        self._thread = threading.Thread(target=self._job_loop, daemon=True)
+        self._thread.start()
+        self.logger.debug('Waiting for next event')
+
+    def schedule(self):
+        """Run the next state in a later iteration of the event loop. Called in the main
+        thread."""
+        if not self._scheduled:
+            self._scheduled = True
+            QTimer.singleShot(0, self._run_next_state)
+
+    def _run_next_state(self):
+        self._scheduled = False
+        if self.closed or self.failed or self._state_name is not None:
+            return
+        data = self.event_queue.get(self.host.mode)
+        if data is None:
+            return
+        func, (args, kwargs) = data
+        self._state_name = func.__name__
+        self._job = None
+        self.logger.debug('Processing event %s', self._state_name)
+        self.host.state = '%s (GUI)' % self._state_name
+        try:
+            generator = func(self.host, *args, **kwargs)
+        except Exception:
+            self._fatal_error(traceback.format_exc())
+            return
+        if isinstance(generator, GeneratorType):
+            self._generator = generator
+            self._advance(generator.__next__)
+        else:
+            self._state_finished()
+
+    def _advance(self, step, *args):
+        """Run the generator of the current state to its next yield, and pass the job
+        that it yields to the job thread. A yield of None after the first yield repeats
+        the previous job."""
+        try:
+            job = step(*args)
+            if job or self._job is None:
+                self._job = job
+            worker_name, worker_function, _, _ = self._job
+        except StopIteration:
+            self.logger.debug('Finalising function')
+            self._generator = None
+            self._state_finished()
+            return
+        except Exception:
+            self._fatal_error(traceback.format_exc())
+            return
+        self.logger.debug('Instructing worker %s to do job %s', worker_name, worker_function)
+        if worker_function == 'init':
+            self.host.state = 'Starting worker process (%s)' % worker_name
+        else:
+            self.host.state = '%s (%s)' % (worker_function, worker_name)
+        self._jobs.put(self._job)
+
+    def _state_finished(self):
+        self._state_name = None
+        if self.closed:
+            return
+        self.host.state = 'idle'
+        self.logger.debug('Waiting for next event')
+        self.schedule()
+
+    def _job_loop(self):
+        while True:
+            job = self._jobs.get()
+            if job is None:
+                return
+            try:
+                result = self._do_job(*job)
+            except Interrupted:
+                self.logger.debug('Interrupted by host close, quitting job thread')
+                return
+            except Exception:
+                inmain_later(self._fatal_error, traceback.format_exc())
+                return
+            inmain_later(self._job_done, *result)
+
+    def _do_job(self, worker_name, worker_function, args, kwargs):
+        """Send a job to a worker and return its success, error message and results.
+        Runs in the job thread."""
+        if worker_function == 'init':
+            # Start the worker process before running its init() method:
+            worker, _, _ = self.workers[worker_name]
+            to_worker, from_worker = worker.start(*args)
+            self.workers[worker_name] = (worker, to_worker, from_worker)
+            args = ()
+            del worker # Do not hold a reference indefinitely
+            inmain_later(self._set_state, 'init (%s)' % worker_name)
+        worker_arg_list = (worker_function, args, kwargs)
+        try:
+            pickle.dumps(worker_arg_list)
+        except Exception as e:
+            raise RuntimeError('Attempt to pass unserialisable object to child process') from e
+        worker, to_worker, from_worker = self.workers[worker_name]
+        to_worker.put(worker_arg_list)
+        self.logger.debug('Waiting for worker to acknowledge job request')
+        success, message, results = self._read_reply(worker, from_worker)
+        if not success:
+            self.logger.info('Worker reported failure to start job')
+            raise RuntimeError(message)
+        self.logger.debug('Worker reported job started, waiting for completion')
+        success, message, results = self._read_reply(worker, from_worker)
+        if success:
+            self.logger.debug('Job completed')
+        else:
+            self.logger.info('Worker reported exception during job')
+        return success, message, results
+
+    def _read_reply(self, worker, from_worker):
+        # ReadQueue does not see a dead peer. A read timeout checks liveness, not how
+        # long a job may run; remote process requests retain BLACS's five-second bound.
+        kwargs = {'get_timeout': 5} if worker.remote_process_client is not None else {}
+        while True:
+            try:
+                return from_worker.get(timeout=_EXIT_CHECK_INTERVAL)
+            except TimeoutError:
+                if worker.child.poll(**kwargs) is not None:
+                    # The reply may have arrived while the exit was being checked.
+                    try:
+                        return from_worker.get(timeout=0)
+                    except TimeoutError:
+                        raise ProcessExited('The worker exited during the job') from None
+
+    def _set_state(self, state):
+        if not self.closed:
+            self.host.state = state
+
+    def _job_done(self, success, message, results):
+        if self.closed or self.failed:
+            return
+        self._job_success = success
+        self.host._worker_job_finished(success, message)
+        self.logger.debug('returning worker results to function %s', self._state_name)
+        self.host.state = '%s (GUI)' % self._state_name
+        self._advance(self._generator.send, results)
+
+    def _fatal_error(self, message):
+        """Stop running states and show the error. Called in the main thread."""
+        if self.closed or self.failed:
+            return
+        self.failed = True
+        self._generator = None
+        self.logger.critical('A fatal exception happened:\n %s', message)
+        self.host.state = 'fatal error'
+        self.host._worker_fatal_error(message)
+        self.logger.info('Exiting')
+        inthread(self.host._end_workers)
+
+    def close(self):
+        """Stop running states, interrupt any communication with the workers, and stop
+        the job thread. Called in the main thread."""
+        if self.closed:
+            return
+        self.closed = True
+        self._generator = None
+        # A copy, as _end_workers pops the workers from another thread:
+        for _, to_worker, from_worker in list(self.workers.values()):
+            # Interrupt the read and write queues in case the job thread is blocking on
+            # sending or receiving from them:
+            if to_worker is not None:
+                to_worker.interrupt()
+                from_worker.interrupt()
+        self._jobs.put(None)
+
+    def join(self, timeout):
+        self._thread.join(timeout)
+        return not self._thread.is_alive()
+
+
+def define_state(allowed_modes,queue_state_indefinitely,delete_stale_states=False):
+    """Queue a decorated method as a GUI state, gated by the host's mode bitmask."""
+    def wrap(function):
+        unescaped_name = function.__name__
+        escapedname = '_' + function.__name__
+        def f(self,*args,**kwargs):
+            function.__name__ = escapedname
+            self.event_queue.put(allowed_modes,queue_state_indefinitely,delete_stale_states,[function,[args,kwargs]])
+        f.__name__ = unescaped_name
+        return f
+    return wrap
+
+
+class WorkersMixin:
+    """BLACS's generator-based parent for local and remote workers.
+
+    Call _init_workers in the GUI thread. States decorated with define_state yield
+    queue_work requests and receive their results in that same thread. The host's
+    mode gates states; state receives display text. Hosts override the concrete
+    result/error methods below when they have their own UI.
+
+    Close the machine in the GUI thread, then finalise_workers from a thread that
+    may block. A restart uses these same phases before rebuilding the host.
+    """
+
+    SHUTDOWN_TIMEOUT = 2
+    mode = 1
+    state = 'idle'
+
+    def _init_workers(self, app_name, host_name, *, output_redirection_port=None,
+                      remote_process_client=None, allowed_modes=1):
+        """Set up one state machine, its job thread and its worker collection."""
+        self._worker_app_name = app_name
+        self._worker_host_name = host_name
+        self._worker_log_name = f'{app_name}.{host_name}'
+        self.logger = logging.getLogger(self._worker_log_name)
+        self.output_redirection_port = output_redirection_port
+        self.remote_process_client = remote_process_client
+        self._worker_modes = allowed_modes
+        self.workers = {}
+        self._end_workers_lock = threading.Lock()
+        self._statemachine = StateMachine(self)
+        self.event_queue = self._statemachine.event_queue
+
+    def _worker_run_args(self, worker_name, workerargs):
+        return self._worker_app_name, worker_name, workerargs
+
+    def _worker_job_finished(self, success, message):
+        if not success:
+            self.logger.error('Exception in worker:\n%s', message)
+
+    def _worker_fatal_error(self, message):
+        """The machine has stopped; a host may show the error in its UI."""
+
+    def create_worker(self, name, WorkerClass, workerargs=None):
+        """Create a local or remote worker and queue its init before ordinary states.
+
+        WorkerClass is a Worker subclass or its import path, imported only in the
+        child. The process starts when the queued initialisation state runs.
+        """
+        if workerargs is None:
+            workerargs = {}
+        if name in self.workers:
+            raise Exception('There is already a worker process with name: %s' % name)
+        if isinstance(WorkerClass, type):
+            worker = WorkerClass(
+                ProcessTree.instance(),
+                output_redirection_port=self.output_redirection_port,
+                remote_process_client=self.remote_process_client,
+                startup_timeout=30
+                )
+        elif isinstance(WorkerClass, str):
+            # If we were passed a string for the WorkerClass, it is an import path
+            # for where the Worker class can be found. Pass it to zprocess.Process,
+            # which will do the import in the subprocess only.
+            worker = Process(
+                ProcessTree.instance(),
+                output_redirection_port=self.output_redirection_port,
+                remote_process_client=self.remote_process_client,
+                startup_timeout=30,
+                subclass_fullname=WorkerClass
+            )
+        else:
+            raise TypeError(WorkerClass)
+        self.workers[name] = (worker, None, None)
+        self.event_queue.put(
+            self._worker_modes, True, False,
+            [type(self)._initialise_worker, [(name, workerargs), {}]], priority=-1,
+        )
+
+    def _initialise_worker(self, worker_name, workerargs):
+        yield self.queue_work(worker_name, 'init', *self._worker_run_args(worker_name, workerargs))
+        if not self._statemachine._job_success:
+            raise RuntimeError('Worker failed to initialise')
+
+    def queue_work(self, worker_process, worker_function, *args, **kwargs):
+        """Yield this request from a state to receive the worker method's result."""
+        return worker_process, worker_function, args, kwargs
+
+    def close_workers(self):
+        """Stop states and interrupt worker communication, in the GUI thread."""
+        self._statemachine.close()
+
+    def finalise_workers(self):
+        """Interrupt startup, join the job thread and end workers; may block."""
+        for worker, _, _ in list(self.workers.values()):
+            worker.interrupt_startup()
+        if not self._statemachine.join(2):
+            self.logger.warning('job thread of %s did not stop', self._worker_host_name)
+        self._end_workers()
+
+    def _end_workers(self):
+        """Tell the workers to quit, and kill each one that has not exited after
+        WORKER_QUIT_TIMEOUT seconds. A worker interrupts the job that it is running, and
+        if the job has not stopped after WORKER_ABORT_TIMEOUT seconds, exits when it has
+        no HDF5 file open for writing, or after WORKER_KILL_LOCK_TIMEOUT seconds. A
+        worker that has not finished starting up is killed at once. A second call waits
+        for the first to return."""
+        with self._end_workers_lock:
+            self._end_workers_locked()
+
+    def _end_workers_locked(self):
+        if self.remote_process_client is not None:
+            # Timeout for requests to the remote process server:
+            kwargs = {'get_timeout': 5}
+        else:
+            kwargs = {}
+        # Delete the workers from the dict, so that their __del__ methods are called
+        # when this method returns. This is important so that the remote process server,
+        # if any, knows we have deleted the objects:
+        workers = [self.workers.pop(name) for name in list(self.workers)]
+        children = []
+        for worker, to_worker, _ in workers:
+            worker.interrupt_startup()
+            if worker.child is None:
+                continue
+            if to_worker is not None:
+                try:
+                    # The queue's own interruptor is set when the state machine closes:
+                    to_worker.put('quit', timeout=1, interruptor=Interruptor())
+                except (TimeoutError, ProcessExited):
+                    pass
+                else:
+                    children.append(worker.child)
+                    continue
+            try:
+                worker.child.kill(**kwargs)
+            except (OSError, TimeoutError):
+                # The process has exited, or the remote process server is unreachable
+                pass
+        deadline = time.monotonic() + WORKER_QUIT_TIMEOUT
+        for child in children:
+            try:
+                while child.poll(**kwargs) is None:
+                    if time.monotonic() > deadline:
+                        self.logger.warning(
+                            "A worker of %s did not exit, killing it", self._worker_host_name
+                        )
+                        child.kill(**kwargs)
+                        break
+                    time.sleep(0.05)
+            except (OSError, TimeoutError):
+                pass
+
+    def _shut_down_workers_then(self, callback):
+        """Run the workers' shutdown() methods before any other state, and then close
+        the state machine and call callback in the main thread, or call it after
+        SHUTDOWN_TIMEOUT seconds if the shutdown() methods have not returned. If the
+        state machine is not running, call callback at once. Called in the main
+        thread."""
+        if self._statemachine.closed or self._statemachine.failed:
+            callback()
+            return
+        callbacks = [callback]
+
+        def call_once():
+            if callbacks:
+                callbacks.pop()()
+
+        self.event_queue.put(
+            self._worker_modes,
+            True,
+            False,
+            [WorkersMixin._shut_down_workers, [(call_once,), {}]],
+            priority=-1,
+        )
+        QTimer.singleShot(int(self.SHUTDOWN_TIMEOUT * 1000), call_once)
+
+    def _shut_down_workers(self, callback):
+        for worker_name in self.workers:
+            yield (self.queue_work(worker_name, 'shutdown'))
+        # The workers are ended next, so no state may reopen the hardware:
+        self._statemachine.close()
+        callback()
 
 
 class Worker(Process):
@@ -74,7 +558,7 @@ class Worker(Process):
         has started, and is never interrupted.
         """
 
-    def run(self, app_name, worker_name, workerargs):
+    def run(self, app_name, worker_name, workerargs, *, log_name=None, protected_class=None):
         """Set up logging and the excepthook, set the workerargs and run the mainloop.
 
         Parameters
@@ -82,17 +566,22 @@ class Worker(Process):
         app_name : str
             The application's name, which ``setup_logging`` takes.
         worker_name : str
-            The logger is ``<app_name>.<worker_name>.worker``, which is also the zlock
-            process name. BLACS's names are ``<device>_<worker>``.
+            The worker's name. The default logger and zlock identity is
+            ``<app_name>.<worker_name>.worker``; log_name can supply a host's identity.
         workerargs : dict
             Each item becomes an attribute of the worker, overriding a class attribute
             of a subclass. A name that Worker or zprocess's Process uses is skipped with
             a warning.
+        log_name : str, optional
+            Logger and zlock identity; defaults to <app_name>.<worker_name>.worker.
+        protected_class : type, optional
+            The application's worker base, whose names workerargs cannot override.
         """
         self.worker_name = worker_name
         from labscript_utils.setup_logging import setup_logging
         setup_logging(app_name)
-        log_name = f'{app_name}.{worker_name}.worker'
+        if log_name is None:
+            log_name = f'{app_name}.{worker_name}.worker'
         self.logger = logging.getLogger(log_name)
         self.logger.debug('Starting')
         import labscript_utils.excepthook
@@ -100,11 +589,13 @@ class Worker(Process):
         labscript_utils.excepthook.set_logger(self.logger)
         import labscript_utils.h5_lock
         ProcessTree.instance().zlock_client.set_process_name(log_name)
+        if protected_class is None:
+            protected_class = Worker
         for name, value in workerargs.items():
             # Only the names that Worker and its bases use, on the class or the
             # instance, are protected: a subclass's class attribute is a default the
             # workerarg overrides.
-            if hasattr(Worker, name) or name in vars(self):
+            if hasattr(protected_class, name) or name in vars(self):
                 msg = """attribute `{}` overwrites an attribute of the Worker base class
                     with the same name. This may cause unexpected behaviour. Consider
                     renaming it."""
@@ -250,296 +741,3 @@ class Worker(Process):
     def _on_sigint(self, signum, frame):
         if self._job_running:
             raise KeyboardInterrupt
-
-
-class _WorkerRecord:
-    """A worker's process, how to start it again, its queued jobs and its job thread."""
-
-    def __init__(self, process, WorkerClass, workerargs):
-        self.process = process
-        self.WorkerClass = WorkerClass
-        self.workerargs = workerargs
-        # Items (future, method_name, args, kwargs), and None after the worker ends:
-        self.jobs = queue.Queue()
-        # Why the worker ended, or None while it runs:
-        self.reason = None
-        self.thread = None
-
-
-# Guards every WorkersMixin's records, and their reasons and job queues:
-_records_lock = threading.Lock()
-# Set in the workers' job threads, where futures' callbacks run, so that ending a
-# worker there, which waits for its job thread, is refused:
-_job_thread = threading.local()
-
-
-class WorkersMixin:
-    """Worker processes for a class in the parent, such as a lyse plugin.
-
-    The class sets ``app_name``, the name of the application, for the workers' logging,
-    and may set ``output_redirection_port``, the port of an output box that shows the
-    workers' output, which is otherwise printed. A worker runs its jobs in the order
-    they are submitted, one at a time; one thread per worker sends them and completes
-    their futures. When a worker exits, ends or restarts, its running and queued jobs
-    fail. Keep the output box open until :meth:`end_workers` returns, so that it shows
-    what the workers print as they quit. A future's callbacks run in its worker's job
-    thread, so they must not call :meth:`restart_worker` or :meth:`end_workers`.
-    """
-
-    app_name = None
-    output_redirection_port = None
-
-    def _worker_records(self):
-        # Created here, so that the class needs no __init__ of its own:
-        return vars(self).setdefault('_workers', {})
-
-    def _ending_lock(self):
-        # Held while workers end, so that a second end or restart waits for the first:
-        if getattr(_job_thread, 'active', False):
-            raise RuntimeError(
-                "Workers cannot be ended or restarted in a job thread, where futures' "
-                "callbacks run"
-            )
-        return vars(self).setdefault('_workers_ending', threading.Lock())
-
-    def create_worker(self, name, WorkerClass, workerargs=None):
-        """Start a worker process, and queue its init() as its first job.
-
-        The process is started at once, in the worker's job thread; BLACS's tabs start
-        theirs at their first state instead.
-
-        Parameters
-        ----------
-        name : str
-            The worker's name among this object's workers, by which jobs are sent to it.
-        WorkerClass : type or str
-            A subclass of :class:`Worker`, or the import path of one, which is then
-            imported in the worker process only.
-        workerargs : dict, optional
-            Attributes of the worker, as for :meth:`Worker.run`.
-
-        Returns
-        -------
-        concurrent.futures.Future
-            The future of init(). If the worker does not start or init() fails, it
-            fails with :class:`WorkerError`, the worker is ended, and the jobs queued
-            behind it fail.
-
-        Raises
-        ------
-        ValueError
-            If this object already has a worker called ``name``.
-        """
-        workerargs = dict(workerargs or {})
-        kwargs = {
-            'output_redirection_port': self.output_redirection_port,
-            'startup_timeout': 30,
-        }
-        if isinstance(WorkerClass, str):
-            process = Process(ProcessTree.instance(), subclass_fullname=WorkerClass, **kwargs)
-        else:
-            process = WorkerClass(ProcessTree.instance(), **kwargs)
-        record = _WorkerRecord(process, WorkerClass, workerargs)
-        future = Future()
-        record.jobs.put((future, 'init', (), {}))
-        record.thread = threading.Thread(
-            target=self._run_jobs, args=(name, record), daemon=True
-        )
-        with _records_lock:
-            records = self._worker_records()
-            if name in records:
-                raise ValueError(f'There is already a worker called {name}')
-            record.thread.start()
-            records[name] = record
-        return future
-
-    def submit_job(self, worker_name, method_name, *args, **kwargs):
-        """Queue a job, a call of a method of a worker, and return its future.
-
-        Parameters
-        ----------
-        worker_name : str
-            The worker's name, as given to :meth:`create_worker`.
-        method_name : str
-            The name of the worker's method, which is called with ``args`` and
-            ``kwargs``, which must be picklable, as must its result.
-
-        Returns
-        -------
-        concurrent.futures.Future
-            The future of the method's result. It fails with :class:`WorkerError` if
-            the method raises or is missing, the arguments cannot be pickled, or the
-            worker has exited, ends or restarts before the job is done.
-
-        Raises
-        ------
-        ValueError
-            If this object has no worker called ``worker_name``.
-        """
-        future = Future()
-        with _records_lock:
-            record = self._worker_records().get(worker_name)
-            if record is None:
-                raise ValueError(f'There is no worker called {worker_name}')
-            if record.reason is not None:
-                future.set_exception(WorkerError(f'The worker {worker_name} {record.reason}'))
-            else:
-                record.jobs.put((future, method_name, args, kwargs))
-        return future
-
-    def restart_worker(self, name):
-        """End a worker as :meth:`end_workers` does, then create it again.
-
-        It is created with the class and workerargs it was first created with.
-
-        Returns
-        -------
-        concurrent.futures.Future
-            The future of the new worker's init().
-
-        Raises
-        ------
-        ValueError
-            If this object has no worker called ``name``.
-        RuntimeError
-            If called in a job thread, as from a future's callback.
-        """
-        with self._ending_lock():
-            with _records_lock:
-                record = self._worker_records().pop(name, None)
-            if record is None:
-                raise ValueError(f'There is no worker called {name}')
-            self._end([record], 'was restarted')
-            return self.create_worker(name, record.WorkerClass, record.workerargs)
-
-    def end_workers(self):
-        """Tell the workers to quit, and kill each one that has not exited after
-        WORKER_QUIT_TIMEOUT seconds.
-
-        A worker interrupts the job that it is running, and if the job has not stopped
-        after WORKER_ABORT_TIMEOUT seconds, exits when it has no HDF5 file open for
-        writing, or after WORKER_KILL_LOCK_TIMEOUT seconds. A worker that has not
-        finished starting up is killed at once. Their running and queued jobs fail.
-        Returns once every worker has exited, so call it from a thread that may wait. A
-        second call waits for the first. Raises RuntimeError if called in a job thread,
-        as from a future's callback.
-        """
-        with self._ending_lock():
-            with _records_lock:
-                records = list(self._worker_records().values())
-                self._worker_records().clear()
-            self._end(records, 'was ended')
-
-    def _end(self, records, reason):
-        ending = [record for record in records if self._mark_ended(record, reason)]
-        self._quit_processes(ending)
-        for record in records:
-            record.thread.join()
-
-    def _mark_ended(self, record, reason):
-        """Record why a worker ended and wake its job thread, which then fails its jobs.
-        Return whether this call ended it."""
-        with _records_lock:
-            if record.reason is not None:
-                return False
-            record.reason = reason
-            record.jobs.put(None)
-            return True
-
-    def _quit_processes(self, records):
-        """Tell the workers' processes to quit, and kill each one that has not exited
-        after WORKER_QUIT_TIMEOUT seconds, or at once if it has not started."""
-        children = []
-        for record in records:
-            process = record.process
-            process.interrupt_startup()
-            if process.child is None:
-                continue
-            if process.to_child is not None:
-                # Wakes the job thread if it is sending or waiting for a reply:
-                process.to_child.interrupt()
-                process.from_child.interrupt()
-                try:
-                    # A fresh interruptor, as the queue's own is set:
-                    process.to_child.put('quit', timeout=1, interruptor=Interruptor())
-                except (TimeoutError, ProcessExited):
-                    pass
-                else:
-                    children.append(process.child)
-                    continue
-            try:
-                process.child.kill()
-            except OSError:
-                pass
-        deadline = time.monotonic() + WORKER_QUIT_TIMEOUT
-        for child in children:
-            while child.poll() is None:
-                if time.monotonic() > deadline:
-                    logging.getLogger(self.app_name).warning('A worker did not exit, killing it')
-                    child.kill()
-                    break
-                time.sleep(0.05)
-
-    def _run_jobs(self, name, record):
-        """Start the worker, then send it its jobs in order and complete their futures,
-        until it ends. Runs in the worker's job thread."""
-        _job_thread.active = True
-        process = record.process
-        # Whether this thread ended the worker, and so must quit its process:
-        must_quit = False
-        try:
-            process.start(self.app_name, name, record.workerargs)
-        except Exception as e:
-            must_quit = self._mark_ended(record, f'did not start: {e}')
-        while True:
-            job = record.jobs.get()
-            if job is None:
-                break
-            future, method_name, args, kwargs = job
-            if not future.set_running_or_notify_cancel():
-                if method_name == 'init':
-                    must_quit |= self._mark_ended(record, 'had its init() cancelled')
-                continue
-            if record.reason is not None:
-                future.set_exception(WorkerError(f'The worker {name} {record.reason}'))
-                continue
-            try:
-                future.set_result(self._do_job(process, method_name, args, kwargs))
-            except WorkerError as e:
-                future.set_exception(e)
-                if method_name == 'init':
-                    must_quit |= self._mark_ended(record, 'failed in init()')
-            except (Interrupted, ProcessExited):
-                self._mark_ended(record, 'exited')
-                future.set_exception(WorkerError(f'The worker {name} {record.reason}'))
-            except Exception as e:
-                logging.getLogger(self.app_name).exception('Error in the job thread of %s', name)
-                must_quit |= self._mark_ended(record, f'failed: {e!r}')
-                future.set_exception(WorkerError(f'The worker {name} {record.reason}'))
-        if must_quit:
-            self._quit_processes([record])
-
-    def _do_job(self, process, method_name, args, kwargs):
-        """Send a job to the worker and return its result, read from its two replies, or
-        one if its method is missing."""
-        job = (method_name, args, kwargs)
-        try:
-            pickle.dumps(job)
-        except Exception as e:
-            raise WorkerError('Attempt to pass unserialisable object to child process') from e
-        process.to_child.put(job)
-        for _ in range(2):
-            while True:
-                # Once the worker has exited, a reply it sent first is still read:
-                exited = process.child.poll() is not None
-                try:
-                    success, message, results = process.from_child.get(
-                        timeout=0 if exited else _EXIT_CHECK_INTERVAL
-                    )
-                    break
-                except TimeoutError:
-                    if exited:
-                        raise ProcessExited('The worker exited during the job') from None
-            if not success:
-                raise WorkerError(message)
-        return results

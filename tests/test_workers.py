@@ -11,142 +11,132 @@
 # the project for the full license.                                 #
 #                                                                   #
 #####################################################################
-"""Worker processes run their parent's jobs, fail them when they are gone, and release
-what they hold once however they are ended."""
+"""Generator states run real worker jobs and release their resources on close."""
 import os
 from pathlib import Path
-import subprocess
-import sys
+import threading
 import time
 
 import pytest
+from qtutils.qt.QtWidgets import QApplication
 
-from labscript_utils.workers import WORKER_QUIT_TIMEOUT, Worker, WorkerError, WorkersMixin
+from labscript_utils.workers import Worker, WorkersMixin, define_state
 
 
 class EchoWorker(Worker):
     fail_init = False
-    shutdown_delay = 0
 
     def init(self):
         if self.fail_init:
             raise RuntimeError('init failed')
+        self.initialised = True
 
     def echo(self, value):
+        assert self.initialised
         return value
+
+    def fail(self):
+        raise RuntimeError('job failed')
 
     def die(self):
         os._exit(1)
 
-    def sleep(self):
+    @property
+    def die_before_start(self):
+        os._exit(1)
+
+    def sleep(self, seconds):
         Path(self.directory, 'started').touch()
-        time.sleep(60)
+        time.sleep(seconds)
+        return seconds
 
     def shutdown(self):
-        # Stands in for releasing hardware, such as NI-DAQmx tasks:
-        Path(self.directory, 'shutting down').touch()
-        time.sleep(self.shutdown_delay)
-        with open(Path(self.directory, 'shutdown'), 'a') as f:
-            f.write('s')
+        with open(Path(self.directory, 'shutdown'), 'a') as log:
+            log.write('s')
 
 
 class Host(WorkersMixin):
-    app_name = 'workers_test'
+    def __init__(self):
+        self.results = []
+        self.errors = []
+        self._init_workers('workers_test', 'host')
+
+    def _worker_job_finished(self, success, message):
+        if not success:
+            self.errors.append(message)
+
+    def _worker_fatal_error(self, message):
+        self.errors.append(message)
+
+    @define_state(1, True)
+    def call(self, method, *args):
+        result = yield self.queue_work('w', method, *args)
+        assert threading.current_thread() is threading.main_thread()
+        self.results.append(result)
 
 
-# Starts a worker, so that the test can kill its parent:
-PARENT = '''
-import sys, time
-from test_workers import EchoWorker, Host
-Host().create_worker('w', EchoWorker, {'directory': sys.argv[1]}).result(30)
-print('ready', flush=True)
-time.sleep(60)
-'''
-
-
-@pytest.fixture
-def host():
-    host = Host()
-    yield host
-    host.end_workers()
-
-
-def start(host, tmp_path, **workerargs):
-    return host.create_worker('w', EchoWorker, {'directory': str(tmp_path), **workerargs})
-
-
-def wait_for(path, timeout=30):
+def wait_until(condition, timeout=10):
     deadline = time.monotonic() + timeout
-    while not path.exists():
-        assert time.monotonic() < deadline, f'Timed out waiting for {path.name}'
+    while not condition():
+        assert time.monotonic() < deadline, 'Timed out'
+        QApplication.processEvents()
         time.sleep(0.01)
 
 
-def test_a_job_returns_its_result_and_a_missing_method_fails(host, tmp_path):
-    assert start(host, tmp_path).result(30) is None
-    assert host.submit_job('w', 'echo', 7).result(30) == 7
-    with pytest.raises(WorkerError, match='AttributeError'):
-        host.submit_job('w', 'missing').result(30)
-    assert host.submit_job('w', 'echo', 8).result(30) == 8
+@pytest.fixture(scope="module")
+def qapplication():
+    return QApplication.instance() or QApplication([])
 
 
-def test_a_failed_init_fails_the_jobs_queued_behind_it(host, tmp_path):
-    init = start(host, tmp_path, fail_init=True)
-    queued = host.submit_job('w', 'echo', 1)
-    with pytest.raises(WorkerError, match='init failed'):
-        init.result(30)
-    with pytest.raises(WorkerError, match='failed in init'):
-        queued.result(30)
+@pytest.fixture
+def host(qapplication):
+    host = Host()
+    yield host
+    host.close_workers()
+    host.finalise_workers()
 
 
-def test_a_worker_that_dies_fails_its_jobs_and_restarts(host, tmp_path):
-    start(host, tmp_path).result(30)
-    jobs = [host.submit_job('w', 'die'), host.submit_job('w', 'echo', 1)]
-    for job in jobs:
-        with pytest.raises(WorkerError, match='exited'):
-            job.result(30)
-    host.restart_worker('w').result(30)
-    assert host.submit_job('w', 'echo', 2).result(30) == 2
+def test_jobs_run_after_init_in_order_and_resume_after_a_job_error(host, tmp_path):
+    host.create_worker('w', EchoWorker, {'directory': str(tmp_path)})
+    host.call('sleep', 1.2)
+    host.call('echo', 7)
+    host.call('fail')
+    host.call('echo', 8)
+    wait_until(lambda: len(host.results) == 4)
+    assert host.results == [1.2, 7, None, 8]
+    assert 'job failed' in host.errors[0]
 
 
-def test_ending_a_busy_worker_interrupts_its_job_and_shuts_it_down_once(host, tmp_path):
-    start(host, tmp_path).result(30)
-    jobs = [host.submit_job('w', 'sleep'), host.submit_job('w', 'echo', 1)]
-    wait_for(tmp_path / 'started')
-    host.end_workers()
-    for job in jobs:
-        with pytest.raises(WorkerError, match='was ended'):
-            job.result(0)
+@pytest.mark.parametrize('fail_init, method, error', [
+    (True, 'echo', 'init failed'),
+    (False, 'missing', 'AttributeError'),
+])
+def test_init_or_lookup_failure_stops_queued_states(host, tmp_path, fail_init, method, error):
+    host.create_worker('w', EchoWorker, {'directory': str(tmp_path), 'fail_init': fail_init})
+    host.call(method, 1)
+    host.call('echo', 2)
+    wait_until(lambda: host.state == 'fatal error')
+    assert error in '\n'.join(host.errors)
+    assert host.results == []
+
+
+def test_closing_a_busy_worker_interrupts_it_and_shuts_down_once(host, tmp_path):
+    host.create_worker('w', EchoWorker, {'directory': str(tmp_path)})
+    host.call('sleep', 60)
+    wait_until(lambda: (tmp_path / 'started').exists())
+    host.close_workers()
+    host.finalise_workers()
     assert (tmp_path / 'shutdown').read_text() == 's'
+    assert host.results == []
 
 
-def test_a_shutdown_job_is_neither_interrupted_nor_repeated_by_the_quit(host, tmp_path):
-    start(host, tmp_path, shutdown_delay=1).result(30)
-    host.submit_job('w', 'shutdown')
-    wait_for(tmp_path / 'shutting down')
-    host.end_workers()
-    assert (tmp_path / 'shutdown').read_text() == 's'
-
-
-def test_a_hanging_shutdown_does_not_keep_the_worker_from_exiting(host, tmp_path):
-    start(host, tmp_path, shutdown_delay=3600).result(30)
-    began = time.monotonic()
-    host.end_workers()
-    assert (tmp_path / 'shutting down').exists()
-    # Exited by itself, not killed when the parent's wait ran out:
-    assert time.monotonic() - began < WORKER_QUIT_TIMEOUT
-
-
-def test_a_worker_whose_parent_is_lost_shuts_down(tmp_path):
-    parent = subprocess.Popen(
-        [sys.executable, '-c', PARENT, str(tmp_path)],
-        cwd=Path(__file__).parent, stdout=subprocess.PIPE, text=True,
-    )
-    try:
-        assert parent.stdout.readline() == 'ready\n'
-    finally:
-        parent.kill()
-        parent.wait()
-        parent.stdout.close()
-    # Unanswered heartbeats take about 10 s to count as a lost parent:
-    wait_for(tmp_path / 'shutdown', timeout=60)
+@pytest.mark.parametrize('method', ['die_before_start', 'die'])
+def test_a_worker_exit_ends_the_wait_for_either_reply(host, tmp_path, method):
+    host.create_worker('w', EchoWorker, {'directory': str(tmp_path)})
+    host.call('echo', 'ready')
+    wait_until(lambda: host.results == ['ready'], timeout=30)
+    host.results.clear()
+    host.call(method)
+    wait_until(lambda: host.state == 'fatal error', timeout=4)
+    assert 'exited' in '\n'.join(host.errors)
+    assert host.results == []

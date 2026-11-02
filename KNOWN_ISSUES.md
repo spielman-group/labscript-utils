@@ -1,5 +1,8 @@
 # Known issues
 
+- `workers.py`, `Worker.mainloop`: a job raising `SystemExit` bypasses `shutdown()`, so catchable process exits can leave hardware resources uncleared (inherited from BLACS; source/probe confirmed).
+- `workers.py`, `WorkersMixin._end_workers_locked`: forced-kill paths do not wait for confirmed process exit, so restart can briefly overlap an old worker's termination (inherited from BLACS; probe confirmed).
+- `workers.py`, `StateMachine._do_job`: normal job sends remain unbounded; dead-child detection covers reply waits, not a send blocked on an unreachable worker (inherited from BLACS).
 - `connections.py`, `ConnectionTable.remove_device`: deleting a device from the lookup table leaves its parent's child_list unchanged, so compatibility comparisons can still include a failed device (source review).
 - `properties.py`, `serialise`: validation consumes generator values before the encoding traversal, serializing their contents as empty lists (source review).
 - `labscript_profile/create.py`, connection-table compilation: the compile callback ignores failure and creation reports output written even after unsuccessful compilation (source review; not executed).
