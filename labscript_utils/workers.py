@@ -268,7 +268,7 @@ class StateMachine(object):
         except Exception as e:
             raise RuntimeError('Attempt to pass unserialisable object to child process') from e
         worker, to_worker, from_worker = self.workers[worker_name]
-        to_worker.put(worker_arg_list)
+        to_worker.put(worker_arg_list, timeout=5)
         self.logger.debug('Waiting for worker to acknowledge job request')
         success, message, results = self._read_reply(worker, from_worker)
         if not success:
@@ -363,6 +363,8 @@ class WorkersMixin:
     queue_work requests and receive their results in that same thread. The host's
     mode gates states; state receives display text. Hosts override the concrete
     result/error methods below when they have their own UI.
+    Normal delivery has a five-second queue timeout; execution duration is unlimited.
+    The timeout does not preempt serialization or acquiring the queue mutex.
 
     Close the machine in the GUI thread, then finalise_workers from a thread that
     may block. A restart uses these same phases before rebuilding the host.
@@ -447,12 +449,15 @@ class WorkersMixin:
         self._statemachine.close()
 
     def finalise_workers(self):
-        """Interrupt startup, join the job thread and end workers; may block."""
+        """Interrupt startup, join the job thread and end workers; may block.
+
+        Return whether every worker's exit was confirmed; retain unconfirmed workers.
+        """
         for worker, _, _ in list(self.workers.values()):
             worker.interrupt_startup()
         if not self._statemachine.join(2):
             self.logger.warning('job thread of %s did not stop', self._worker_host_name)
-        self._end_workers()
+        return self._end_workers()
 
     def _end_workers(self):
         """Tell the workers to quit, and kill each one that has not exited after
@@ -460,9 +465,10 @@ class WorkersMixin:
         if the job has not stopped after WORKER_ABORT_TIMEOUT seconds, exits when it has
         no HDF5 file open for writing, or after WORKER_KILL_LOCK_TIMEOUT seconds. A
         worker that has not finished starting up is killed at once. A second call waits
-        for the first to return."""
+        for the first to return. Killed workers share five seconds for exit confirmation.
+        Return whether all exits were confirmed; retain unconfirmed workers."""
         with self._end_workers_lock:
-            self._end_workers_locked()
+            return self._end_workers_locked()
 
     def _end_workers_locked(self):
         if self.remote_process_client is not None:
@@ -470,14 +476,13 @@ class WorkersMixin:
             kwargs = {'get_timeout': 5}
         else:
             kwargs = {}
-        # Delete the workers from the dict, so that their __del__ methods are called
-        # when this method returns. This is important so that the remote process server,
-        # if any, knows we have deleted the objects:
-        workers = [self.workers.pop(name) for name in list(self.workers)]
+        # Keep ownership until exit is confirmed, including when a remote server is lost.
         children = []
-        for worker, to_worker, _ in workers:
+        killed = []
+        for name, (worker, to_worker, _) in list(self.workers.items()):
             worker.interrupt_startup()
             if worker.child is None:
+                del self.workers[name]
                 continue
             if to_worker is not None:
                 try:
@@ -486,26 +491,59 @@ class WorkersMixin:
                 except (TimeoutError, ProcessExited):
                     pass
                 else:
-                    children.append(worker.child)
+                    children.append((name, worker.child))
                     continue
             try:
                 worker.child.kill(**kwargs)
             except (OSError, TimeoutError):
                 # The process has exited, or the remote process server is unreachable
                 pass
+            killed.append((name, worker.child))
         deadline = time.monotonic() + WORKER_QUIT_TIMEOUT
-        for child in children:
+        for name, child in children:
             try:
-                while child.poll(**kwargs) is None:
+                while True:
+                    returncode = child.poll(**kwargs)
+                    if returncode is not None:
+                        # A restarted remote server can answer with an error string.
+                        if isinstance(returncode, int):
+                            del self.workers[name]
+                        break
                     if time.monotonic() > deadline:
                         self.logger.warning(
                             "A worker of %s did not exit, killing it", self._worker_host_name
                         )
+                        killed.append((name, child))
                         child.kill(**kwargs)
                         break
                     time.sleep(0.05)
             except (OSError, TimeoutError):
                 pass
+        deadline = time.monotonic() + 5
+        for name, child in killed:
+            try:
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        break
+                    poll_kwargs = {'get_timeout': min(5, remaining)} if kwargs else {}
+                    returncode = child.poll(**poll_kwargs)
+                    if returncode is not None:
+                        if isinstance(returncode, int):
+                            del self.workers[name]
+                        break
+                    time.sleep(0.05)
+            except (OSError, TimeoutError):
+                pass
+        for name, (worker, _, _) in self.workers.items():
+            remote = worker.remote_process_client
+            host = remote.host if remote is not None else 'localhost'
+            recovery = (f"Restore the connection to {host}'s process server, then click Restart"
+                        if remote is not None else 'Check the local worker process, then click Restart')
+            self.logger.error('Could not confirm that worker %s on host %s stopped. '
+                              'No replacement was started. %s to retry stopping the worker.',
+                              name, host, recovery)
+        return not self.workers
 
     def _shut_down_workers_then(self, callback):
         """Run the workers' shutdown() methods before any other state, and then close
@@ -669,7 +707,7 @@ class Worker(Process):
                     success = True
                     message = ''
                     self.logger.debug('Job complete')
-                except (Exception, KeyboardInterrupt):
+                except (Exception, KeyboardInterrupt, SystemExit):
                     results = None
                     success = False
                     traceback_lines = traceback.format_exception(*sys.exc_info())
