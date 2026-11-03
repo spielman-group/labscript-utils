@@ -178,6 +178,42 @@ def test_a_worker_exit_ends_the_wait_for_either_reply(host, tmp_path, method):
     assert host.results == []
 
 
+@pytest.mark.parametrize('liveness_failure', ['timeout', 'unknown_pid'])
+def test_a_live_job_continues_when_remote_liveness_is_unknown(
+    remote_host, tmp_path, monkeypatch, liveness_failure
+):
+    host, server = remote_host
+    host.create_worker('w', EchoWorker, {'directory': str(tmp_path)})
+    host.call('echo', 'ready')
+    wait_until(lambda: host.results == ['ready'], timeout=30)
+    pid = host.workers['w'][0].child.pid
+    child = server.children[pid]
+    release = threading.Event()
+    poll = server.proxy_poll
+
+    def delayed_poll(pid):
+        assert release.wait(15)
+        return poll(pid)
+
+    host.call('sleep', 6.5)
+    wait_until(lambda: (tmp_path / 'started').exists())
+    try:
+        if liveness_failure == 'timeout':
+            monkeypatch.setattr(server, 'proxy_poll', delayed_poll)
+        else:
+            del server.children[pid]
+        host.call('echo', 8)
+        wait_until(lambda: len(host.results) == 3 or host.state == 'fatal error', timeout=20)
+        assert host.results == ['ready', 6.5, 8]
+        assert not host.errors
+    finally:
+        release.set()
+        server.children[pid] = child
+    host.close_workers()
+    assert host.finalise_workers() is True
+    assert (tmp_path / 'shutdown').read_text() == 's'
+
+
 @pytest.mark.parametrize('phase', ['startup', 'shutdown'])
 def test_forced_termination_confirms_exit(host, tmp_path, monkeypatch, phase):
     if phase == 'startup':

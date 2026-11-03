@@ -290,7 +290,12 @@ class StateMachine(object):
             try:
                 return from_worker.get(timeout=_EXIT_CHECK_INTERVAL)
             except TimeoutError:
-                if worker.child.poll(**kwargs) is not None:
+                try:
+                    returncode = worker.child.poll(**kwargs)
+                except TimeoutError:
+                    # An unanswered liveness query does not establish worker exit.
+                    continue
+                if isinstance(returncode, int):
                     # The reply may have arrived while the exit was being checked.
                     try:
                         return from_worker.get(timeout=0)
