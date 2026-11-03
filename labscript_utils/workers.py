@@ -452,6 +452,8 @@ class WorkersMixin:
         """Interrupt startup, join the job thread and end workers; may block.
 
         Return whether every worker's exit was confirmed; retain unconfirmed workers.
+        Callers must not reinitialize or start replacements until this succeeds;
+        retained records allow a later termination retry.
         """
         for worker, _, _ in list(self.workers.values()):
             worker.interrupt_startup()
