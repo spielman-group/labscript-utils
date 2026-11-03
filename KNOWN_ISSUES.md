@@ -15,3 +15,4 @@
 - `versions.py`, `package_version`: a Git worktree's `.git` file fails the directory-only checkout check, so its version falls back to installed metadata rather than identifying the imported commit (source review; inherited predicate).
 - `device_registry/_device_registry.py`: if registry population fails after registering some devices, the nonempty-registry sentinel suppresses population on later lookups and can leave remaining devices undiscovered (source review; inherited failure path).
 - `labscript_profile/__init__.py`, `add_userlib_and_pythonlib`: a scalar number or boolean in `userlib` or `pythonlib` raises outside the malformed-config boundary and prints an interpreter-startup traceback through the `.pth` bootstrap (source review; not executed).
+- `workers.py`, `StateMachine._read_reply`: a remote liveness-query timeout fails a live job and stops its state machine; an unknown-PID string also counts as confirmed worker exit (confirmed source review).
