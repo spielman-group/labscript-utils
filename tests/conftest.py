@@ -1,42 +1,21 @@
-"""Settings that have to be in place before the modules that read them import.
+#####################################################################
+#                                                                   #
+# /tests/conftest.py                                                #
+#                                                                   #
+# Copyright 2026, JQI                                               #
+# Author: Ian Spielman                                              #
+#                                                                   #
+# This file is part of labscript-utils, in the labscript suite      #
+# (see http://labscriptsuite.org), and is licensed under the        #
+# Simplified BSD License. See the license.txt file in the root of   #
+# the project for the full license.                                 #
+#                                                                   #
+#####################################################################
+"""Keep test windows and exception dialogs off the user's screen.
 
-Running the tests is not supposed to put anything on the screen of whoever runs
-them, from either of the two directions it can happen.
-
-``QT_QPA_PLATFORM`` covers rendering. ``test_shotqueue.py`` builds a real
-``QApplication`` and shows a widget, because Qt does not lay out or paint a
-widget that was never shown, so the pixel measurements that guard the
-running-shot rule read nothing without it. The fix for that is not to stop
-showing the window. Rendering offscreen is what lets the test go on showing a
-real one without it appearing.
-
-``LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK`` covers the other direction: it stops
-``labscript_utils.excepthook`` spawning a tkinter window for every unhandled
-exception. Exceptions are still logged and still reach stderr, which is what
-you want from a test run anyway.
-
-Both are set here rather than in a fixture because each has to be in place
-before the module that reads it is imported -- Qt is imported by qtutils, and
-``excepthook`` reads its variable at module scope -- and pytest imports conftest
-before the test modules. A conftest is imported by pytest and nothing else, so a
-real run of a real application still gets its error dialogs.
-
-``setdefault`` leaves an explicit setting alone, so either can be overridden by
-exporting it. Export ``QT_QPA_PLATFORM=cocoa`` to watch a test drive the window,
-or set ``LABSCRIPT_DISABLE_GRAPHICAL_EXCEPTHOOK`` to ``0`` to let the dialog
-through.
-
-A test *of* the error dialog is better off setting the flag directly than
-arranging the environment around itself. ``excepthook`` consults the environment
-once, when it imports, and the handler then reads the module global -- so
-assigning that takes effect immediately, while changing the environment
-afterwards does nothing:
-
-    import labscript_utils.excepthook as excepthook
-    excepthook._show_windows = True
-
-``tests/test_excepthook.py`` covers both, and stubs the subprocess module so it
-cannot spawn a window while checking that it would have.
+These defaults must precede test-module imports: qtutils imports Qt, and excepthook
+reads its environment flag once. Offscreen rendering still lets geometry tests show
+their widgets. Explicit environment settings override these defaults.
 """
 import os
 

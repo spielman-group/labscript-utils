@@ -14,7 +14,7 @@
 """The warning that a file is read through a legacy form.
 
 It is here, importing only the standard library, so that the profile's bootstrap
-can warn without importing labscript_utils; labscript_utils.file_utils exports it.
+can warn without importing labscript_utils.
 """
 import os
 import threading

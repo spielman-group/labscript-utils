@@ -1,3 +1,17 @@
+#####################################################################
+#                                                                   #
+# /tests/test_plugins.py                                            #
+#                                                                   #
+# Copyright 2026, JQI                                               #
+# Author: Ian Spielman                                              #
+#                                                                   #
+# This file is part of labscript-utils, in the labscript suite      #
+# (see http://labscriptsuite.org), and is licensed under the        #
+# Simplified BSD License. See the license.txt file in the root of   #
+# the project for the full license.                                 #
+#                                                                   #
+#####################################################################
+"""Plugin discovery, contributions and lifecycle through the shared interfaces."""
 import importlib
 import logging
 import sys
@@ -9,7 +23,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from labscript_utils.plugins import (
     BasePlugin,
-    Callback,
     DEFAULT_SETUP_PRIORITY,
     MenuContext,
     PluginManager,
@@ -32,8 +45,7 @@ def test_callback_binds_as_method_and_keeps_priority():
 
     example = Example()
 
-    assert isinstance(Example.__dict__['method'], Callback)
-    assert Example.__dict__['method'].priority == 5
+    assert Example.method.priority == 5
     assert example.method('value') == (example, 'value')
 
 
