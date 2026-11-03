@@ -581,6 +581,11 @@ class Worker(Process):
     job, and :meth:`shutdown`, which releases what the worker holds when it is told to
     quit or loses its parent. Each workerarg is an attribute of the worker before
     :meth:`init` runs.
+
+    An Exception, KeyboardInterrupt or SystemExit raised by a job method is sent back
+    as a failed job. Calling sys.exit() inside a method does not itself terminate
+    the worker process: it remains available for subsequent jobs unless its parent
+    ends it.
     """
 
     def init(self):
