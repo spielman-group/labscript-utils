@@ -538,11 +538,8 @@ class WorkersMixin:
         for name, (worker, _, _) in self.workers.items():
             remote = worker.remote_process_client
             host = remote.host if remote is not None else 'localhost'
-            recovery = (f"Restore the connection to {host}'s process server, then click Restart"
-                        if remote is not None else 'Check the local worker process, then click Restart')
-            self.logger.error('Could not confirm that worker %s on host %s stopped. '
-                              'No replacement was started. %s to retry stopping the worker.',
-                              name, host, recovery)
+            self.logger.error('Could not confirm that worker %s on host %s stopped.',
+                              name, host)
         return not self.workers
 
     def _shut_down_workers_then(self, callback):

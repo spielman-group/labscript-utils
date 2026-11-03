@@ -223,8 +223,6 @@ def test_unconfirmed_remote_exit_is_retained_until_a_later_attempt(
         assert host.finalise_workers() is False
         assert 'w' in host.workers
         assert 'worker w on host localhost' in caplog.text
-        assert 'Restore the connection' in caplog.text
-        assert 'Restart' in caplog.text
     finally:
         release.set()
     assert host.finalise_workers() is True
