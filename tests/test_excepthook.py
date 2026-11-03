@@ -1,10 +1,17 @@
-"""Tests for the graphical error dialog's opt-out.
-
-This is the switch every test run in the suite depends on to stay silent, and
-getting it wrong is invisible from inside the code: the failure mode is a dialog
-that does not appear when someone asked for one, or windows appearing during a
-test run that was supposed to be quiet.
-"""
+#####################################################################
+#                                                                   #
+# /tests/test_excepthook.py                                         #
+#                                                                   #
+# Copyright 2026, JQI                                               #
+# Author: Ian Spielman                                              #
+#                                                                   #
+# This file is part of labscript-utils, in the labscript suite      #
+# (see http://labscriptsuite.org), and is licensed under the        #
+# Simplified BSD License. See the license.txt file in the root of   #
+# the project for the full license.                                 #
+#                                                                   #
+#####################################################################
+"""The environment and runtime switches for graphical exception dialogs."""
 import os
 import subprocess
 import sys
@@ -42,16 +49,6 @@ class TestTheFlagIsReadWhenUsed(object):
     """The documented escape hatch is assigning to the module attribute."""
 
     def test_assigning_show_windows_switches_the_error_dialog_on_and_off(self):
-        """A test *of* the dialog sets _show_windows and gets a dialog.
-
-        This is the case the environment variable deliberately cannot express,
-        so it has to keep working. If someone captures the flag at import, or
-        hoists the read out of ``tkhandler``, this fails.
-
-        ``reraise=False`` keeps sys.__excepthook__ from printing the traceback,
-        and the whole subprocess module is stood in for rather than its Popen
-        attribute patched, so nothing here can spawn a window.
-        """
         spawned = []
 
         class FakePopen(object):
@@ -68,6 +65,7 @@ class TestTheFlagIsReadWhenUsed(object):
         saved_subprocess = excepthook.subprocess
         saved_children = list(excepthook.child_processes)
         saved_logger = excepthook.l.logger
+        # Replace the module reference so no dialog can start in a background thread.
         excepthook.subprocess = FakeSubprocess
         excepthook.l.logger = None
         try:

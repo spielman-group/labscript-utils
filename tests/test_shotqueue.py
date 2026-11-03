@@ -1,3 +1,17 @@
+#####################################################################
+#                                                                   #
+# /tests/test_shotqueue.py                                          #
+#                                                                   #
+# Copyright 2026, JQI                                               #
+# Author: Ian Spielman                                              #
+#                                                                   #
+# This file is part of labscript-utils, in the labscript suite      #
+# (see http://labscriptsuite.org), and is licensed under the        #
+# Simplified BSD License. See the license.txt file in the root of   #
+# the project for the full license.                                 #
+#                                                                   #
+#####################################################################
+"""Selection and visual row markers in the shared shot queue."""
 import sys
 from pathlib import Path
 
@@ -59,9 +73,7 @@ def row_fonts(widget, row):
 
 
 def test_a_struck_out_row_is_struck_out_in_every_column():
-    # A row the operator has asked to be rid of, which cannot simply be removed
-    # because something else may still be using its file. Struck through says
-    # both halves at once: it is still here, and it is finished with.
+    # Struck-through rows are finished with but may still have their files in use.
     widget = make_widget()
     widget.set_row_infos(
         [
@@ -93,11 +105,7 @@ DARK_THEME = {
 
 
 def test_the_rule_under_a_row_is_visible_on_a_dark_theme():
-    # It marks a row off from those below it, so a rule nobody can see is the
-    # same as no rule. It has to hold up whichever way round the theme is, and
-    # the frame roles do not: Dark is defined relative to Window and a dark
-    # theme puts it below Base, four hundredths of a luminance apart from the
-    # list it would be drawn on.
+    # Dark is relative to Window and can be indistinguishable from the list's Base.
     widget = make_widget()
     application = QApplication.instance()
     saved = application.palette()
@@ -118,12 +126,8 @@ def test_the_rule_under_a_row_is_visible_on_a_dark_theme():
 
         view = widget.queue_view
         image = view.viewport().grab().toImage()
-        # grab() returns device pixels while visualRect returns logical ones,
-        # and on a retina screen those differ by a factor of two. Reading the
-        # image at logical coordinates sampled a row well above the rule, found
-        # two identical pixels and reported a contrast of exactly zero -- so
-        # the test passed or failed according to which display the window
-        # happened to open on, which is no test at all.
+        # grab() returns device pixels; visualRect returns logical coordinates.
+        # Scale the sample positions so they follow the rule on HiDPI displays.
         scale = image.devicePixelRatio() or 1
         first = view.visualRect(widget.queue_model.index(0, widget.path_column))
         second = view.visualRect(widget.queue_model.index(1, widget.path_column))

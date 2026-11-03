@@ -50,8 +50,9 @@ def dump_toml_file(filename, data):
     """Write the dict ``data`` to ``filename`` as TOML.
 
     The file is replaced whole, so it is left intact if ``data`` cannot be
-    serialised or the write is interrupted. An existing file keeps its mode bits
-    where they can be set, and is otherwise saved with mode 0600, owner only.
+    serialised or the write is interrupted. New files are created with mode 0666
+    filtered by the process umask. Replacements are created with mode 0600 filtered
+    by the umask, then take the existing file's mode bits where they can be set.
     """
     text = tomli_w.dumps(data)
     # Resolved, so that a symlinked file is replaced and not its link:

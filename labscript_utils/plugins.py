@@ -434,11 +434,8 @@ class MenuContext(object):
                     try:
                         enabled = bool(enabled())
                     except Exception:
-                        # A precondition that cannot be established must not
-                        # take the rest of the menu down with it. Disabling is
-                        # the safe reading: the action reports itself
-                        # unavailable rather than offering an operation whose
-                        # precondition is unknown.
+                        # An unknown precondition disables this action while the
+                        # rest of the menu still builds.
                         enabled = False
                         self.logger.exception(
                             "Menu contribution '%s' from plugin '%s' raised "
@@ -663,10 +660,10 @@ class PluginManager:
         """Run plugin setup activities after application startup.
 
         Each plugin's ``get_setup_activities()`` returns records with ``name``,
-        ``priority`` and ``action``. Activities from all plugins run lowest priority first, ties in plugin
-        name order, each action called with ``data``. A failing action is
-        logged and the rest still run; a plugin whose records are malformed is
-        skipped whole.
+        ``priority`` and ``action``. Activities from all plugins run lowest priority
+        first, ties in plugin name order, each action called with ``data``. A failing
+        action is logged and the rest still run; a plugin whose records are malformed
+        is skipped whole.
         """
         setup_activities = []
 
@@ -740,8 +737,6 @@ class PluginManager:
             try:
                 results.append(handler(*args, **kwargs))
             except Exception:
-                # Not an f-string, so that the unformatted message is the same
-                # whichever event reached a failing handler.
                 self.logger.exception("Error in a plugin's handler for '%s'.", name)
         return results
 
